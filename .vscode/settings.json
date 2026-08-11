@@ -1,0 +1,46 @@
+{
+    // This repo formats and lints with OXC (oxfmt + oxlint), not Prettier/ESLint.
+    //
+    // `editor.defaultFormatter` is set per language on purpose: a language-scoped
+    // setting beats the global one, so whatever Prettier or ESLint left in your
+    // user settings would otherwise keep winning inside this workspace.
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+
+    // Formatting runs as a code action rather than via formatOnSave, which is how
+    // the OXC extension recommends it: doing both through codeActionsOnSave makes
+    // the order deterministic — format first, then apply lint fixes.
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {
+        "source.format.oxc": "always",
+        "source.fixAll.oxc": "always"
+    },
+
+    "[typescript]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+    "[typescriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+    "[javascript]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+    "[javascriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+    "[json]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+    "[jsonc]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+    "[css]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+    "[html]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+    "[markdown]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+    "[yaml]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+
+    // Both are installed globally and would compete for the formatter slot.
+    "prettier.enable": false,
+    "eslint.enable": false,
+
+    "oxc.enable": true,
+    "oxc.lint.run": "onType",
+
+    "files.eol": "\n",
+    "files.insertFinalNewline": true,
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/dist": true,
+        "**/out": true,
+        "**/.turbo": true,
+        "pnpm-lock.yaml": true
+    }
+}

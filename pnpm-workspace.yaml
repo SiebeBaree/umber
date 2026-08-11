@@ -1,0 +1,17 @@
+packages:
+    - 'apps/*'
+    - 'packages/*'
+
+# pnpm 11 replaced `onlyBuiltDependencies` / `ignoredBuiltDependencies` with this
+# map, and fails the install until every dependency carrying a build script is
+# classified.
+#
+#   electron            downloads its prebuilt binary from a postinstall script,
+#                       so it genuinely needs to run one.
+#   esbuild             resolves its platform binary through optionalDependencies
+#                       under pnpm, making its install script a no-op.
+#   electron-winstaller only matters when building a Windows installer on Windows.
+allowBuilds:
+    electron: true
+    esbuild: false
+    electron-winstaller: false

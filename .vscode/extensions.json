@@ -1,0 +1,6 @@
+{
+    "recommendations": ["oxc.oxc-vscode"],
+    // Not "bad" extensions — they are just the wrong tool for this repo, and VS Code
+    // will otherwise offer them as the formatter and fight oxfmt for the job.
+    "unwantedRecommendations": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+}

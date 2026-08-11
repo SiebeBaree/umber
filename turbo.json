@@ -1,0 +1,27 @@
+{
+    "$schema": "https://turborepo.com/schema.json",
+    "ui": "tui",
+    "globalDependencies": [".oxlintrc.json", ".oxfmtrc.json"],
+    "globalEnv": ["NODE_ENV"],
+    "tasks": {
+        "build": {
+            "dependsOn": ["^build"],
+            "outputs": ["dist/**", "out/**", "release/**"]
+        },
+        "dev": {
+            "dependsOn": ["^build"],
+            "cache": false,
+            "persistent": true
+        },
+        "typecheck": {
+            "dependsOn": ["^build", "^typecheck"]
+        },
+        "package": {
+            "dependsOn": ["build"],
+            "cache": false
+        },
+        "clean": {
+            "cache": false
+        }
+    }
+}

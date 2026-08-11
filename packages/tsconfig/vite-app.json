@@ -1,0 +1,8 @@
+{
+    "$schema": "https://json.schemastore.org/tsconfig",
+    "display": "Umber Vite App",
+    "extends": "./react-library.json",
+    "compilerOptions": {
+        "types": ["vite/client"]
+    }
+}

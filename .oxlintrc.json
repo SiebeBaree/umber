@@ -1,0 +1,75 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "plugins": [
+        "eslint",
+        "typescript",
+        "oxc",
+        "unicorn",
+        "import",
+        "promise",
+        "react",
+        "react-perf",
+        "jsx-a11y"
+    ],
+    "categories": {
+        "correctness": "error",
+        "suspicious": "error",
+        "perf": "error",
+        "pedantic": "warn",
+        "style": "off",
+        "restriction": "off",
+        "nursery": "off"
+    },
+    "env": {
+        "builtin": true,
+        "browser": true
+    },
+    "ignorePatterns": [
+        "**/dist/**",
+        "**/out/**",
+        "**/release/**",
+        "**/coverage/**",
+        "**/node_modules/**"
+    ],
+    "rules": {
+        "eslint/no-console": "error",
+        "eslint/eqeqeq": ["error", "always", { "null": "ignore" }],
+        "import/no-cycle": "error",
+        "import/no-duplicates": "error",
+        "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
+        "typescript/consistent-type-imports": [
+            "error",
+            { "prefer": "type-imports", "fixStyle": "inline-type-imports" }
+        ],
+        "typescript/no-explicit-any": "error",
+        "typescript/no-non-null-assertion": "error",
+        "unicorn/filename-case": ["error", { "case": "kebabCase" }],
+        "react/jsx-no-target-blank": "error",
+        "react/self-closing-comp": "error",
+        // The whole repo compiles with the automatic JSX runtime (`jsx: "react-jsx"`),
+        // so `React` never needs to be in scope.
+        "react/react-in-jsx-scope": "off"
+    },
+    "overrides": [
+        {
+            "files": [
+                "apps/desktop/src/main/**",
+                "apps/desktop/src/preload/**",
+                "**/*.config.ts",
+                "**/*.config.mts",
+                "**/electron.vite.config.ts"
+            ],
+            "env": { "node": true, "browser": false }
+        },
+        {
+            "files": ["apps/desktop/src/main/**"],
+            "rules": {
+                // The main process is the app's own process; logging to it is the point.
+                "eslint/no-console": "off",
+                // electron-vite emits the main process as CommonJS, which has no
+                // top-level await.
+                "unicorn/prefer-top-level-await": "off"
+            }
+        }
+    ]
+}

@@ -1,0 +1,71 @@
+/*
+ * The single stylesheet for the Umber UI. Both shells import it as
+ * `@umber/ui/styles.css`, so the two apps cannot drift visually.
+ */
+
+@import 'tailwindcss' source(none);
+
+/*
+ * `source(none)` switches automatic content detection off, so what gets scanned
+ * is stated rather than inferred from wherever Tailwind decides the project root
+ * is — this file is consumed by two different apps. This package scans itself;
+ * each app declares its own source in its own entry stylesheet, which keeps this
+ * package from needing to know where the shells live.
+ */
+@source '.';
+
+:root {
+    color-scheme: light dark;
+
+    --umber-canvas: #f6f5f3;
+    --umber-surface: #ffffff;
+    --umber-line: #e3ded7;
+    --umber-ink: #241f1b;
+    --umber-muted: #6f6560;
+    --umber-accent: #8a5a2b;
+    --umber-accent-strong: #6f4620;
+    --umber-accent-ink: #fffaf4;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --umber-canvas: #15120f;
+        --umber-surface: #1f1a16;
+        --umber-line: #332b24;
+        --umber-ink: #f2ece5;
+        --umber-muted: #a89b90;
+        --umber-accent: #c98b4b;
+        --umber-accent-strong: #dda061;
+        --umber-accent-ink: #1b1512;
+    }
+}
+
+/*
+ * `inline` makes each utility reference the variable above rather than baking in
+ * whatever it evaluates to at build time, which is what lets `bg-canvas` follow
+ * the light/dark switch without a `dark:` variant on every element.
+ */
+@theme inline {
+    --color-canvas: var(--umber-canvas);
+    --color-surface: var(--umber-surface);
+    --color-line: var(--umber-line);
+    --color-ink: var(--umber-ink);
+    --color-muted: var(--umber-muted);
+    --color-accent: var(--umber-accent);
+    --color-accent-strong: var(--umber-accent-strong);
+    --color-accent-ink: var(--umber-accent-ink);
+}
+
+@layer base {
+    html,
+    body,
+    #root {
+        height: 100%;
+    }
+
+    body {
+        background-color: var(--umber-canvas);
+        color: var(--umber-ink);
+        -webkit-font-smoothing: antialiased;
+    }
+}

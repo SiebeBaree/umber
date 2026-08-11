@@ -1,0 +1,34 @@
+{
+    "name": "@umber/desktop",
+    "version": "0.0.0",
+    "private": true,
+    "description": "The Electron shell for Umber. Mounts @umber/ui and nothing else.",
+    "license": "MIT",
+    "main": "./out/main/index.js",
+    "scripts": {
+        "build": "electron-vite build",
+        "clean": "rm -rf out release .turbo coverage",
+        "dev": "electron-vite dev --watch",
+        "package": "electron-vite build && electron-builder --dir",
+        "release": "electron-vite build && electron-builder",
+        "start": "electron-vite preview",
+        "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
+    },
+    "devDependencies": {
+        "@tailwindcss/vite": "4.3.3",
+        "@types/node": "24.13.3",
+        "@types/react": "19.2.18",
+        "@types/react-dom": "19.2.4",
+        "@umber/tsconfig": "workspace:*",
+        "@umber/ui": "workspace:*",
+        "@vitejs/plugin-react": "6.0.5",
+        "electron": "43.3.0",
+        "electron-builder": "26.15.3",
+        "electron-vite": "6.0.0-beta.1",
+        "react": "19.2.8",
+        "react-dom": "19.2.8",
+        "tailwindcss": "4.3.3",
+        "typescript": "7.0.2",
+        "vite": "8.2.1"
+    }
+}

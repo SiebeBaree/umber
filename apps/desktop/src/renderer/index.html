@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <!--
+      No CSP meta tag on purpose: the dev server needs inline scripts for HMR.
+      The main process attaches a strict policy as a response header for packaged
+      builds instead — see src/main/security.ts.
+    -->
+        <title>Umber</title>
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/src/main.tsx"></script>
+    </body>
+</html>

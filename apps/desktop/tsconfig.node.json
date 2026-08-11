@@ -1,0 +1,7 @@
+{
+    "extends": "@umber/tsconfig/node.json",
+    "compilerOptions": {
+        "types": ["node", "electron-vite/node"]
+    },
+    "include": ["src/main/**/*", "src/preload/**/*", "src/shared/**/*", "electron.vite.config.ts"]
+}

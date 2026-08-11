@@ -1,0 +1,30 @@
+{
+    "name": "@umber/web",
+    "version": "0.0.0",
+    "private": true,
+    "description": "The browser shell for Umber. Mounts @umber/ui and nothing else.",
+    "license": "MIT",
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "clean": "rm -rf dist .turbo coverage",
+        "dev": "vite",
+        "preview": "vite preview",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@umber/ui": "workspace:*",
+        "react": "19.2.8",
+        "react-dom": "19.2.8"
+    },
+    "devDependencies": {
+        "@tailwindcss/vite": "4.3.3",
+        "@types/react": "19.2.18",
+        "@types/react-dom": "19.2.4",
+        "@umber/tsconfig": "workspace:*",
+        "@vitejs/plugin-react": "6.0.5",
+        "tailwindcss": "4.3.3",
+        "typescript": "7.0.2",
+        "vite": "8.2.1"
+    }
+}
