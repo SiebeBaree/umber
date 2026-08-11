@@ -1,4 +1,9 @@
 {
+    // Editor routing only: points language servers at the real configs so
+    // `src/main`/`src/preload` resolve against tsconfig.node.json and
+    // `src/renderer` against tsconfig.web.json. It is NOT `tsc -b`-buildable
+    // (the referenced configs are plain `noEmit` configs, not `composite`);
+    // the `typecheck` script runs `tsc --noEmit -p` on each config instead.
     "files": [],
     "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }]
 }

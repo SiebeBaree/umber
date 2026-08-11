@@ -1,0 +1,52 @@
+name: Bug report
+description: Something doesn't work the way it should.
+labels: [bug]
+body:
+    - type: textarea
+      id: what-happened
+      attributes:
+          label: What happened?
+          description: Also tell us what you expected to happen instead.
+      validations:
+          required: true
+
+    - type: textarea
+      id: repro
+      attributes:
+          label: Steps to reproduce
+          placeholder: |
+              1. pnpm install
+              2. pnpm dev:web
+              3. ...
+      validations:
+          required: true
+
+    - type: dropdown
+      id: app
+      attributes:
+          label: Which app is affected?
+          multiple: true
+          options:
+              - Web (apps/web)
+              - Desktop (apps/desktop)
+              - Shared UI (packages/ui)
+              - Tooling / repo setup
+      validations:
+          required: true
+
+    - type: input
+      id: os
+      attributes:
+          label: Operating system
+          placeholder: macOS 15.5 / Windows 11 / Ubuntu 24.04
+      validations:
+          required: true
+
+    - type: input
+      id: versions
+      attributes:
+          label: Node and pnpm versions
+          description: Output of `node --version` and `pnpm --version`.
+          placeholder: node v24.x.x, pnpm 11.x.x
+      validations:
+          required: true

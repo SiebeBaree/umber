@@ -1,12 +1,12 @@
 {
     "$schema": "https://turborepo.com/schema.json",
     "ui": "tui",
-    "globalDependencies": [".oxlintrc.json", ".oxfmtrc.json"],
+    "globalDependencies": [".oxlintrc.json", ".oxfmtrc.json", "packages/tsconfig/*.json"],
     "globalEnv": ["NODE_ENV"],
     "tasks": {
         "build": {
             "dependsOn": ["^build"],
-            "outputs": ["dist/**", "out/**", "release/**"]
+            "outputs": ["dist/**", "out/**"]
         },
         "dev": {
             "dependsOn": ["^build"],

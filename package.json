@@ -2,8 +2,17 @@
     "name": "umber",
     "version": "0.0.0",
     "private": true,
-    "description": "Umber",
+    "description": "A pnpm + Turborepo monorepo: one shared React UI, shipped as a Vite web app and an Electron desktop app.",
+    "homepage": "https://github.com/SiebeBaree/umber#readme",
+    "bugs": {
+        "url": "https://github.com/SiebeBaree/umber/issues"
+    },
     "license": "MIT",
+    "author": "Siebe Baree (https://github.com/SiebeBaree)",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/SiebeBaree/umber.git"
+    },
     "type": "module",
     "scripts": {
         "build": "turbo run build",
@@ -17,23 +26,25 @@
         "lint:fix": "oxlint --fix --fix-suggestions",
         "format": "oxfmt .",
         "format:check": "oxfmt --check .",
-        "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && turbo run build",
-        "clean": "turbo run clean"
+        "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build",
+        "clean": "turbo run clean",
+        "prepare": "lefthook install"
     },
     "devDependencies": {
-        "@types/react": "19.2.18",
-        "@types/react-dom": "19.2.4",
+        "@types/react": "catalog:",
+        "@types/react-dom": "catalog:",
         "@umber/tsconfig": "workspace:*",
         "@umber/ui": "workspace:*",
-        "@vitejs/plugin-react": "6.0.5",
+        "@vitejs/plugin-react": "catalog:",
         "jsdom": "30.0.1",
+        "lefthook": "2.1.10",
         "oxfmt": "0.63.0",
         "oxlint": "1.78.0",
-        "react": "19.2.8",
-        "react-dom": "19.2.8",
+        "react": "catalog:",
+        "react-dom": "catalog:",
         "turbo": "2.10.9",
-        "typescript": "7.0.2",
-        "vite": "8.2.1",
+        "typescript": "catalog:",
+        "vite": "catalog:",
         "vitest": "4.1.10"
     },
     "engines": {

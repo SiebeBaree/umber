@@ -26,5 +26,5 @@
 
         "noEmit": true
     },
-    "exclude": ["node_modules", "dist", "out", "release", "coverage"]
+    "exclude": ["node_modules", "dist", "out", "release"]
 }

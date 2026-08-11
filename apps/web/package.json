@@ -7,24 +7,25 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "clean": "rm -rf dist .turbo coverage",
+        "clean": "rimraf dist .turbo",
         "dev": "vite",
         "preview": "vite preview",
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
         "@umber/ui": "workspace:*",
-        "react": "19.2.8",
-        "react-dom": "19.2.8"
+        "react": "catalog:",
+        "react-dom": "catalog:"
     },
     "devDependencies": {
-        "@tailwindcss/vite": "4.3.3",
-        "@types/react": "19.2.18",
-        "@types/react-dom": "19.2.4",
+        "@tailwindcss/vite": "catalog:",
+        "@types/react": "catalog:",
+        "@types/react-dom": "catalog:",
         "@umber/tsconfig": "workspace:*",
-        "@vitejs/plugin-react": "6.0.5",
-        "tailwindcss": "4.3.3",
-        "typescript": "7.0.2",
-        "vite": "8.2.1"
+        "@vitejs/plugin-react": "catalog:",
+        "rimraf": "catalog:",
+        "tailwindcss": "catalog:",
+        "typescript": "catalog:",
+        "vite": "catalog:"
     }
 }

@@ -2,6 +2,22 @@ packages:
     - 'apps/*'
     - 'packages/*'
 
+# Single source of truth for versions shared by two or more workspace packages.
+# Manifests reference these as `"react": "catalog:"`; bumping a version here
+# updates every consumer at once. Deps used by only one package stay pinned in
+# that package's own manifest.
+catalog:
+    '@tailwindcss/vite': 4.3.3
+    '@types/react': 19.2.18
+    '@types/react-dom': 19.2.4
+    '@vitejs/plugin-react': 6.0.5
+    react: 19.2.8
+    react-dom: 19.2.8
+    rimraf: 6.1.3
+    tailwindcss: 4.3.3
+    typescript: 7.0.2
+    vite: 8.2.1
+
 # pnpm 11 replaced `onlyBuiltDependencies` / `ignoredBuiltDependencies` with this
 # map, and fails the install until every dependency carrying a build script is
 # classified.
@@ -11,7 +27,10 @@ packages:
 #   esbuild             resolves its platform binary through optionalDependencies
 #                       under pnpm, making its install script a no-op.
 #   electron-winstaller only matters when building a Windows installer on Windows.
+#   lefthook            also resolves its binary through optionalDependencies;
+#                       hook installation happens via the root `prepare` script.
 allowBuilds:
     electron: true
     esbuild: false
     electron-winstaller: false
+    lefthook: false

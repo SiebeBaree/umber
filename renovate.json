@@ -1,0 +1,12 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": ["config:best-practices", ":pinAllExceptPeerDependencies"],
+    "schedule": ["before 6am on monday"],
+    "packageRules": [
+        {
+            "description": "Group all non-major updates into a single weekly PR.",
+            "matchUpdateTypes": ["minor", "patch"],
+            "groupName": "non-major dependencies"
+        }
+    ]
+}

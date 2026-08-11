@@ -4,6 +4,10 @@ on:
     push:
         branches: [main]
     pull_request:
+    workflow_dispatch:
+
+permissions:
+    contents: read
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
@@ -12,6 +16,7 @@ concurrency:
 jobs:
     check:
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         steps:
             - uses: actions/checkout@v5
 
@@ -19,13 +24,27 @@ jobs:
 
             - uses: actions/setup-node@v5
               with:
-                  node-version: 24
+                  node-version-file: .nvmrc
                   cache: pnpm
+
+            # Turborepo's local cache; keyed on the commit so every run saves a
+            # fresh entry, with a prefix fallback that restores the newest one.
+            - uses: actions/cache@v4
+              with:
+                  path: .turbo/cache
+                  key: turbo-${{ runner.os }}-${{ github.sha }}
+                  restore-keys: turbo-${{ runner.os }}-
 
             - run: pnpm install --frozen-lockfile
 
+            # The steps below are exactly `pnpm check` — keep the two in sync.
+            # Separate steps so a failure annotates the phase that broke.
             - run: pnpm lint
 
             - run: pnpm format:check
 
-            - run: pnpm turbo run typecheck test build
+            - run: pnpm typecheck
+
+            - run: pnpm test
+
+            - run: pnpm build

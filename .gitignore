@@ -10,13 +10,11 @@ release/
 
 # Tooling caches
 .turbo/
-coverage/
 .vite/
 
 # Environment
 .env
 .env.*
-!.env.example
 
 # Editors
 .vscode/*

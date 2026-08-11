@@ -2,12 +2,9 @@ import { App } from '@umber/ui'
 import { StrictMode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
-import './styles.css'
+import { describeRuntime } from './runtime'
 
-/** Describes the browser build to the shared footer. */
-export function describeRuntime(mode: string): string {
-    return `Web · ${mode} build`
-}
+import './styles.css'
 
 /**
  * Mounts the shared UI into `container`. Kept separate from `main.tsx` so the

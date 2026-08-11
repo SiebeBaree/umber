@@ -13,20 +13,22 @@
         "./styles.css": "./src/styles.css"
     },
     "scripts": {
-        "clean": "rm -rf .turbo coverage",
+        "clean": "rimraf .turbo",
         "typecheck": "tsc --noEmit"
     },
     "devDependencies": {
-        "@types/react": "19.2.18",
-        "@types/react-dom": "19.2.4",
+        "@types/react": "catalog:",
+        "@types/react-dom": "catalog:",
         "@umber/tsconfig": "workspace:*",
-        "react": "19.2.8",
-        "react-dom": "19.2.8",
-        "tailwindcss": "4.3.3",
-        "typescript": "7.0.2"
+        "react": "catalog:",
+        "react-dom": "catalog:",
+        "rimraf": "catalog:",
+        "tailwindcss": "catalog:",
+        "typescript": "catalog:"
     },
     "peerDependencies": {
         "react": "^19.2.0",
-        "react-dom": "^19.2.0"
+        "react-dom": "^19.2.0",
+        "tailwindcss": "^4.3.0"
     }
 }

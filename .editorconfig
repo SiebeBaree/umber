@@ -1,0 +1,15 @@
+# Editor-agnostic defaults; oxfmt (.oxfmtrc.json) is the authority for
+# JS/TS/JSON formatting and these values match it.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.md]
+# Trailing double-spaces are meaningful line breaks in Markdown.
+trim_trailing_whitespace = false

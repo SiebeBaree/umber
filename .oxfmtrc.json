@@ -12,11 +12,5 @@
     "endOfLine": "lf",
     "sortImports": true,
     "sortPackageJson": true,
-    "ignorePatterns": [
-        "**/dist/**",
-        "**/out/**",
-        "**/release/**",
-        "**/coverage/**",
-        "pnpm-lock.yaml"
-    ]
+    "ignorePatterns": ["**/dist/**", "**/out/**", "**/release/**", "pnpm-lock.yaml"]
 }

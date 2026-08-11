@@ -24,13 +24,7 @@
         "builtin": true,
         "browser": true
     },
-    "ignorePatterns": [
-        "**/dist/**",
-        "**/out/**",
-        "**/release/**",
-        "**/coverage/**",
-        "**/node_modules/**"
-    ],
+    "ignorePatterns": ["**/dist/**", "**/out/**", "**/release/**", "**/node_modules/**"],
     "rules": {
         "eslint/no-console": "error",
         "eslint/eqeqeq": ["error", "always", { "null": "ignore" }],
