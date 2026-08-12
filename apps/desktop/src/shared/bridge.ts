@@ -15,7 +15,26 @@ export interface UmberVersions {
     readonly node: string
 }
 
+/**
+ * The host operating system, reduced to what the UI actually reacts to. macOS is
+ * the only one that paints its window controls *over* the app's own chrome.
+ */
+export type UmberOperatingSystem = 'macos' | 'windows' | 'linux'
+
 export interface UmberBridge {
-    readonly platform: 'desktop'
+    readonly os: UmberOperatingSystem
     readonly versions: UmberVersions
+}
+
+/**
+ * Maps Node's `process.platform` onto the three cases the UI distinguishes.
+ * Takes a plain `string` because this file is also compiled for the sandboxed
+ * renderer, where the `NodeJS` namespace does not exist.
+ */
+export function toOperatingSystem(platform: string): UmberOperatingSystem {
+    if (platform === 'darwin') {
+        return 'macos'
+    }
+
+    return platform === 'win32' ? 'windows' : 'linux'
 }

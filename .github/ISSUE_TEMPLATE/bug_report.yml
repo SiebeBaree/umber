@@ -16,7 +16,7 @@ body:
           label: Steps to reproduce
           placeholder: |
               1. pnpm install
-              2. pnpm dev:web
+              2. pnpm dev
               3. ...
       validations:
           required: true
@@ -24,12 +24,11 @@ body:
     - type: dropdown
       id: app
       attributes:
-          label: Which app is affected?
+          label: Which area is affected?
           multiple: true
           options:
-              - Web (apps/web)
-              - Desktop (apps/desktop)
-              - Shared UI (packages/ui)
+              - UI (packages/ui)
+              - Desktop shell (apps/desktop)
               - Tooling / repo setup
       validations:
           required: true

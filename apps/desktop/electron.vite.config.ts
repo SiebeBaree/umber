@@ -21,8 +21,7 @@ export default defineConfig({
     },
     renderer: {
         plugins: [react(), tailwindcss()],
-        // Pinned so `pnpm dev` (which starts both apps) never has the two renderers
-        // race for a port. @umber/web owns 5173.
+        // Pinned so `pnpm dev` is deterministic and never lands on a random port.
         server: { port: 5174, strictPort: true },
         build: {
             sourcemap: true,

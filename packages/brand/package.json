@@ -1,0 +1,22 @@
+{
+    "name": "@umber/brand",
+    "version": "0.0.0",
+    "private": true,
+    "description": "Umber's logo assets and the one place any app should get them from.",
+    "license": "MIT",
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts",
+        "./assets/*": "./assets/*"
+    },
+    "scripts": {
+        "clean": "rimraf .turbo",
+        "icons": "node scripts/generate-app-icon.mjs",
+        "typecheck": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "@umber/tsconfig": "workspace:*",
+        "rimraf": "catalog:",
+        "typescript": "catalog:"
+    }
+}

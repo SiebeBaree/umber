@@ -14,36 +14,47 @@
  */
 @source '.';
 
+/*
+ * Umber is deliberately light-only for now: the glass surfaces are tuned against
+ * a bright canvas, and a dark theme is a design project of its own rather than a
+ * palette swap. Declaring the scheme keeps form controls and scrollbars light
+ * even when the OS prefers dark.
+ */
 :root {
-    color-scheme: light dark;
+    color-scheme: light;
 
-    --umber-canvas: #f6f5f3;
+    /* A cool light blue — never pure white — that the blobs drift over. */
+    --umber-canvas: #cbdaf2;
     --umber-surface: #ffffff;
-    --umber-line: #e3ded7;
-    --umber-ink: #241f1b;
-    --umber-muted: #6f6560;
-    --umber-accent: #8a5a2b;
-    --umber-accent-strong: #6f4620;
-    --umber-accent-ink: #fffaf4;
-}
+    --umber-line: #dde4f0;
+    --umber-ink: #1c2333;
+    --umber-muted: #5f6b83;
+    --umber-accent: #3164e4;
+    --umber-accent-strong: #2450c4;
+    --umber-accent-ink: #f6f9ff;
 
-@media (prefers-color-scheme: dark) {
-    :root {
-        --umber-canvas: #15120f;
-        --umber-surface: #1f1a16;
-        --umber-line: #332b24;
-        --umber-ink: #f2ece5;
-        --umber-muted: #a89b90;
-        --umber-accent: #c98b4b;
-        --umber-accent-strong: #dda061;
-        --umber-accent-ink: #1b1512;
-    }
+    /* Liquid Glass ingredients, shared by the `glass-*` utilities below. */
+    --umber-glass: rgb(255 255 255 / 0.52);
+    --umber-glass-strong: rgb(255 255 255 / 0.72);
+    --umber-glass-hover: rgb(255 255 255 / 0.92);
+    --umber-glass-edge: rgb(255 255 255 / 0.65);
+    --umber-glass-edge-strong: rgb(255 255 255 / 0.95);
+    --umber-glass-shadow: rgb(28 41 90 / 0.1);
+
+    /*
+     * One hover treatment for the whole app, so nothing invents its own. Any
+     * control that is not itself a glass surface tints toward the ink instead.
+     */
+    --umber-hover-tint: rgb(28 35 51 / 0.06);
+    --umber-control-transition:
+        background-color 200ms ease-out, border-color 200ms ease-out, color 200ms ease-out,
+        box-shadow 200ms ease-out, transform 150ms ease-out;
 }
 
 /*
  * `inline` makes each utility reference the variable above rather than baking in
- * whatever it evaluates to at build time, which is what lets `bg-canvas` follow
- * the light/dark switch without a `dark:` variant on every element.
+ * whatever it evaluates to at build time, so the palette stays swappable in one
+ * place without touching any component.
  */
 @theme inline {
     --color-canvas: var(--umber-canvas);
@@ -54,6 +65,244 @@
     --color-accent: var(--umber-accent);
     --color-accent-strong: var(--umber-accent-strong);
     --color-accent-ink: var(--umber-accent-ink);
+}
+
+/*
+ * A Liquid Glass surface: translucency, heavy blur with boosted saturation so
+ * the canvas glows through, a bright top edge highlight, and a soft drop shadow
+ * lifting it off the page. `glass` is the resting weight for large panels;
+ * `glass-raised` is the more opaque weight for small floating controls that
+ * need to stay legible over anything.
+ */
+@utility glass {
+    border: 1px solid var(--umber-glass-edge);
+    background-color: var(--umber-glass);
+    backdrop-filter: blur(24px) saturate(170%);
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.85),
+        0 12px 32px -16px var(--umber-glass-shadow),
+        0 2px 8px -4px var(--umber-glass-shadow);
+}
+
+@utility glass-raised {
+    border: 1px solid var(--umber-glass-edge);
+    background-color: var(--umber-glass-strong);
+    backdrop-filter: blur(24px) saturate(170%);
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.9),
+        0 16px 40px -20px var(--umber-glass-shadow),
+        0 2px 10px -6px var(--umber-glass-shadow);
+}
+
+/*
+ * `glass-raised` for something clickable. The hover lives in the utility rather
+ * than in a `hover:` class on each component so every glass control reacts
+ * identically — the glass thickens and lifts, and nothing changes colour.
+ */
+@utility glass-control {
+    border: 1px solid var(--umber-glass-edge);
+    background-color: var(--umber-glass-strong);
+    backdrop-filter: blur(24px) saturate(170%);
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.9),
+        0 16px 40px -20px var(--umber-glass-shadow),
+        0 2px 10px -6px var(--umber-glass-shadow);
+    transition: var(--umber-control-transition);
+
+    &:hover {
+        border-color: var(--umber-glass-edge-strong);
+        background-color: var(--umber-glass-hover);
+        box-shadow:
+            inset 0 1px 0 rgb(255 255 255 / 1),
+            0 18px 44px -20px var(--umber-glass-shadow),
+            0 4px 14px -6px var(--umber-glass-shadow);
+    }
+}
+
+/*
+ * The blob. The pill arrives stretched along its direction of travel and
+ * flattened across it, overshoots the other way as it catches up with itself,
+ * then wobbles back to rest — the squash-and-stretch that makes the highlight
+ * read as something soft being flung rather than a rectangle being moved.
+ */
+@keyframes umber-segment-settle {
+    0% {
+        transform: scaleX(1.24) scaleY(0.82);
+    }
+
+    45% {
+        transform: scaleX(0.95) scaleY(1.06);
+    }
+
+    75% {
+        transform: scaleX(1.02) scaleY(0.98);
+    }
+
+    100% {
+        transform: scaleX(1) scaleY(1);
+    }
+}
+
+@utility segment-settle {
+    animation: umber-segment-settle 480ms cubic-bezier(0.32, 0.72, 0.35, 1);
+}
+
+/*
+ * Overlays grow out of the edge nearest their trigger — Radix reports which
+ * corner that is through `--radix-*-transform-origin`, so one pair of keyframes
+ * covers every side the menu might flip to.
+ */
+@keyframes umber-overlay-in {
+    from {
+        opacity: 0;
+        transform: scale(0.94) translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes umber-overlay-out {
+    from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: scale(0.96) translateY(-4px);
+    }
+}
+
+/*
+ * Every floating surface opts out of the window drag region.
+ *
+ * Electron computes draggable regions from the CSS alone, and an element
+ * painted on top of one does *not* cancel it — so a menu that flips upwards
+ * over the header would look normal and silently swallow every click into an
+ * OS window-drag. Overlays are portalled to `body`, well outside the header's
+ * subtree, so they cannot inherit this and have to say it themselves.
+ */
+@utility overlay-surface {
+    -webkit-app-region: no-drag;
+}
+
+@utility overlay-enter {
+    animation: umber-overlay-in 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility overlay-exit {
+    animation: umber-overlay-out 130ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* The same interaction language for controls that carry no surface of their own. */
+@utility tint-control {
+    transition: var(--umber-control-transition);
+
+    &:hover {
+        background-color: var(--umber-hover-tint);
+    }
+}
+
+/*
+ * Electron reads `-webkit-app-region` to decide which parts of a frameless
+ * window drag it. Both utilities are inert in an ordinary browser, and `drag`
+ * swallows clicks from its subtree, so every interactive descendant of a
+ * `drag-region` has to opt back out with `no-drag`.
+ */
+@utility drag-region {
+    -webkit-app-region: drag;
+}
+
+@utility no-drag {
+    -webkit-app-region: no-drag;
+}
+
+/*
+ * Each blob follows its own looping path, and no two paths share a duration, so
+ * the group never resynchronises into an obvious pattern. The waypoints wander
+ * up and down as they cross rather than tracking straight, and `ease-in-out`
+ * between them makes the drift gust and ease off — wind, not a conveyor belt.
+ */
+@keyframes umber-drift-a {
+    0%,
+    100% {
+        transform: translate3d(-8%, 0, 0) scale(1);
+    }
+
+    30% {
+        transform: translate3d(14%, -7%, 0) scale(1.12);
+    }
+
+    55% {
+        transform: translate3d(30%, 5%, 0) scale(0.94);
+    }
+
+    80% {
+        transform: translate3d(10%, 9%, 0) scale(1.06);
+    }
+}
+
+@keyframes umber-drift-b {
+    0%,
+    100% {
+        transform: translate3d(6%, 4%, 0) scale(1.04);
+    }
+
+    35% {
+        transform: translate3d(-12%, -6%, 0) scale(0.92);
+    }
+
+    60% {
+        transform: translate3d(-26%, 6%, 0) scale(1.14);
+    }
+
+    85% {
+        transform: translate3d(-5%, 11%, 0) scale(0.98);
+    }
+}
+
+@keyframes umber-drift-c {
+    0%,
+    100% {
+        transform: translate3d(0, -3%, 0) scale(0.96);
+    }
+
+    25% {
+        transform: translate3d(18%, 8%, 0) scale(1.1);
+    }
+
+    50% {
+        transform: translate3d(6%, 16%, 0) scale(0.9);
+    }
+
+    75% {
+        transform: translate3d(-14%, 5%, 0) scale(1.08);
+    }
+}
+
+@utility drift-a {
+    animation: umber-drift-a 47s ease-in-out infinite;
+}
+
+@utility drift-b {
+    animation: umber-drift-b 61s ease-in-out infinite;
+}
+
+@utility drift-c {
+    animation: umber-drift-c 73s ease-in-out infinite;
+}
+
+/*
+ * Film grain, generated inline by an SVG turbulence filter so it costs no asset
+ * and tiles seamlessly. The filter outputs a flat grey whose *alpha* carries the
+ * noise, which keeps the grain neutral instead of tinting the canvas; the
+ * element's `opacity` is the single knob for its strength.
+ */
+@utility film-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.35 0 0 0 0 0.38 0 0 0 0 0.48 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 
 @layer base {
@@ -67,5 +316,19 @@
         background-color: var(--umber-canvas);
         color: var(--umber-ink);
         -webkit-font-smoothing: antialiased;
+    }
+
+    /*
+     * Anyone who has asked for less motion gets the composition without the
+     * drift — the blobs simply hold their opening positions.
+     */
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
     }
 }

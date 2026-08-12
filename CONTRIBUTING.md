@@ -9,10 +9,8 @@
 
 ```bash
 pnpm install     # installs the workspace and sets up git hooks (lefthook)
-pnpm dev         # starts both apps: web on :5173, desktop renderer on :5174
+pnpm dev         # launches Electron; the renderer dev server runs on :5174
 ```
-
-Or run a single app with `pnpm dev:web` / `pnpm dev:desktop`.
 
 ## Before you push
 

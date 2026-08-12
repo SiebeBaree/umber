@@ -56,6 +56,14 @@
             "env": { "node": true, "browser": false }
         },
         {
+            "files": ["**/scripts/**"],
+            "env": { "node": true, "browser": false },
+            "rules": {
+                // A command-line script's output channel is the console.
+                "eslint/no-console": "off"
+            }
+        },
+        {
             "files": ["apps/desktop/src/main/**"],
             "rules": {
                 // The main process is the app's own process; logging to it is the point.

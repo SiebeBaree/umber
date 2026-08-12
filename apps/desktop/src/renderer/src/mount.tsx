@@ -15,7 +15,10 @@ export function mount(container: HTMLElement): Root {
 
     root.render(
         <StrictMode>
-            <App platform="desktop" runtime={describeRuntime(window.umber)} />
+            <App
+                overlaidWindowControls={window.umber?.os === 'macos'}
+                runtime={describeRuntime(window.umber)}
+            />
         </StrictMode>,
     )
 

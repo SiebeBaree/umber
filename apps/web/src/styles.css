@@ -1,9 +1,0 @@
-/*
- * This app's stylesheet entry: it pulls in the shared UI and points Tailwind at
- * this app's own source. `@source` resolves relative to the file it sits in, so
- * declaring it here rather than in @umber/ui keeps the dependency pointing one
- * way — the shared package never references an app path.
- */
-@import '@umber/ui/styles.css';
-
-@source '.';

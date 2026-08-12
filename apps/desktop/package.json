@@ -19,6 +19,7 @@
         "@types/node": "24.13.3",
         "@types/react": "catalog:",
         "@types/react-dom": "catalog:",
+        "@umber/brand": "workspace:*",
         "@umber/tsconfig": "workspace:*",
         "@umber/ui": "workspace:*",
         "@vitejs/plugin-react": "catalog:",

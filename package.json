@@ -2,7 +2,7 @@
     "name": "umber",
     "version": "0.0.0",
     "private": true,
-    "description": "A pnpm + Turborepo monorepo: one shared React UI, shipped as a Vite web app and an Electron desktop app.",
+    "description": "A local-first, bring-your-own-key AI image and video studio, shipped as an Electron desktop app.",
     "homepage": "https://github.com/SiebeBaree/umber#readme",
     "bugs": {
         "url": "https://github.com/SiebeBaree/umber/issues"

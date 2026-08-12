@@ -2,21 +2,23 @@
 
 > **TODO:** one-paragraph description of what Umber is. Everything below documents the repository setup, which is independent of what the product becomes.
 
-One shared React UI, shipped twice: as a web app and as an Electron desktop app.
+A local-first AI image and video studio you point at your own API keys.
 
 ## What's in the box
 
 ```
 apps/
-  web/          Browser shell — Vite + React. Mounts @umber/ui and nothing else.
-  desktop/      Electron shell — electron-vite + electron-builder. Also only mounts @umber/ui.
+  desktop/      Electron shell — electron-vite + electron-builder. Mounts @umber/ui and nothing else.
 packages/
-  ui/           The actual application UI, shared verbatim by both shells. Tailwind theme lives here.
+  ui/           The actual application UI: every screen, plus the Tailwind theme.
+  brand/        Umber's logo assets, and the only place to get them from.
   tsconfig/     Shared TypeScript configs (strict; see base.json).
 tests/          All tests live here (Vitest + jsdom), run from the repo root.
 ```
 
-The two shells are **intentionally parallel, not shared**: `apps/web/src` and `apps/desktop/src/renderer/src` have the same file layout and near-identical code, so each can be read top-to-bottom in isolation. Resist the urge to extract a shared `mount` helper — the duplication is small and buys readability.
+The shell and the UI are **deliberately separate**: `apps/desktop` owns windows, processes and the preload bridge, and `packages/ui` owns everything a user sees. Nothing in `packages/ui` may import from `apps/` — that boundary is what keeps the UI portable to another shell later.
+
+`packages/brand` holds the marks once, for everything that needs them — the header lockup, the installed app's icon, and whatever comes next. The SVGs in `brand/assets` are the source of truth: `src/index.ts` only points at them, so nothing ever re-draws a logo and no copy can drift. Add a mark by dropping the file in and exporting it there.
 
 ## Requirements
 
@@ -27,15 +29,14 @@ The two shells are **intentionally parallel, not shared**: `apps/web/src` and `a
 
 ```bash
 pnpm install
-pnpm dev        # web on http://localhost:5173, desktop renderer on :5174
+pnpm dev        # launches Electron; the renderer dev server runs on :5174
 ```
 
 ## Commands
 
 | Command                                | What it does                                      |
 | -------------------------------------- | ------------------------------------------------- |
-| `pnpm dev`                             | Start both apps in watch mode                     |
-| `pnpm dev:web` / `pnpm dev:desktop`    | Start one app                                     |
+| `pnpm dev`                             | Start the app in watch mode                       |
 | `pnpm build`                           | Build all packages (Turborepo, cached)            |
 | `pnpm test` / `pnpm test:watch`        | Run the test suite in `tests/`                    |
 | `pnpm typecheck`                       | Root `tsc` + per-package typecheck                |
@@ -43,7 +44,6 @@ pnpm dev        # web on http://localhost:5173, desktop renderer on :5174
 | `pnpm format` / `pnpm format:check`    | oxfmt                                             |
 | `pnpm check`                           | Everything CI runs, in order — run before pushing |
 | `pnpm clean`                           | Delete build output and caches                    |
-| `pnpm --filter @umber/web preview`     | Serve the production web build                    |
 | `pnpm --filter @umber/desktop package` | Unpacked desktop build (no installer)             |
 | `pnpm --filter @umber/desktop release` | Full desktop installers via electron-builder      |
 | `pnpm --filter @umber/desktop start`   | Preview the built desktop app                     |
@@ -53,19 +53,20 @@ pnpm dev        # web on http://localhost:5173, desktop renderer on :5174
 - **pnpm catalogs** — versions shared by multiple packages live once in the `catalog:` section of `pnpm-workspace.yaml`. Bump there, not in individual manifests.
 - **Turborepo** — caches `build` and `typecheck` per package. `test`, `lint`, and `format` are deliberately root-only scripts (one Vitest run, one oxlint run over the whole repo) and are not turbo tasks.
 - **oxlint + oxfmt** — no ESLint/Prettier. VS Code is pre-configured to use the oxc extension (`.vscode/`); other editors get `.editorconfig`. Pre-commit hooks (lefthook) run both on staged files.
-- **Tailwind CSS 4, CSS-first** — no `tailwind.config.*`. The theme is defined in `packages/ui/src/styles.css`; each app's entry CSS declares its own `@source` so the shared package never references app paths.
+- **Tailwind CSS 4, CSS-first** — no `tailwind.config.*`. The theme, the `glass` utilities and the canvas live in `packages/ui/src/styles.css`; the app's entry CSS declares its own `@source` so the UI package never references app paths.
+- **TanStack Router** — routes are defined in code (`packages/ui/src/router.tsx`), not by file convention, because the UI package is a library rather than a route directory. History is hash-based so routing survives the packaged `file://` renderer.
 - **Strict TypeScript** — all packages extend `packages/tsconfig/base.json` (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, …).
 - **Desktop dependency layout** — `apps/desktop` keeps everything (including react) in `devDependencies` on purpose; see the comment in `apps/desktop/electron.vite.config.ts`.
 
 ## Testing
 
-Tests live in the root `tests/` directory and run with `pnpm test` (Vitest, jsdom). The shells keep their wiring in `mount.tsx` / `runtime.ts` precisely so it can be tested without a real browser page or Electron window.
+Tests live in the root `tests/` directory and run with `pnpm test` (Vitest, jsdom). The shell keeps its wiring in `mount.tsx` / `runtime.ts` precisely so it can be tested without a real Electron window.
 
 ## Releasing the desktop app
 
 `pnpm --filter @umber/desktop release` builds installers with electron-builder (`electron-builder.yml`). Before shipping a real release you still need to:
 
-- **TODO:** add icons and build resources under `apps/desktop/build/` (`icon.icns`, `icon.ico`, `icon.png`)
+- The app icon lives at `apps/desktop/build/icon.png` and is committed. It is generated from `packages/brand/assets/icon.svg` with `pnpm --filter @umber/brand icons` (macOS only — it uses `sips`), and electron-builder derives the macOS `.icns` and Windows `.ico` from it. Re-run it only when the mark changes.
 - **TODO:** configure macOS code signing + notarization (hardened runtime, entitlements)
 - **TODO:** add a `publish` config if you want auto-updates
 

@@ -17,11 +17,18 @@ export function createWindowOptions(
     preloadPath: string,
     platform: NodeJS.Platform = process.platform,
 ): BrowserWindowConstructorOptions {
+    const macOS = platform === 'darwin'
+
     return {
         ...WINDOW_DEFAULTS,
         show: false,
         autoHideMenuBar: true,
-        titleBarStyle: platform === 'darwin' ? 'hiddenInset' : 'default',
+        titleBarStyle: macOS ? 'hiddenInset' : 'default',
+        // Centres the traffic lights on the header's own row, which the wordmark
+        // shares with them (see `overlaidWindowControls`). That row runs from
+        // 16px to 60px down the window, so its centre is 38px; the buttons are
+        // 12px tall, hence a 32px top offset.
+        ...(macOS ? { trafficLightPosition: { x: 20, y: 32 } } : {}),
         webPreferences: {
             preload: preloadPath,
             // The renderer is treated as untrusted: no Node, isolated context, sandboxed.

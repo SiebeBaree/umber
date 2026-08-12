@@ -1,13 +1,13 @@
 import { contextBridge } from 'electron'
 
-import { BRIDGE_KEY, type UmberBridge } from '../shared/bridge'
+import { BRIDGE_KEY, toOperatingSystem, type UmberBridge } from '../shared/bridge'
 
 /**
  * The renderer is sandboxed and context-isolated, so this is the only channel
  * through which it learns anything about the machine it is running on.
  */
 const bridge: UmberBridge = {
-    platform: 'desktop',
+    os: toOperatingSystem(process.platform),
     versions: {
         electron: process.versions.electron,
         chrome: process.versions.chrome,

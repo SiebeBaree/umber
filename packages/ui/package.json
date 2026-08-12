@@ -2,7 +2,7 @@
     "name": "@umber/ui",
     "version": "0.0.0",
     "private": true,
-    "description": "The Umber application UI, shared verbatim by the web and desktop shells.",
+    "description": "The Umber application UI — every screen, kept shell-agnostic.",
     "license": "MIT",
     "type": "module",
     "sideEffects": [
@@ -15,6 +15,18 @@
     "scripts": {
         "clean": "rimraf .turbo",
         "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@tanstack/react-router": "^1.170.25",
+        "@umber/brand": "workspace:*",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "lucide-react": "^1.31.0",
+        "motion": "^13.1.0",
+        "radix-ui": "^1.6.7",
+        "simple-icons": "^16.28.0",
+        "tailwind-merge": "^3.6.0",
+        "zod": "^4.4.3"
     },
     "devDependencies": {
         "@types/react": "catalog:",
