@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { useCallback } from 'react'
 
+import { Button } from '../../components/ui/button'
 import type { ReferenceImage } from './use-reference-images'
 
 interface ReferenceImageTileProps {
@@ -20,14 +21,15 @@ function ReferenceImageTile({ image, onRemove }: ReferenceImageTileProps) {
             <span className="block size-16 overflow-hidden rounded-xl border border-line/80 bg-surface shadow-[0_2px_8px_-4px_var(--umber-glass-shadow)]">
                 <img alt={image.name} className="size-full object-cover" src={image.previewUrl} />
             </span>
-            <button
+            <Button
                 aria-label={`Remove ${image.name}`}
-                className="absolute -top-1.5 -right-1.5 flex size-5 cursor-pointer items-center justify-center rounded-full bg-ink text-canvas opacity-0 transition-opacity outline-none group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="absolute -top-1.5 -right-1.5 size-5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [&_svg]:size-3"
                 onClick={remove}
-                type="button"
+                size="icon-sm"
+                variant="overlay"
             >
-                <X aria-hidden className="size-3" />
-            </button>
+                <X aria-hidden />
+            </Button>
         </li>
     )
 }

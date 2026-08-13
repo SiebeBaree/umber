@@ -1,0 +1,19 @@
+{
+    "version": "0.0.1",
+    "configurations": [
+        {
+            "name": "renderer",
+            "runtimeExecutable": "pnpm",
+            "runtimeArgs": [
+                "--dir",
+                "apps/desktop",
+                "exec",
+                "vite",
+                "--config",
+                "vite.preview.config.ts"
+            ],
+            "port": 5175,
+            "autoPort": true
+        }
+    ]
+}

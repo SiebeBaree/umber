@@ -33,6 +33,34 @@ export interface Provider {
 
 export type AspectRatio = '1:1' | '3:2' | '2:3' | '4:3' | '3:4' | '16:9' | '9:16' | '21:9'
 
+/**
+ * The two sides of a ratio, parsed once and validated loudly — the single way
+ * callers read the `w:h` encoding, mirroring what `durationOptions` is for
+ * `DurationRule`. Throwing beats a silent fallback: a malformed ratio fed to
+ * layout maths would otherwise surface as NaN geometry far from the mistake.
+ */
+export function ratioParts(ratio: AspectRatio): {
+    readonly width: number
+    readonly height: number
+} {
+    const [widthPart, heightPart] = ratio.split(':')
+    const width = Number(widthPart)
+    const height = Number(heightPart)
+
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+        throw new Error(`Malformed aspect ratio: ${ratio}`)
+    }
+
+    return { width, height }
+}
+
+/** The ratio in CSS `aspect-ratio` syntax — `'3:2'` becomes `'3 / 2'`. */
+export function ratioToCss(ratio: AspectRatio): string {
+    const { height, width } = ratioParts(ratio)
+
+    return `${width} / ${height}`
+}
+
 export type ImageResolution = '1K' | '2K' | '4K'
 export type VideoResolution = '480p' | '720p' | '1080p' | '4K'
 
