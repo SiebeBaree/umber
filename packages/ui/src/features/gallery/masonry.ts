@@ -19,6 +19,13 @@ export interface MasonryColumn<Item extends MasonryItem> {
 }
 
 /**
+ * The fewest columns the wall is dealt into, however little is hanging on it.
+ * A floor rather than a demand: on a window too narrow for three tiles, the
+ * count measured off the container still wins.
+ */
+const MIN_COLUMNS = 3
+
+/**
  * Deals items into masonry columns: each goes to the currently shortest one,
  * measured in units of column width (all columns are equally wide, so a tile's
  * height contribution is just height/width).
@@ -33,11 +40,14 @@ export function splitIntoColumns<Item extends MasonryItem>(
     items: readonly Item[],
     columnCount: number,
 ): readonly MasonryColumn<Item>[] {
-    // Never more columns than items: the page gives every column `flex-1`, so
-    // an empty column would still claim its share of the row and shrink a
-    // short gallery's tiles to a fraction of the width. The lower bound of one
-    // keeps the `reduce` below seeded even for an empty list or a bad count.
-    const count = Math.max(Math.min(columnCount, items.length), 1)
+    // Empty columns are laid out too, down to `MIN_COLUMNS`: the page gives
+    // every column `flex-1`, so the empty ones hold the tile width steady and
+    // a gallery of one hangs a normal-sized picture in the corner instead of
+    // blowing it up across the whole page. Above that floor the count follows
+    // the items, so a wall of three never leaves a fourth column standing
+    // empty. The lower bound of one keeps the `reduce` below seeded even for
+    // an empty list or a bad count.
+    const count = Math.max(Math.min(columnCount, Math.max(items.length, MIN_COLUMNS)), 1)
 
     const columns = Array.from({ length: count }, (_, index) => ({
         key: `column-${index + 1}`,
