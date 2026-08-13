@@ -65,6 +65,19 @@ export type ImageResolution = '1K' | '2K' | '4K'
 export type VideoResolution = '480p' | '720p' | '1080p' | '4K'
 
 /**
+ * The render-effort tiers some models expose (today, OpenAI's GPT Image
+ * family). Quality is priced per tier, so a model that supports it carries its
+ * own price table instead of a single per-image figure.
+ */
+export type ImageQuality = 'low' | 'medium' | 'high'
+
+export interface QualityRule {
+    readonly options: readonly [ImageQuality, ...ImageQuality[]]
+    /** USD for one image at the model's base size, per tier. */
+    readonly pricePerImage: Readonly<Record<ImageQuality, number>>
+}
+
+/**
  * What a video model accepts for clip length. Some publish a handful of fixed
  * lengths, others any whole second inside a range, so both are expressible.
  */
@@ -103,8 +116,10 @@ export interface ImageModel extends ModelBase {
     readonly resolutions: readonly [ImageResolution, ...ImageResolution[]]
     /** Most images this model will return in one request; the stepper caps at 4. */
     readonly maxOutputs: number
-    /** USD for one image at the model's cheapest resolution. */
+    /** USD for one image at the model's cheapest resolution and quality. */
     readonly pricePerImage: number
+    /** Present only when the model trades render quality against price. */
+    readonly quality?: QualityRule
 }
 
 export interface VideoModel extends ModelBase {

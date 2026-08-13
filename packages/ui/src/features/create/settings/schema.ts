@@ -12,6 +12,8 @@ export const modeSettingsSchema = z.object({
     modelId: z.string(),
     aspectRatio: z.string(),
     resolution: z.string(),
+    /** Render-effort tier. Only meaningful for models that price by quality. */
+    quality: z.string().default('medium'),
     /** Images per run. Only meaningful for image models. */
     outputCount: z.number().int().min(1).max(4),
     /** Clip length in seconds. Only meaningful for video models. */

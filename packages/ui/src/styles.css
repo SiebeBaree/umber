@@ -193,8 +193,14 @@
     animation: umber-overlay-in 190ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/*
+ * Every exit animation holds its last frame — `forwards` — because a closing
+ * surface is only unmounted once its animation reports finishing, and a
+ * surface that lingers past that reverts to its resting styles: fully opaque,
+ * over the page. Holding the final frame keeps such a straggler invisible.
+ */
 @utility overlay-exit {
-    animation: umber-overlay-out 130ms cubic-bezier(0.4, 0, 1, 1);
+    animation: umber-overlay-out 130ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 /*
@@ -230,7 +236,7 @@
 }
 
 @utility scrim-exit {
-    animation: umber-scrim-out 150ms ease-in;
+    animation: umber-scrim-out 150ms ease-in forwards;
 }
 
 @keyframes umber-dialog-in {
@@ -266,7 +272,7 @@
 }
 
 @utility dialog-exit {
-    animation: umber-dialog-out 150ms cubic-bezier(0.4, 0, 1, 1);
+    animation: umber-dialog-out 150ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 /* The same interaction language for controls that carry no surface of their own. */
@@ -365,6 +371,44 @@
 
 @utility drift-c {
     animation: umber-drift-c 73s ease-in-out infinite;
+}
+
+/*
+ * The rendering skeleton's light pass: a soft bright band sweeping the tile,
+ * the same liquid-glass highlight the surfaces use, set in motion. The pause
+ * at the end of the cycle keeps a grid of tiles from strobing.
+ */
+@keyframes umber-sheen {
+    0% {
+        transform: translateX(-80%) skewX(-14deg);
+    }
+
+    55%,
+    100% {
+        transform: translateX(240%) skewX(-14deg);
+    }
+}
+
+@utility sheen {
+    animation: umber-sheen 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* The provider mark at the centre of a rendering tile, breathing. */
+@keyframes umber-breathe {
+    0%,
+    100% {
+        opacity: 0.3;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.65;
+        transform: scale(1.08);
+    }
+}
+
+@utility breathe {
+    animation: umber-breathe 2.8s ease-in-out infinite;
 }
 
 /*

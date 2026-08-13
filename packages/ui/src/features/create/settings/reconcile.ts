@@ -42,6 +42,12 @@ export function reconcileToModel(settings: ModeSettings, model: Model): ModeSett
             modelId: model.id,
             aspectRatio,
             resolution,
+            // A model without tiers keeps the remembered tier dormant, so it
+            // survives a round trip through such a model unchanged.
+            quality:
+                model.quality === undefined
+                    ? settings.quality
+                    : keepOrReset(settings.quality, model.quality.options),
             outputCount: Math.min(settings.outputCount, model.maxOutputs),
             durationSeconds: settings.durationSeconds,
         }
@@ -51,6 +57,7 @@ export function reconcileToModel(settings: ModeSettings, model: Model): ModeSett
         modelId: model.id,
         aspectRatio,
         resolution,
+        quality: settings.quality,
         outputCount: settings.outputCount,
         durationSeconds: nearestDuration(
             settings.durationSeconds,
@@ -73,6 +80,9 @@ export function defaultModeSettings(mode: GenerationMode): ModeSettings {
             modelId: model.id,
             aspectRatio: model.aspectRatios[0],
             resolution: model.resolutions[0],
+            // The balanced tier, not the cheapest: a first render should look
+            // like the model's work, and the price is shown before it runs.
+            quality: 'medium',
             outputCount: 1,
             durationSeconds: isImageModel(model) ? 5 : (durationOptions(model.durations)[0] ?? 5),
         },

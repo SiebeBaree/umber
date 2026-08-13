@@ -42,16 +42,55 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         maxOutputs: 4,
         pricePerImage: 0.06,
     },
+    // The GPT Image family: a size is derived from aspect ratio and resolution
+    // at request time, and cost tracks the quality tier rather than the pixel
+    // count — hence the per-tier price tables.
     {
         id: 'gpt-image-2',
         name: 'GPT Image 2',
         provider: 'openai',
         kind: 'image',
-        releasedOn: '2026-01-15',
-        aspectRatios: ['1:1', '3:2', '2:3'],
+        releasedOn: '2026-04-21',
+        // Free-form sizes up to a 3:1 ratio and ~8.3MP, so everything the
+        // composer offers short of nothing — 21:9 included.
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K', '2K', '4K'],
         maxOutputs: 4,
-        pricePerImage: 0.12,
+        pricePerImage: 0.006,
+        quality: {
+            options: ['low', 'medium', 'high'],
+            pricePerImage: { low: 0.006, medium: 0.053, high: 0.211 },
+        },
+    },
+    {
+        id: 'gpt-image-1-5',
+        name: 'GPT Image 1.5',
+        provider: 'openai',
+        kind: 'image',
+        releasedOn: '2025-12-16',
+        aspectRatios: ['1:1', '3:2', '2:3'],
+        resolutions: ['1K'],
+        maxOutputs: 4,
+        pricePerImage: 0.009,
+        quality: {
+            options: ['low', 'medium', 'high'],
+            pricePerImage: { low: 0.009, medium: 0.034, high: 0.133 },
+        },
+    },
+    {
+        id: 'gpt-image-1-mini',
+        name: 'GPT Image 1 Mini',
+        provider: 'openai',
+        kind: 'image',
+        releasedOn: '2025-10-06',
+        aspectRatios: ['1:1', '3:2', '2:3'],
+        resolutions: ['1K'],
+        maxOutputs: 4,
+        pricePerImage: 0.005,
+        quality: {
+            options: ['low', 'medium', 'high'],
+            pricePerImage: { low: 0.005, medium: 0.011, high: 0.036 },
+        },
     },
     {
         id: 'gpt-image-1',
@@ -60,9 +99,13 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         kind: 'image',
         releasedOn: '2025-04-23',
         aspectRatios: ['1:1', '3:2', '2:3'],
-        resolutions: ['1K', '2K'],
+        resolutions: ['1K'],
         maxOutputs: 4,
-        pricePerImage: 0.07,
+        pricePerImage: 0.011,
+        quality: {
+            options: ['low', 'medium', 'high'],
+            pricePerImage: { low: 0.011, medium: 0.042, high: 0.167 },
+        },
     },
     {
         id: 'flux-2-pro',

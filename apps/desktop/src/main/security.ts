@@ -28,9 +28,12 @@ export const CONTENT_SECURITY_POLICY = [
     "script-src 'self'",
     // Vite emits a stylesheet, but React still sets `style` attributes inline.
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
+    // blob: because generated images render from object URLs over stored blobs.
+    "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    "connect-src 'self'",
+    // Every provider the renderer may call with the user's own key, named one
+    // by one — a provider integration that forgets its entry fails loudly here.
+    "connect-src 'self' https://api.openai.com",
     "object-src 'none'",
     "frame-ancestors 'none'",
     "base-uri 'none'",

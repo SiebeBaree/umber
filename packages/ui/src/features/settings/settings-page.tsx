@@ -1,15 +1,9 @@
 import { useRouteContext } from '@tanstack/react-router'
 
 import { ApiKeysSection } from './api-keys-section'
-import { FestiveModeSection } from './festive-mode-section'
 import { ShortcutsSection } from './shortcuts-section'
 
-/**
- * The settings page: provider keys, the shortcut reference and festive mode.
- * Every flow here is walkable end to end, but nothing persists beyond the
- * session or touches a real provider yet; the sections carry that caveat
- * themselves where it matters.
- */
+/** The settings page: the provider keys you generate with, and the shortcuts. */
 export function SettingsPage() {
     const { runtime } = useRouteContext({ from: '__root__' })
 
@@ -20,7 +14,6 @@ export function SettingsPage() {
             <div className="mt-6 flex flex-col gap-4">
                 <ApiKeysSection />
                 <ShortcutsSection />
-                <FestiveModeSection />
             </div>
 
             {runtime === undefined ? null : (

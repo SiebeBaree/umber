@@ -26,9 +26,18 @@ const RESOLUTION_MULTIPLIER: Readonly<Record<string, number>> = {
 export function estimateCost(model: Model, settings: ModeSettings): number {
     const multiplier = RESOLUTION_MULTIPLIER[settings.resolution] ?? 1
 
-    return isImageModel(model)
-        ? model.pricePerImage * multiplier * settings.outputCount
-        : model.pricePerSecond * multiplier * settings.durationSeconds
+    if (!isImageModel(model)) {
+        return model.pricePerSecond * multiplier * settings.durationSeconds
+    }
+
+    // A tiered model is priced off the chosen quality; `reconcileToModel`
+    // guarantees the tier is one the model offers.
+    const perImage =
+        model.quality?.pricePerImage[
+            settings.quality as keyof typeof model.quality.pricePerImage
+        ] ?? model.pricePerImage
+
+    return perImage * multiplier * settings.outputCount
 }
 
 /**

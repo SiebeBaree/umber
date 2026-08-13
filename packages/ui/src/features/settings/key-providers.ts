@@ -1,18 +1,13 @@
 import { PROVIDERS, type ProviderId } from '../create/catalog'
 
 /**
- * Everything the settings page knows about connecting a provider.
- *
- * The model catalog says what each vendor's models can *do*; this file says
- * what Umber has to *ask the user for* before it may call them. Most vendors
- * need exactly one API key, but not all: Kling signs requests with a key
- * pair, MiniMax scopes every call to a group, Alibaba issues region-locked
- * keys. So each provider declares its own credential fields and the add
- * dialog renders whatever is declared.
- *
- * On top of the catalog vendors sit aggregators: services that resell many
- * vendors' models behind one key, for people who would rather not open a
- * dozen accounts.
+ * Everything the settings page knows about connecting a provider: the model
+ * catalog says what each vendor's models can *do*; this file says what Umber
+ * has to *ask the user for* before it may call them. Most vendors need one
+ * API key, but not all — Kling signs with a key pair, MiniMax scopes calls to
+ * a group, Alibaba issues region-locked keys — so each provider declares its
+ * own credential fields and the add dialog renders whatever is declared.
+ * Aggregators sit on top: one key that resells many vendors' models.
  */
 
 export type KeyProviderId = ProviderId | 'fal' | 'higgsfield'
@@ -38,6 +33,19 @@ export type CredentialField =
           ]
       })
 
+/**
+ * One thing to do in the provider's console before the key will work. Some
+ * vendors need more than "create a key" — verification, prepaid billing — and
+ * hiding those would just move the failure to the first generation.
+ */
+export interface SetupStep {
+    readonly title: string
+    /** One line on what to do there, or why the step exists. */
+    readonly detail: string
+    /** Where the step happens, opened in the system browser. */
+    readonly url?: string
+}
+
 export interface KeyProvider {
     readonly id: KeyProviderId
     readonly name: string
@@ -47,6 +55,11 @@ export interface KeyProvider {
     readonly unlocks: string
     /** Where the credentials come from, opened in the system browser. */
     readonly console: { readonly label: string; readonly url: string }
+    /**
+     * Everything to do in the console before pasting, in order. Providers
+     * without their own list get a single derived "create a key" step.
+     */
+    readonly setup?: readonly [SetupStep, ...SetupStep[]]
     /** Ordered as the form shows them; the first field is always the key itself. */
     readonly fields: readonly [CredentialField, ...CredentialField[]]
     /** A provider quirk worth a sentence in the dialog, if there is one. */
@@ -81,8 +94,25 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
         group: 'vendor',
         unlocks: 'GPT Image and Sora',
         console: { label: 'OpenAI platform', url: 'https://platform.openai.com/api-keys' },
+        setup: [
+            {
+                title: 'Create an API key',
+                detail: 'Create a secret key and copy it right away. OpenAI shows it only once.',
+                url: 'https://platform.openai.com/api-keys',
+            },
+            {
+                title: 'Verify your organisation',
+                detail: 'GPT Image models stay hidden until the organisation behind the key is verified. Takes a few minutes with a photo ID.',
+                url: 'https://platform.openai.com/settings/organization/general',
+            },
+            {
+                title: 'Add billing credit',
+                detail: 'API usage is prepaid and separate from ChatGPT. $5 goes a long way.',
+                url: 'https://platform.openai.com/settings/organization/billing/overview',
+            },
+        ],
         fields: [apiKeyField('sk-proj-…')],
-        note: 'Sora needs a verified organisation on your OpenAI account; images work on any key.',
+        note: 'Umber checks the key with OpenAI when you connect.',
     },
     {
         id: 'blackForestLabs',
@@ -261,22 +291,9 @@ export function findKeyProvider(id: KeyProviderId): KeyProvider {
     return provider
 }
 
-/**
- * What the add dialog hands back on connect. Only the tail of the key
- * survives, enough for "which key is this" without keeping the secret around
- * in state.
- */
+/** What the add dialog hands back on connect: the entered credentials, keyed
+ * by field id, on their way to the vault. Nothing else keeps them. */
 export interface NewConnection {
     readonly providerId: KeyProviderId
-    /** The last few characters of the key, for display as `···· 4f2a`. */
-    readonly keyTail: string
-}
-
-/** A connected provider as the settings page tracks it. */
-export interface ProviderConnection {
-    readonly providerId: KeyProviderId
-    /** The last few characters of the key, for display as `…· 4f2a`. */
-    readonly keyTail: string
-    /** Already formatted for display, e.g. "13 Aug 2026". */
-    readonly addedOn: string
+    readonly credentials: Readonly<Record<string, string>>
 }

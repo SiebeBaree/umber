@@ -3,4 +3,5 @@ export { AspectRatioSelect, type AspectRatioSelectProps } from './aspect-ratio-s
 export { DurationSelect, type DurationSelectProps } from './duration-select'
 export { ModelSelect, type ModelSelectProps } from './model-select'
 export { OutputCountStepper, type OutputCountStepperProps } from './output-count-stepper'
+export { QualitySelect, type QualitySelectProps } from './quality-select'
 export { ResolutionSelect, type ResolutionSelectProps } from './resolution-select'

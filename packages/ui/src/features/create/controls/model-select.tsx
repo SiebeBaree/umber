@@ -13,9 +13,11 @@ import {
 } from '../../../components/ui/dropdown-menu'
 import { Tooltip } from '../../../components/ui/tooltip'
 import { cn } from '../../../lib/cn'
+import { useKeys } from '../../keys/keys-context'
 import {
     groupModels,
     ProviderMark,
+    PROVIDERS,
     starredModels,
     type GenerationMode,
     type Model,
@@ -29,14 +31,13 @@ const OPEN = { opacity: 1, height: 'auto' as const }
 const STAR_CLASSES =
     'ms-1 flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-lg outline-none transition-colors duration-150 hover:bg-[var(--umber-hover-tint)] focus-visible:outline-2 focus-visible:outline-accent'
 
-interface ModelRowProps {
+interface PinButtonProps {
     readonly model: Model
     readonly starred: boolean
-    readonly selected: boolean
     readonly onToggleStar: (modelId: string) => void
 }
 
-function ModelRow({ model, onToggleStar, selected, starred }: ModelRowProps) {
+function PinButton({ model, onToggleStar, starred }: PinButtonProps) {
     const toggle = useCallback(
         (event: MouseEvent) => {
             // Without this the click also picks the model and closes the menu,
@@ -49,37 +50,79 @@ function ModelRow({ model, onToggleStar, selected, starred }: ModelRowProps) {
     )
 
     return (
+        <Tooltip label={starred ? 'Unpin from the top' : 'Pin to the top of this list'}>
+            <button
+                aria-label={starred ? `Unpin ${model.name}` : `Pin ${model.name} to the top`}
+                aria-pressed={starred}
+                className={cn(STAR_CLASSES, starred ? 'text-accent' : 'text-muted/50')}
+                onClick={toggle}
+                type="button"
+            >
+                <Star aria-hidden className="size-3.5" fill={starred ? 'currentColor' : 'none'} />
+            </button>
+        </Tooltip>
+    )
+}
+
+function NoKeyChip() {
+    return (
+        <span className="rounded-full border border-ink/[0.08] px-1.5 py-px text-[10px] font-medium tracking-wide text-muted/70 uppercase">
+            No key
+        </span>
+    )
+}
+
+interface ModelRowProps extends PinButtonProps {
+    readonly selected: boolean
+    /** False when the model's provider has no key connected yet. */
+    readonly available: boolean
+}
+
+function ModelRow({ available, model, onToggleStar, selected, starred }: ModelRowProps) {
+    const row = (
         // The selected row is filled and tinted rather than flagged with a
         // glyph: at a glance the eye finds a block of colour long before it
         // finds a dot, and it leaves the row's right edge free for the star.
         <DropdownMenuRichRadioItem
             className="data-[state=checked]:bg-accent/10 data-[state=checked]:text-accent"
+            disabled={!available}
             value={model.id}
         >
             <ProviderMark
-                className={cn('size-4 shrink-0', selected ? 'text-accent' : 'text-muted')}
+                className={cn(
+                    'size-4 shrink-0',
+                    selected ? 'text-accent' : 'text-muted',
+                    !available && 'opacity-40',
+                )}
                 provider={model.provider}
             />
-            <span className={cn('flex-1 whitespace-nowrap', selected && 'font-semibold')}>
+            <span
+                className={cn(
+                    'flex-1 whitespace-nowrap',
+                    selected && 'font-semibold',
+                    !available && 'text-muted/60',
+                )}
+            >
                 {model.name}
             </span>
 
-            <Tooltip label={starred ? 'Unpin from the top' : 'Pin to the top of this list'}>
-                <button
-                    aria-label={starred ? `Unpin ${model.name}` : `Pin ${model.name} to the top`}
-                    aria-pressed={starred}
-                    className={cn(STAR_CLASSES, starred ? 'text-accent' : 'text-muted/50')}
-                    onClick={toggle}
-                    type="button"
-                >
-                    <Star
-                        aria-hidden
-                        className="size-3.5"
-                        fill={starred ? 'currentColor' : 'none'}
-                    />
-                </button>
-            </Tooltip>
+            {available ? null : <NoKeyChip />}
+
+            <PinButton model={model} onToggleStar={onToggleStar} starred={starred} />
         </DropdownMenuRichRadioItem>
+    )
+
+    if (available) {
+        return row
+    }
+
+    // The block span is the tooltip's trigger: a disabled item swallows its
+    // own pointer events, and the one row that cannot be used is exactly the
+    // row that needs explaining.
+    return (
+        <Tooltip label={`Connect ${PROVIDERS[model.provider].name} in Settings to use this model`}>
+            <span className="block">{row}</span>
+        </Tooltip>
     )
 }
 
@@ -87,6 +130,8 @@ interface ModelMenuProps {
     readonly mode: GenerationMode
     readonly starred: ReadonlySet<string>
     readonly selectedId: string
+    /** Providers with a key connected; rows outside it are disabled. */
+    readonly connected: ReadonlySet<string>
     readonly onToggleStar: (modelId: string) => void
 }
 
@@ -98,7 +143,7 @@ interface ModelMenuProps {
  * block grows and collapses rather than appearing outright, and carries no
  * separator: its heading is division enough.
  */
-function PinnedGroup({ mode, onToggleStar, selectedId, starred }: ModelMenuProps) {
+function PinnedGroup({ connected, mode, onToggleStar, selectedId, starred }: ModelMenuProps) {
     const pinned = starredModels(mode, starred)
 
     return (
@@ -126,6 +171,7 @@ function PinnedGroup({ mode, onToggleStar, selectedId, starred }: ModelMenuProps
                                 transition={ROW_MOTION}
                             >
                                 <ModelRow
+                                    available={connected.has(model.provider)}
                                     model={model}
                                     onToggleStar={onToggleStar}
                                     selected={model.id === selectedId}
@@ -140,10 +186,11 @@ function PinnedGroup({ mode, onToggleStar, selectedId, starred }: ModelMenuProps
     )
 }
 
-function ModelMenu({ mode, onToggleStar, selectedId, starred }: ModelMenuProps) {
+function ModelMenu({ connected, mode, onToggleStar, selectedId, starred }: ModelMenuProps) {
     return (
         <>
             <PinnedGroup
+                connected={connected}
                 mode={mode}
                 onToggleStar={onToggleStar}
                 selectedId={selectedId}
@@ -155,6 +202,7 @@ function ModelMenu({ mode, onToggleStar, selectedId, starred }: ModelMenuProps) 
                     <DropdownMenuLabel>{group.provider.name}</DropdownMenuLabel>
                     {group.models.map((model) => (
                         <ModelRow
+                            available={connected.has(model.provider)}
                             key={model.id}
                             model={model}
                             onToggleStar={onToggleStar}
@@ -178,9 +226,19 @@ export interface ModelSelectProps {
 
 /**
  * Picks the model. Pinned models come first in their own group, then one group
- * per vendor with that vendor's newest model at the top.
+ * per vendor with that vendor's newest model at the top. Models whose provider
+ * has no key yet are visible but disabled — the catalog reads complete, and
+ * the way to unlock a row is spelled out on it.
  */
 export function ModelSelect({ mode, model, onSelect, onToggleStar, starred }: ModelSelectProps) {
+    const keys = useKeys()
+
+    // Until the vault answers, no row is declared locked — a flash of "No key"
+    // on every launch would be a lie half the time.
+    const connected: ReadonlySet<string> = keys.ready
+        ? keys.connectedProviders
+        : new Set(Object.keys(PROVIDERS))
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -201,6 +259,7 @@ export function ModelSelect({ mode, model, onSelect, onToggleStar, starred }: Mo
             <DropdownMenuContent align="start">
                 <DropdownMenuRadioGroup onValueChange={onSelect} value={model.id}>
                     <ModelMenu
+                        connected={connected}
                         mode={mode}
                         onToggleStar={onToggleStar}
                         selectedId={model.id}
