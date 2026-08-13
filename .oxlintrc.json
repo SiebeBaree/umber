@@ -97,7 +97,7 @@
         {
             "files": [
                 "packages/ui/src/components/ui/video-player.tsx",
-                "packages/ui/src/features/gallery/gallery-tile.tsx"
+                "packages/ui/src/features/gallery/tile-media.tsx"
             ],
             "rules": {
                 // Generated clips carry no caption stream to point a track at.

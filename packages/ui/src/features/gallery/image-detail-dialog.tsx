@@ -1,10 +1,11 @@
 import { ArrowLeft, Download, Trash2 } from 'lucide-react'
-import { useCallback, useMemo, useRef, type ReactNode } from 'react'
+import { useCallback, useMemo, useRef, type MouseEvent, type ReactNode } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '../../components/ui/dialog'
 import { VideoPlayer } from '../../components/ui/video-player'
 import { ProviderMark, ratioToCss, type AspectRatio, type ProviderId } from '../create/catalog'
+import type { DeleteRequest } from './gallery-tile'
 
 /**
  * One creation at full size: how it was made on the left, the piece itself
@@ -98,15 +99,53 @@ function DetailRows({ image }: { readonly image: ImageDetails }) {
 interface DetailPanelProps {
     readonly image: ImageDetails
     readonly onClose: () => void
-    readonly onDelete?: ((id: string) => void) | undefined
+    readonly onDelete?: DeleteRequest | undefined
 }
 
-function DetailPanel({ image, onClose, onDelete }: DetailPanelProps) {
-    const remove = useCallback(() => {
-        onDelete?.(image.id)
-        onClose()
-    }, [image.id, onClose, onDelete])
+/**
+ * The two things one can do with a creation from here.
+ *
+ * Deleting does not close the panel: the request may still be waiting on a
+ * confirmation, and this view is where that question belongs. Whoever owns the
+ * deletion takes the view down with the picture once it actually goes.
+ */
+function DetailActions({
+    image,
+    onDelete,
+}: {
+    readonly image: ImageDetails
+    readonly onDelete?: DeleteRequest | undefined
+}) {
+    const remove = useCallback(
+        (event: MouseEvent<HTMLButtonElement>) => {
+            onDelete?.(image.id, event.shiftKey)
+        },
+        [image.id, onDelete],
+    )
 
+    return (
+        <div className="mt-5 flex flex-wrap gap-2">
+            <Button asChild size="sm">
+                <a
+                    download={`umber-${image.id.slice(0, 8)}.${image.kind === 'video' ? 'mp4' : 'png'}`}
+                    href={image.url}
+                >
+                    <Download aria-hidden />
+                    Download
+                </a>
+            </Button>
+            {onDelete === undefined ? null : (
+                <Button className="hover:text-rose-600" onClick={remove} size="sm" variant="glass">
+                    <Trash2 aria-hidden />
+                    Delete
+                </Button>
+            )}
+        </div>
+    )
+}
+
+/** The record beside the picture, and what one can do with it. */
+function DetailPanel({ image, onClose, onDelete }: DetailPanelProps) {
     return (
         <div className="flex min-h-0 shrink-0 flex-col overflow-y-auto p-5 sm:w-[21rem] sm:p-6">
             <div>
@@ -120,28 +159,7 @@ function DetailPanel({ image, onClose, onDelete }: DetailPanelProps) {
                 moment — the details card below states exactly. */}
             <DialogTitle className="mt-4 pe-0 text-lg leading-snug">{image.prompt}</DialogTitle>
 
-            <div className="mt-5 flex flex-wrap gap-2">
-                <Button asChild size="sm">
-                    <a
-                        download={`umber-${image.id.slice(0, 8)}.${image.kind === 'video' ? 'mp4' : 'png'}`}
-                        href={image.url}
-                    >
-                        <Download aria-hidden />
-                        Download
-                    </a>
-                </Button>
-                {onDelete === undefined ? null : (
-                    <Button
-                        className="hover:text-rose-600"
-                        onClick={remove}
-                        size="sm"
-                        variant="glass"
-                    >
-                        <Trash2 aria-hidden />
-                        Delete
-                    </Button>
-                )}
-            </div>
+            <DetailActions image={image} onDelete={onDelete} />
 
             <h3 className="mt-7 text-[11px] font-semibold tracking-wide text-muted uppercase">
                 Details
@@ -193,7 +211,7 @@ export interface ImageDetailDialogProps {
     readonly image: ImageDetails | null
     readonly onOpenChange: (open: boolean) => void
     /** Omitted where the surface offers no delete, as the create stage does not. */
-    readonly onDelete?: ((id: string) => void) | undefined
+    readonly onDelete?: DeleteRequest | undefined
 }
 
 /**

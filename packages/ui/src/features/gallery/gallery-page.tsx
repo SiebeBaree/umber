@@ -2,8 +2,9 @@ import { motion, useReducedMotion, type Transition } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { RenderingTile } from '../generate/rendering-tile'
+import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { GalleryEmptyState } from './gallery-empty-state'
-import { GalleryTile } from './gallery-tile'
+import { GalleryTile, type DeleteRequest } from './gallery-tile'
 import { ImageDetailDialog } from './image-detail-dialog'
 import { splitIntoColumns } from './masonry'
 import { useColumnCount } from './use-column-count'
@@ -29,7 +30,7 @@ interface StaggeredTileProps {
     /** Ids whose entrance has already played during this visit. */
     readonly seenIds: Set<string>
     readonly reducedMotion: boolean
-    readonly onDelete: (id: string) => void
+    readonly onDelete: DeleteRequest
     readonly onOpen: (id: string) => void
 }
 
@@ -101,9 +102,56 @@ function useOpenImage(entries: readonly GalleryEntry[], remove: (id: string) => 
     return { image, open: setOpenId, close, deleteImage }
 }
 
+/**
+ * Deleting, with the question in front of it: a request parks the creation
+ * until the dialog comes back with an answer. Shift on the click skips
+ * straight to the deletion, which is the whole point of the modifier — the
+ * confirmation is there for the accidental click, not for the person clearing
+ * out a dozen pictures on purpose.
+ */
+function useDeleteFlow(entries: readonly GalleryEntry[], remove: (id: string) => void) {
+    const [pendingId, setPendingId] = useState<string | null>(null)
+
+    const request = useCallback<DeleteRequest>(
+        (id, immediate) => {
+            if (immediate) {
+                remove(id)
+
+                return
+            }
+
+            setPendingId(id)
+        },
+        [remove],
+    )
+
+    const cancel = useCallback(() => {
+        setPendingId(null)
+    }, [])
+
+    const confirm = useCallback(() => {
+        if (pendingId !== null) {
+            remove(pendingId)
+        }
+
+        setPendingId(null)
+    }, [pendingId, remove])
+
+    // The dialog names the creation it is about. A pending id with no entry
+    // behind it — the run it belonged to reloaded the list underneath — asks
+    // about nothing, so the question closes itself.
+    const prompt = useMemo(() => {
+        const found = entries.find((entry) => entry.kind === 'creation' && entry.id === pendingId)
+
+        return found?.kind === 'creation' ? found.image.prompt : null
+    }, [entries, pendingId])
+
+    return { request, confirm, cancel, prompt }
+}
+
 interface MasonryProps {
     readonly entries: readonly GalleryEntry[]
-    readonly onDelete: (id: string) => void
+    readonly onDelete: DeleteRequest
     readonly onOpen: (id: string) => void
 }
 
@@ -153,6 +201,7 @@ function Masonry({ entries, onDelete, onOpen }: MasonryProps) {
 export function GalleryPage() {
     const { entries, loaded, remove } = useGalleryEntries()
     const detail = useOpenImage(entries, remove)
+    const deletion = useDeleteFlow(entries, detail.deleteImage)
 
     if (loaded && entries.length === 0) {
         return <GalleryEmptyState />
@@ -164,12 +213,18 @@ export function GalleryPage() {
                 readers, which otherwise land on an unlabelled wall of images. */}
             <h1 className="sr-only">Gallery</h1>
 
-            <Masonry entries={entries} onDelete={detail.deleteImage} onOpen={detail.open} />
+            <Masonry entries={entries} onDelete={deletion.request} onOpen={detail.open} />
 
             <ImageDetailDialog
                 image={detail.image}
-                onDelete={detail.deleteImage}
+                onDelete={deletion.request}
                 onOpenChange={detail.close}
+            />
+
+            <DeleteConfirmDialog
+                onCancel={deletion.cancel}
+                onConfirm={deletion.confirm}
+                prompt={deletion.prompt}
             />
         </div>
     )

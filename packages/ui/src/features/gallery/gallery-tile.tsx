@@ -1,9 +1,10 @@
 import { Download, Play, Trash2 } from 'lucide-react'
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useMemo, type MouseEvent } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { Tooltip } from '../../components/ui/tooltip'
 import { ratioToCss, type AspectRatio } from '../create/catalog'
+import { TileImage, TileVideo } from './tile-media'
 
 /**
  * A stored creation as the gallery renders it: enough to draw the tile, and
@@ -36,9 +37,16 @@ function formatDuration(seconds: number): string {
     return `${Math.floor(whole / 60)}:${remainder < 10 ? '0' : ''}${remainder}`
 }
 
+/**
+ * Asks for a creation to be deleted. `immediate` carries whether the click
+ * held Shift, which the gallery reads as "don't ask me" — the way past the
+ * confirmation for someone clearing out several pictures in a row.
+ */
+export type DeleteRequest = (id: string, immediate: boolean) => void
+
 export interface GalleryTileProps {
     readonly image: GalleryImage
-    readonly onDelete: (id: string) => void
+    readonly onDelete: DeleteRequest
     readonly onOpen: (id: string) => void
 }
 
@@ -55,11 +63,14 @@ function TileControls({
     onDelete,
 }: {
     readonly image: GalleryImage
-    readonly onDelete: (id: string) => void
+    readonly onDelete: DeleteRequest
 }) {
-    const remove = useCallback(() => {
-        onDelete(image.id)
-    }, [image.id, onDelete])
+    const remove = useCallback(
+        (event: MouseEvent<HTMLButtonElement>) => {
+            onDelete(image.id, event.shiftKey)
+        },
+        [image.id, onDelete],
+    )
 
     return (
         <span className="pointer-events-none absolute top-2.5 right-2.5 flex translate-y-1 gap-1.5 opacity-0 transition-[opacity,translate] duration-200 ease-out group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 has-[:focus-visible]:pointer-events-auto has-[:focus-visible]:translate-y-0 has-[:focus-visible]:opacity-100">
@@ -97,21 +108,6 @@ function TileControls({
     )
 }
 
-/**
- * One creation in the masonry: the picture, which opens full size, and the
- * controls that surface while the tile is hovered or one of them holds
- * keyboard focus. The prompt doubles as the image's accessible name — it is
- * the only description of the picture that exists.
- *
- * The picture's edge is an inset hairline rather than a border: a border sits
- * outside the background and lets it shine through the translucent stroke,
- * which reads as a blurry fringe against the image colours. Shadow depth comes
- * from layering the shared `--umber-glass-shadow` token, the same way the
- * `glass-*` utilities build theirs, so a palette swap carries the gallery too.
- */
-const MEDIA_CLASSES =
-    'block w-full rounded-2xl bg-surface/40 object-cover shadow-[0_3px_12px_-4px_var(--umber-glass-shadow),0_2px_6px_-3px_var(--umber-glass-shadow)] inset-ring inset-ring-ink/10 transition-[translate,box-shadow] duration-200 ease-out group-hover:-translate-y-0.5 group-hover:shadow-[0_16px_32px_-12px_var(--umber-glass-shadow),0_8px_20px_-8px_var(--umber-glass-shadow),0_3px_8px_-3px_var(--umber-glass-shadow)]'
-
 /** The clip badge: says "video" at a glance, and how long, without playing. */
 function DurationBadge({ image }: { readonly image: GalleryImage }) {
     return (
@@ -122,45 +118,18 @@ function DurationBadge({ image }: { readonly image: GalleryImage }) {
     )
 }
 
-/** A refused preview `play()` just leaves the still frame showing. */
-const stayStill = () => {
-    // Nothing to do; the first frame is already the preview.
-}
-
-/** A muted first-frame still that plays silently while hovered. */
-function TileVideo({ image, style }: { readonly image: GalleryImage; readonly style: object }) {
-    const videoRef = useRef<HTMLVideoElement | null>(null)
-
-    const preview = useCallback(() => {
-        videoRef.current?.play().catch(stayStill)
-    }, [])
-
-    const rest = useCallback(() => {
-        const video = videoRef.current
-
-        if (video !== null) {
-            video.pause()
-            video.currentTime = 0
-        }
-    }, [])
-
-    return (
-        <video
-            aria-label={image.prompt}
-            className={MEDIA_CLASSES}
-            loop
-            muted
-            onMouseEnter={preview}
-            onMouseLeave={rest}
-            playsInline
-            preload="metadata"
-            ref={videoRef}
-            src={image.url}
-            style={style}
-        />
-    )
-}
-
+/**
+ * One creation in the masonry: the picture, which opens full size, and the
+ * controls that surface while the tile is hovered or one of them holds
+ * keyboard focus. The prompt doubles as the media's accessible name — it is
+ * the only description of the picture that exists.
+ *
+ * The picture's edge is an inset hairline rather than a border: a border sits
+ * outside the background and lets it shine through the translucent stroke,
+ * which reads as a blurry fringe against the image colours. Shadow depth comes
+ * from layering the shared `--umber-glass-shadow` token, the same way the
+ * `glass-*` utilities build theirs, so a palette swap carries the gallery too.
+ */
 export function GalleryTile({ image, onDelete, onOpen }: GalleryTileProps) {
     const style = useMemo(() => ({ aspectRatio: ratioToCss(image.ratio) }), [image.ratio])
 
@@ -179,17 +148,9 @@ export function GalleryTile({ image, onDelete, onOpen }: GalleryTileProps) {
                 type="button"
             >
                 {image.kind === 'video' ? (
-                    <TileVideo image={image} style={style} />
+                    <TileVideo label={image.prompt} src={image.url} style={style} />
                 ) : (
-                    <img
-                        alt={image.prompt}
-                        className={MEDIA_CLASSES}
-                        decoding="async"
-                        draggable={false}
-                        loading="lazy"
-                        src={image.url}
-                        style={style}
-                    />
+                    <TileImage label={image.prompt} src={image.url} style={style} />
                 )}
             </button>
 
