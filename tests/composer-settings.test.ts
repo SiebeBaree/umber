@@ -43,14 +43,40 @@ test('a resolution the new model cannot do falls back to that model default', ()
 })
 
 test('an aspect ratio the new model cannot do falls back to that model default', () => {
-    // GPT Image 2 has no 21:9.
-    const gptImage2 = model('image', 'gpt-image-2')
+    // GPT Image 1.5 only offers the three fixed OpenAI sizes, so no 21:9.
+    const gptImage15 = model('image', 'gpt-image-1-5')
     const settings = reconcileToModel(
         { ...defaultModeSettings('image'), aspectRatio: '21:9' },
-        gptImage2,
+        gptImage15,
     )
 
     expect(settings.aspectRatio).toBe('1:1')
+})
+
+test('a quality tier survives models that offer it and lies dormant elsewhere', () => {
+    const gptImage2 = model('image', 'gpt-image-2')
+    const schnell = model('image', 'flux-1-schnell')
+
+    const high = reconcileToModel({ ...defaultModeSettings('image'), quality: 'high' }, gptImage2)
+    expect(high.quality).toBe('high')
+
+    // FLUX has no tiers; the remembered tier rides along untouched.
+    const parked = reconcileToModel(high, schnell)
+    expect(parked.quality).toBe('high')
+
+    const restored = reconcileToModel(parked, gptImage2)
+    expect(restored.quality).toBe('high')
+})
+
+test('the estimate prices tiered models off the chosen quality', () => {
+    const gptImage2 = model('image', 'gpt-image-2')
+    const base = { ...defaultModeSettings('image'), resolution: '1K', outputCount: 1 }
+
+    const low = estimateCost(gptImage2, { ...base, quality: 'low' })
+    const high = estimateCost(gptImage2, { ...base, quality: 'high' })
+
+    expect(low).toBeCloseTo(0.006)
+    expect(high).toBeCloseTo(0.211)
 })
 
 test('a clip length snaps to the nearest the new model allows', () => {

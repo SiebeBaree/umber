@@ -14,9 +14,16 @@ export const Dialog = DialogPrimitive.Root
 export const DialogTrigger = DialogPrimitive.Trigger
 export const DialogClose = DialogPrimitive.Close
 
+/*
+ * `pointer-events-none` while closed, on both the scrim and the panel: a
+ * closing surface is unmounted only once its animation reports finishing, and
+ * one that lingers past that would go on swallowing every click on the page
+ * beneath it — the app would simply stop responding after a dialog closed.
+ */
 const OVERLAY_CLASSES = cn(
     'overlay-surface fixed inset-0 z-50 bg-ink/25',
     'data-[state=open]:scrim-enter data-[state=closed]:scrim-exit',
+    'data-[state=closed]:pointer-events-none',
 )
 
 const CONTENT_CLASSES = cn(
@@ -25,12 +32,22 @@ const CONTENT_CLASSES = cn(
     // inside itself, which each dialog lays out for its own content.
     'max-h-[min(85vh,44rem)]',
     'data-[state=open]:dialog-enter data-[state=closed]:dialog-exit',
+    'data-[state=closed]:pointer-events-none',
 )
 
 const CLOSE_CLASSES = cn(
     'tint-control absolute top-4 end-4 flex size-8 cursor-pointer items-center justify-center rounded-full text-muted outline-none hover:text-ink',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 )
+
+export interface DialogContentProps extends ComponentProps<typeof DialogPrimitive.Content> {
+    /**
+     * Set false when the panel's own top-right corner is not glass — over a
+     * picture the ✕ has nothing to sit on. Such a dialog owes the user a close
+     * control of its own; Escape and click-outside are not enough on their own.
+     */
+    readonly showClose?: boolean | undefined
+}
 
 /**
  * The panel itself, with the scrim behind it and an ✕ in its corner. Radix
@@ -40,18 +57,21 @@ const CLOSE_CLASSES = cn(
 export function DialogContent({
     children,
     className,
+    showClose = true,
     ...rest
-}: ComponentProps<typeof DialogPrimitive.Content>) {
+}: DialogContentProps) {
     return (
         <DialogPrimitive.Portal>
             <DialogPrimitive.Overlay className={OVERLAY_CLASSES} />
             <DialogPrimitive.Content className={cn(CONTENT_CLASSES, className)} {...rest}>
                 {children}
-                <DialogPrimitive.Close asChild>
-                    <button aria-label="Close" className={CLOSE_CLASSES} type="button">
-                        <X aria-hidden className="size-4" />
-                    </button>
-                </DialogPrimitive.Close>
+                {showClose ? (
+                    <DialogPrimitive.Close asChild>
+                        <button aria-label="Close" className={CLOSE_CLASSES} type="button">
+                            <X aria-hidden className="size-4" />
+                        </button>
+                    </DialogPrimitive.Close>
+                ) : null}
             </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
     )

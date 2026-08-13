@@ -1,16 +1,21 @@
-import { ratioParts } from '../create/catalog'
-import type { GalleryItem } from './gallery-items'
+import { ratioParts, type AspectRatio } from '../create/catalog'
 
-export interface PlacedItem {
-    readonly item: GalleryItem
+/** What the masonry needs to know about anything it lays out. */
+export interface MasonryItem {
+    readonly id: string
+    readonly ratio: AspectRatio
+}
+
+export interface PlacedItem<Item extends MasonryItem> {
+    readonly item: Item
     /** Position in the original newest-first list, driving the entrance stagger. */
     readonly index: number
 }
 
-export interface MasonryColumn {
+export interface MasonryColumn<Item extends MasonryItem> {
     /** A stable React key — columns have no data identity of their own. */
     readonly key: string
-    readonly items: readonly PlacedItem[]
+    readonly items: readonly PlacedItem<Item>[]
 }
 
 /**
@@ -24,10 +29,10 @@ export interface MasonryColumn {
  * left to right, newest first, and lands every column at nearly the same
  * height.
  */
-export function splitIntoColumns(
-    items: readonly GalleryItem[],
+export function splitIntoColumns<Item extends MasonryItem>(
+    items: readonly Item[],
     columnCount: number,
-): readonly MasonryColumn[] {
+): readonly MasonryColumn<Item>[] {
     // Never more columns than items: the page gives every column `flex-1`, so
     // an empty column would still claim its share of the row and shrink a
     // short gallery's tiles to a fraction of the width. The lower bound of one
@@ -37,7 +42,7 @@ export function splitIntoColumns(
     const columns = Array.from({ length: count }, (_, index) => ({
         key: `column-${index + 1}`,
         height: 0,
-        items: [] as PlacedItem[],
+        items: [] as PlacedItem<Item>[],
     }))
 
     for (const [index, item] of items.entries()) {

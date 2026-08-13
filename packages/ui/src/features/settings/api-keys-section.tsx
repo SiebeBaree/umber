@@ -4,13 +4,15 @@ import { useCallback, useMemo, useState } from 'react'
 import { Button } from '../../components/ui/button'
 import { Tooltip } from '../../components/ui/tooltip'
 import { cn } from '../../lib/cn'
+import { useKeys } from '../keys/keys-context'
+import type { VaultConnection } from '../keys/vault'
 import { AddProviderDialog } from './add-provider-dialog'
 import { KeyProviderMark } from './key-provider-mark'
 import {
-    findKeyProvider,
+    KEY_PROVIDERS,
+    type KeyProvider,
     type KeyProviderId,
     type NewConnection,
-    type ProviderConnection,
 } from './key-providers'
 
 /**
@@ -18,8 +20,8 @@ import {
  * its space by explaining the whole model. Umber has no account of its own,
  * it runs on keys you bring.
  *
- * Connections live in component state for now; nothing is persisted or
- * verified yet, but the full add/remove flow is walkable.
+ * Connections live in the shell's vault via the keys context, so what is
+ * listed here is exactly what the composer can generate with.
  */
 
 /** The marks fanned out in the empty state, a hand of cards rather than a grid. */
@@ -62,17 +64,56 @@ function EmptyState({ onAdd }: { readonly onAdd: () => void }) {
     )
 }
 
-interface ConnectionRowProps {
-    readonly connection: ProviderConnection
+/** "13 Aug 2026" from the vault's ISO timestamp, or nothing if unparseable. */
+function formatAddedOn(addedAt: string): string | null {
+    const date = new Date(addedAt)
+
+    if (Number.isNaN(date.getTime())) {
+        return null
+    }
+
+    return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+interface RowDetailsProps {
+    readonly provider: KeyProvider
+    readonly connection: VaultConnection
+}
+
+function RowDetails({ connection, provider }: RowDetailsProps) {
+    const addedOn = formatAddedOn(connection.addedAt)
+
+    return (
+        <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+                <span className="truncate text-sm font-medium">{provider.name}</span>
+                {provider.group === 'aggregator' ? (
+                    <span className="rounded-full border border-ink/[0.08] px-1.5 py-px text-[10px] font-medium tracking-wide text-muted uppercase">
+                        Aggregator
+                    </span>
+                ) : null}
+            </div>
+            <p className="mt-0.5 flex items-center gap-2 text-xs text-muted">
+                <span className="font-mono">····{connection.keyTail}</span>
+                {addedOn === null ? null : (
+                    <>
+                        <span aria-hidden>·</span>
+                        <span>Added {addedOn}</span>
+                    </>
+                )}
+            </p>
+        </div>
+    )
+}
+
+interface ConnectionRowProps extends RowDetailsProps {
     readonly onRemove: (providerId: KeyProviderId) => void
 }
 
-function ConnectionRow({ connection, onRemove }: ConnectionRowProps) {
-    const provider = findKeyProvider(connection.providerId)
-
+function ConnectionRow({ connection, onRemove, provider }: ConnectionRowProps) {
     const remove = useCallback(() => {
-        onRemove(connection.providerId)
-    }, [connection.providerId, onRemove])
+        onRemove(provider.id)
+    }, [provider.id, onRemove])
 
     return (
         <li className="flex items-center gap-4 py-3.5">
@@ -80,24 +121,9 @@ function ConnectionRow({ connection, onRemove }: ConnectionRowProps) {
                 <KeyProviderMark className="size-5 text-ink" provider={provider.id} />
             </div>
 
-            <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">{provider.name}</span>
-                    {provider.group === 'aggregator' ? (
-                        <span className="rounded-full border border-ink/[0.08] px-1.5 py-px text-[10px] font-medium tracking-wide text-muted uppercase">
-                            Aggregator
-                        </span>
-                    ) : null}
-                </div>
-                <p className="mt-0.5 flex items-center gap-2 text-xs text-muted">
-                    <span className="font-mono">····{connection.keyTail}</span>
-                    <span aria-hidden>·</span>
-                    <span>Added {connection.addedOn}</span>
-                </p>
-            </div>
+            <RowDetails connection={connection} provider={provider} />
 
             <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted">
-                {/* Status is cosmetic until keys are actually verified. */}
                 <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
                 Connected
             </span>
@@ -137,35 +163,43 @@ function SectionHeader({ onAdd, showAdd }: SectionHeaderProps) {
     )
 }
 
-function useConnections() {
-    const [connections, setConnections] = useState<readonly ProviderConnection[]>([])
+/** The vault spoken in this section's terms: joined rows plus the actions. */
+function useProviderConnections() {
+    const keys = useKeys()
 
-    const connect = useCallback((connection: NewConnection) => {
-        const addedOn = new Date().toLocaleDateString(undefined, {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-        })
-
-        setConnections((current) => [...current, { ...connection, addedOn }])
-    }, [])
-
-    const remove = useCallback((providerId: KeyProviderId) => {
-        setConnections((current) =>
-            current.filter((connection) => connection.providerId !== providerId),
-        )
-    }, [])
-
-    const connectedIds = useMemo(
-        () => new Set(connections.map((connection) => connection.providerId)),
-        [connections],
+    const connect = useCallback(
+        (connection: NewConnection) => keys.connect(connection.providerId, connection.credentials),
+        [keys],
     )
 
-    return { connections, connect, remove, connectedIds }
+    const remove = useCallback(
+        (providerId: KeyProviderId) => {
+            void keys.remove(providerId)
+        },
+        [keys],
+    )
+
+    // Vault rows joined back to what is known about each provider; an id from
+    // a newer build than this one is skipped rather than crashed on.
+    const rows = useMemo(
+        () =>
+            keys.connections.flatMap((connection) => {
+                const provider = KEY_PROVIDERS.find(
+                    (candidate) => candidate.id === connection.providerId,
+                )
+
+                return provider === undefined ? [] : [{ provider, connection }]
+            }),
+        [keys.connections],
+    )
+
+    const connectedIds = useMemo(() => new Set(rows.map((row) => row.provider.id)), [rows])
+
+    return { ready: keys.ready, rows, connectedIds, connect, remove }
 }
 
 export function ApiKeysSection() {
-    const { connect, connectedIds, connections, remove } = useConnections()
+    const { connect, connectedIds, ready, remove, rows } = useProviderConnections()
     const [dialogOpen, setDialogOpen] = useState(false)
 
     const openDialog = useCallback(() => {
@@ -174,20 +208,25 @@ export function ApiKeysSection() {
 
     return (
         <section aria-labelledby="settings-api-keys" className="glass rounded-3xl p-6">
-            <SectionHeader onAdd={openDialog} showAdd={connections.length > 0} />
+            <SectionHeader onAdd={openDialog} showAdd={rows.length > 0} />
 
-            {connections.length === 0 ? (
-                <EmptyState onAdd={openDialog} />
-            ) : (
+            {rows.length > 0 ? (
                 <ul className="mt-3 divide-y divide-ink/[0.06]">
-                    {connections.map((connection) => (
+                    {rows.map(({ connection, provider }) => (
                         <ConnectionRow
                             connection={connection}
-                            key={connection.providerId}
+                            key={provider.id}
                             onRemove={remove}
+                            provider={provider}
                         />
                     ))}
                 </ul>
+            ) : ready ? (
+                <EmptyState onAdd={openDialog} />
+            ) : (
+                // The vault has not answered yet; a blank beat beats a flash of
+                // the empty state on every visit.
+                <div aria-hidden className="py-10" />
             )}
 
             <AddProviderDialog

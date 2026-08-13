@@ -1,4 +1,4 @@
-import { ArrowUp, Clapperboard, Image } from 'lucide-react'
+import { ArrowUp, Clapperboard, Image, LoaderCircle } from 'lucide-react'
 import { motion, type Transition } from 'motion/react'
 import { useCallback } from 'react'
 
@@ -14,6 +14,7 @@ import {
     DurationSelect,
     ModelSelect,
     OutputCountStepper,
+    QualitySelect,
     ResolutionSelect,
 } from './controls'
 import { estimateCost, formatCost } from './pricing'
@@ -31,16 +32,15 @@ const MODE_OPTIONS: readonly SegmentedControlOption<GenerationMode>[] = [
     { value: GENERATION_MODES[1], label: 'Video', icon: Clapperboard },
 ]
 
-interface SettingsControlsProps {
+interface ControlProps {
     readonly composer: ComposerSettingsApi
-    readonly mode: GenerationMode
 }
 
 /**
- * The model and its output settings. Which controls exist follows the model:
- * an image model gets a count stepper, a video model a clip-length slider.
+ * The output amount follows the model: an image model gets a count stepper, a
+ * video model a clip-length picker.
  */
-function OutputControl({ composer }: { readonly composer: ComposerSettingsApi }) {
+function OutputControl({ composer }: ControlProps) {
     const { model, settings } = composer
 
     const setOutputCount = useCallback(
@@ -68,7 +68,8 @@ function OutputControl({ composer }: { readonly composer: ComposerSettingsApi })
     )
 }
 
-function SettingsControls({ composer, mode }: SettingsControlsProps) {
+/** Shape and finish: aspect ratio, resolution, and quality where offered. */
+function ShapeControls({ composer }: ControlProps) {
     const { model, settings } = composer
 
     const setAspectRatio = useCallback(
@@ -79,19 +80,10 @@ function SettingsControls({ composer, mode }: SettingsControlsProps) {
         (resolution: string) => composer.update({ resolution }),
         [composer],
     )
+    const setQuality = useCallback((quality: string) => composer.update({ quality }), [composer])
 
     return (
         <>
-            <motion.div layout transition={REFLOW}>
-                <ModelSelect
-                    mode={mode}
-                    model={model}
-                    onSelect={composer.selectModel}
-                    onToggleStar={composer.toggleStar}
-                    starred={composer.starred}
-                />
-            </motion.div>
-
             <motion.div layout transition={REFLOW}>
                 <AspectRatioSelect
                     modelName={model.name}
@@ -110,10 +102,94 @@ function SettingsControls({ composer, mode }: SettingsControlsProps) {
                 />
             </motion.div>
 
+            {isImageModel(model) && model.quality !== undefined ? (
+                <motion.div layout transition={REFLOW}>
+                    <QualitySelect
+                        onValueChange={setQuality}
+                        options={model.quality.options}
+                        value={settings.quality}
+                    />
+                </motion.div>
+            ) : null}
+        </>
+    )
+}
+
+interface SettingsControlsProps extends ControlProps {
+    readonly mode: GenerationMode
+}
+
+/** The model and its output settings; which controls exist follows the model. */
+function SettingsControls({ composer, mode }: SettingsControlsProps) {
+    return (
+        <>
+            <motion.div layout transition={REFLOW}>
+                <ModelSelect
+                    mode={mode}
+                    model={composer.model}
+                    onSelect={composer.selectModel}
+                    onToggleStar={composer.toggleStar}
+                    starred={composer.starred}
+                />
+            </motion.div>
+
+            <ShapeControls composer={composer} />
+
             <motion.div layout transition={REFLOW}>
                 <OutputControl composer={composer} />
             </motion.div>
         </>
+    )
+}
+
+interface SubmitClusterProps {
+    readonly price: string
+    readonly blocker: string | null
+    readonly busy: boolean
+    readonly canSubmit: boolean
+}
+
+/**
+ * The estimate sits beside the button rather than inside it: it is
+ * information, not an action, and stacking it under the arrow forced the
+ * primary control out of line with every other pill in the row.
+ *
+ * Deliberately *not* layout-animated. It is pinned to the end of a row whose
+ * other side is `flex-1`, so it never actually needs to move — and measuring
+ * it anyway made it drift a pixel or two every time a control to its left
+ * changed width.
+ */
+function SubmitCluster({ blocker, busy, canSubmit, price }: SubmitClusterProps) {
+    const submit = (
+        <Button
+            aria-label={busy ? 'Generating' : `Generate — estimated ${price}`}
+            disabled={!canSubmit || blocker !== null || busy}
+            size="icon"
+            type="submit"
+        >
+            {busy ? <LoaderCircle aria-hidden className="animate-spin" /> : <ArrowUp aria-hidden />}
+        </Button>
+    )
+
+    return (
+        <div className="flex items-center gap-2.5">
+            <Tooltip label="Estimated cost of this run. Actual billing comes from your provider.">
+                <span
+                    aria-hidden
+                    className="cursor-default text-[13px] font-medium text-muted tabular-nums"
+                >
+                    {price}
+                </span>
+            </Tooltip>
+
+            {blocker === null ? (
+                submit
+            ) : (
+                <Tooltip label={blocker} wrapTrigger>
+                    {submit}
+                </Tooltip>
+            )}
+        </div>
     )
 }
 
@@ -122,9 +198,20 @@ export interface ComposerToolbarProps {
     readonly onModeChange: (mode: GenerationMode) => void
     readonly composer: ComposerSettingsApi
     readonly canSubmit: boolean
+    /** Why the send button is disabled even with a prompt, if it is. */
+    readonly blocker: string | null
+    /** True while a run is in flight; the button waits it out visibly. */
+    readonly busy: boolean
 }
 
-export function ComposerToolbar({ canSubmit, composer, mode, onModeChange }: ComposerToolbarProps) {
+export function ComposerToolbar({
+    blocker,
+    busy,
+    canSubmit,
+    composer,
+    mode,
+    onModeChange,
+}: ComposerToolbarProps) {
     const price = formatCost(estimateCost(composer.model, composer.settings))
 
     return (
@@ -142,35 +229,7 @@ export function ComposerToolbar({ canSubmit, composer, mode, onModeChange }: Com
                 <SettingsControls composer={composer} mode={mode} />
             </div>
 
-            {/*
-             * The estimate sits beside the button rather than inside it: it is
-             * information, not an action, and stacking it under the arrow forced
-             * the primary control out of line with every other pill in the row.
-             *
-             * Deliberately *not* layout-animated. It is pinned to the end of a
-             * row whose other side is `flex-1`, so it never actually needs to
-             * move — and measuring it anyway made it drift a pixel or two every
-             * time a control to its left changed width.
-             */}
-            <div className="flex items-center gap-2.5">
-                <Tooltip label="Estimated cost of this run. Actual billing comes from your provider.">
-                    <span
-                        aria-hidden
-                        className="cursor-default text-[13px] font-medium text-muted tabular-nums"
-                    >
-                        {price}
-                    </span>
-                </Tooltip>
-
-                <Button
-                    aria-label={`Generate — estimated ${price}`}
-                    disabled={!canSubmit}
-                    size="icon"
-                    type="submit"
-                >
-                    <ArrowUp aria-hidden />
-                </Button>
-            </div>
+            <SubmitCluster blocker={blocker} busy={busy} canSubmit={canSubmit} price={price} />
         </div>
     )
 }

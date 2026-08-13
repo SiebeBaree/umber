@@ -7,15 +7,15 @@ import { PickStep } from './provider-pick-step'
 
 /**
  * The add-provider flow, in two steps inside one dialog: pick a provider, then
- * fill in exactly the credentials that provider declares. Nothing is verified
- * or stored yet. "Connecting" hands the parent a display-safe summary and the
- * secrets themselves are dropped on the floor.
+ * fill in exactly the credentials that provider declares. The configure step
+ * checks the key live where it can; `onConnect` hands the credentials to the
+ * vault and resolves once they are stored.
  */
 export interface AddProviderDialogProps {
     readonly open: boolean
     readonly onOpenChange: (open: boolean) => void
     readonly connected: ReadonlySet<KeyProviderId>
-    readonly onConnect: (connection: NewConnection) => void
+    readonly onConnect: (connection: NewConnection) => Promise<void>
 }
 
 export function AddProviderDialog({
@@ -39,8 +39,10 @@ export function AddProviderDialog({
     }, [])
 
     const connect = useCallback(
-        (connection: NewConnection) => {
-            onConnect(connection)
+        async (connection: NewConnection) => {
+            // Close only after the vault write lands; a failure surfaces in the
+            // configure step, which stays open to show it.
+            await onConnect(connection)
             onOpenChange(false)
         },
         [onConnect, onOpenChange],
@@ -49,7 +51,7 @@ export function AddProviderDialog({
     return (
         <Dialog onOpenChange={onOpenChange} open={open}>
             {/* A fixed height, so the panel doesn't resize between the two steps. */}
-            <DialogContent className="h-[34rem]">
+            <DialogContent className="h-[37rem]">
                 {picked === null ? (
                     <PickStep connected={connected} onPick={setPicked} />
                 ) : (

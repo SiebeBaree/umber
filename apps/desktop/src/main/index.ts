@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, session, shell } from 'electron'
 
 import { CONTENT_SECURITY_POLICY, isAllowedExternalUrl } from './security'
+import { registerVaultIpc } from './vault'
 import { createWindowOptions } from './window'
 
 const APP_USER_MODEL_ID = 'com.umber.app'
@@ -56,6 +57,7 @@ async function start(): Promise<void> {
         applyContentSecurityPolicy()
     }
 
+    registerVaultIpc()
     createMainWindow()
 
     // macOS: clicking the dock icon with no windows open reopens one.
