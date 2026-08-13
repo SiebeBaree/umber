@@ -1,20 +1,23 @@
 import { ArrowLeft, Download, Trash2 } from 'lucide-react'
-import { useCallback, useRef, type ReactNode } from 'react'
+import { useCallback, useMemo, useRef, type ReactNode } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '../../components/ui/dialog'
-import { ProviderMark, type AspectRatio, type ProviderId } from '../create/catalog'
+import { VideoPlayer } from '../../components/ui/video-player'
+import { ProviderMark, ratioToCss, type AspectRatio, type ProviderId } from '../create/catalog'
 
 /**
- * One creation at full size: how it was made on the left, the picture itself
- * on the right. Opened from a gallery tile or from a finished run on the
- * create page, which is why it takes a plain description rather than either
- * page's own shape.
+ * One creation at full size: how it was made on the left, the piece itself
+ * on the right — a picture contained, or a clip in the player. Opened from a
+ * gallery tile or from a finished run on the create page, which is why it
+ * takes a plain description rather than either page's own shape.
  */
 
 export interface ImageDetails {
     readonly id: string
-    /** An object URL over the image; owned by whoever opened this. */
+    /** What the creation is; a video opens as a player instead of a still. */
+    readonly kind: 'image' | 'video'
+    /** An object URL over the media; owned by whoever opened this. */
     readonly url: string
     readonly prompt: string
     readonly providerId: string
@@ -24,6 +27,8 @@ export interface ImageDetails {
     readonly resolution?: string | undefined
     /** Absent on models that do not price by quality. */
     readonly quality?: string | undefined
+    /** Clip length in seconds; only videos carry one. */
+    readonly durationSeconds?: number | undefined
     /** Epoch milliseconds. */
     readonly createdAt: number
 }
@@ -83,6 +88,9 @@ function DetailRows({ image }: { readonly image: ImageDetails }) {
             {image.quality === undefined || image.quality === '' ? null : (
                 <DetailRow label="Quality">{formatQuality(image.quality)}</DetailRow>
             )}
+            {image.durationSeconds === undefined ? null : (
+                <DetailRow label="Duration">{image.durationSeconds}s</DetailRow>
+            )}
         </dl>
     )
 }
@@ -114,7 +122,10 @@ function DetailPanel({ image, onClose, onDelete }: DetailPanelProps) {
 
             <div className="mt-5 flex flex-wrap gap-2">
                 <Button asChild size="sm">
-                    <a download={`umber-${image.id.slice(0, 8)}.png`} href={image.url}>
+                    <a
+                        download={`umber-${image.id.slice(0, 8)}.${image.kind === 'video' ? 'mp4' : 'png'}`}
+                        href={image.url}
+                    >
                         <Download aria-hidden />
                         Download
                     </a>
@@ -140,17 +151,29 @@ function DetailPanel({ image, onClose, onDelete }: DetailPanelProps) {
     )
 }
 
-/** The picture itself, contained rather than cropped: this is the view you
- * open to see the whole thing. */
+/** The piece itself, contained rather than cropped: this is the view you
+ * open to see the whole thing. A clip arrives playing, with sound. */
 function BigPicture({ image }: { readonly image: ImageDetails }) {
+    const frameStyle = useMemo(() => ({ aspectRatio: ratioToCss(image.ratio) }), [image.ratio])
+
     return (
         <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center p-5 sm:ps-0">
-            <img
-                alt={image.prompt}
-                className="max-h-[min(72vh,36rem)] max-w-full rounded-2xl object-contain shadow-[0_16px_40px_-20px_var(--umber-glass-shadow)]"
-                draggable={false}
-                src={image.url}
-            />
+            {image.kind === 'video' ? (
+                <VideoPlayer
+                    autoPlay
+                    className="max-h-[min(72vh,36rem)] w-full max-w-full shadow-[0_16px_40px_-20px_var(--umber-glass-shadow)]"
+                    label={image.prompt}
+                    src={image.url}
+                    style={frameStyle}
+                />
+            ) : (
+                <img
+                    alt={image.prompt}
+                    className="max-h-[min(72vh,36rem)] max-w-full rounded-2xl object-contain shadow-[0_16px_40px_-20px_var(--umber-glass-shadow)]"
+                    draggable={false}
+                    src={image.url}
+                />
+            )}
         </div>
     )
 }

@@ -12,6 +12,8 @@ import type { AspectRatio } from '../create/catalog'
 
 export interface CreationRecord {
     readonly id: string
+    /** Absent on rows stored before video existed, which are all images. */
+    readonly kind?: 'image' | 'video'
     readonly prompt: string
     readonly providerId: string
     readonly modelId: string
@@ -24,8 +26,12 @@ export interface CreationRecord {
      */
     readonly resolution?: string
     readonly quality?: string
+    /** Clip length in seconds; only video rows carry one. */
+    readonly durationSeconds?: number
     /** Epoch milliseconds; the gallery sorts newest first on this. */
     readonly createdAt: number
+    /** The file itself. Named for the store's image-only beginnings; video
+     * rows keep their clip here too. */
     readonly image: Blob
 }
 

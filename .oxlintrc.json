@@ -72,6 +72,37 @@
                 // top-level await.
                 "unicorn/prefer-top-level-await": "off"
             }
+        },
+        {
+            "files": ["packages/ui/src/features/generate/**", "packages/ui/src/lib/http.ts"],
+            "rules": {
+                // Provider jobs are polled: each check must finish before the
+                // next is due, so the await belongs inside the loop.
+                "eslint/no-await-in-loop": "off"
+            }
+        },
+        {
+            "files": [
+                "packages/ui/src/features/create/catalog/*-models.ts",
+                "packages/ui/src/features/settings/key-providers.ts",
+                "packages/ui/src/features/generate/engine.ts"
+            ],
+            "rules": {
+                // Catalog files are tables: one entry per model or provider,
+                // and the dispatch table imports every integration it routes.
+                "eslint/max-lines": "off",
+                "import/max-dependencies": "off"
+            }
+        },
+        {
+            "files": [
+                "packages/ui/src/components/ui/video-player.tsx",
+                "packages/ui/src/features/gallery/gallery-tile.tsx"
+            ],
+            "rules": {
+                // Generated clips carry no caption stream to point a track at.
+                "jsx-a11y/media-has-caption": "off"
+            }
         }
     ]
 }

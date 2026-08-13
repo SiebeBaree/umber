@@ -22,12 +22,15 @@ export type GalleryEntry =
 function toGalleryImage(record: CreationRecord): GalleryImage {
     return {
         id: record.id,
+        // Rows from before video existed carry no kind, and are all images.
+        kind: record.kind ?? 'image',
         prompt: record.prompt,
         ratio: record.ratio,
         providerId: record.providerId,
         modelName: record.modelName,
         resolution: record.resolution,
         quality: record.quality,
+        durationSeconds: record.durationSeconds,
         createdAt: record.createdAt,
         url: URL.createObjectURL(record.image),
     }

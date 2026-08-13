@@ -2,6 +2,7 @@ import { join } from 'node:path'
 
 import { app, BrowserWindow, session, shell } from 'electron'
 
+import { registerNetIpc } from './net'
 import { CONTENT_SECURITY_POLICY, isAllowedExternalUrl } from './security'
 import { registerVaultIpc } from './vault'
 import { createWindowOptions } from './window'
@@ -58,6 +59,7 @@ async function start(): Promise<void> {
     }
 
     registerVaultIpc()
+    registerNetIpc()
     createMainWindow()
 
     // macOS: clicking the dock icon with no windows open reopens one.

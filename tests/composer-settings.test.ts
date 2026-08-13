@@ -32,11 +32,11 @@ test('a setting the new model supports is kept', () => {
 })
 
 test('a resolution the new model cannot do falls back to that model default', () => {
-    // FLUX.1 [schnell] is 1K only, so a remembered 4K has nowhere to go.
-    const schnell = model('image', 'flux-1-schnell')
+    // FLUX 1.1 [pro] is 1K only, so a remembered 4K has nowhere to go.
+    const fluxPro = model('image', 'flux-pro-1-1')
     const settings = reconcileToModel(
         { ...defaultModeSettings('image'), resolution: '4K' },
-        schnell,
+        fluxPro,
     )
 
     expect(settings.resolution).toBe('1K')
@@ -55,13 +55,13 @@ test('an aspect ratio the new model cannot do falls back to that model default',
 
 test('a quality tier survives models that offer it and lies dormant elsewhere', () => {
     const gptImage2 = model('image', 'gpt-image-2')
-    const schnell = model('image', 'flux-1-schnell')
+    const fluxPro = model('image', 'flux-pro-1-1')
 
     const high = reconcileToModel({ ...defaultModeSettings('image'), quality: 'high' }, gptImage2)
     expect(high.quality).toBe('high')
 
     // FLUX has no tiers; the remembered tier rides along untouched.
-    const parked = reconcileToModel(high, schnell)
+    const parked = reconcileToModel(high, fluxPro)
     expect(parked.quality).toBe('high')
 
     const restored = reconcileToModel(parked, gptImage2)
@@ -80,7 +80,7 @@ test('the estimate prices tiered models off the chosen quality', () => {
 })
 
 test('a clip length snaps to the nearest the new model allows', () => {
-    // Kling 3.0 Pro offers 5/10/15; Veo 3.1 offers 4/6/8.
+    // A remembered 15s has nowhere to go on Veo 3.1, which offers 4/6/8.
     const veo = model('video', 'veo-3-1')
     const settings = reconcileToModel({ ...defaultModeSettings('video'), durationSeconds: 15 }, veo)
 
@@ -88,7 +88,7 @@ test('a clip length snaps to the nearest the new model allows', () => {
 })
 
 test('a clip length inside a range model is preserved exactly', () => {
-    // Seedance 2.0 accepts every whole second from 3 to 12.
+    // Seedance 2.0 accepts every whole second from 4 to 15.
     const seedance = model('video', 'seedance-2-0')
     const settings = reconcileToModel(
         { ...defaultModeSettings('video'), durationSeconds: 7 },
