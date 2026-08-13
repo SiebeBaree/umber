@@ -8,10 +8,10 @@
     "scripts": {
         "build": "electron-vite build",
         "clean": "rimraf out release .turbo",
-        "dev": "electron-vite dev --watch",
+        "dev": "node scripts/ensure-electron.mjs && electron-vite dev --watch",
         "package": "electron-vite build && electron-builder --dir",
         "release": "electron-vite build && electron-builder",
-        "start": "electron-vite preview",
+        "start": "node scripts/ensure-electron.mjs && electron-vite preview",
         "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
     },
     "devDependencies": {

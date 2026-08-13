@@ -12,6 +12,12 @@ pnpm install     # installs the workspace and sets up git hooks (lefthook)
 pnpm dev         # launches Electron; the renderer dev server prefers :5174 (next free port if busy — see the startup log)
 ```
 
+The first `pnpm dev` in a fresh checkout downloads the Electron binary, which `pnpm install` no longer does — Electron 43 fetches it on first use instead of from a postinstall script. If something launches Electron without going through `pnpm dev` and dies with `Error: Electron uninstall`, that download is what is missing:
+
+```bash
+pnpm --dir apps/desktop exec install-electron
+```
+
 ## Before you push
 
 ```bash

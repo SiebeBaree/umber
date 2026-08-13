@@ -1,9 +1,10 @@
 import { ArrowLeft, Download, Trash2 } from 'lucide-react'
-import { useCallback, useRef, type ReactNode } from 'react'
+import { useCallback, useRef, type MouseEvent, type ReactNode } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '../../components/ui/dialog'
 import { ProviderMark, type AspectRatio, type ProviderId } from '../create/catalog'
+import type { DeleteRequest } from './gallery-tile'
 
 /**
  * One creation at full size: how it was made on the left, the picture itself
@@ -90,14 +91,23 @@ function DetailRows({ image }: { readonly image: ImageDetails }) {
 interface DetailPanelProps {
     readonly image: ImageDetails
     readonly onClose: () => void
-    readonly onDelete?: ((id: string) => void) | undefined
+    readonly onDelete?: DeleteRequest | undefined
 }
 
+/**
+ * The record beside the picture, and the two things one can do with it.
+ *
+ * Deleting does not close this panel: the request may still be waiting on a
+ * confirmation, and this view is where that question belongs. Whoever owns the
+ * deletion takes the view down with the picture once it actually goes.
+ */
 function DetailPanel({ image, onClose, onDelete }: DetailPanelProps) {
-    const remove = useCallback(() => {
-        onDelete?.(image.id)
-        onClose()
-    }, [image.id, onClose, onDelete])
+    const remove = useCallback(
+        (event: MouseEvent<HTMLButtonElement>) => {
+            onDelete?.(image.id, event.shiftKey)
+        },
+        [image.id, onDelete],
+    )
 
     return (
         <div className="flex min-h-0 shrink-0 flex-col overflow-y-auto p-5 sm:w-[21rem] sm:p-6">
@@ -170,7 +180,7 @@ export interface ImageDetailDialogProps {
     readonly image: ImageDetails | null
     readonly onOpenChange: (open: boolean) => void
     /** Omitted where the surface offers no delete, as the create stage does not. */
-    readonly onDelete?: ((id: string) => void) | undefined
+    readonly onDelete?: DeleteRequest | undefined
 }
 
 /**
