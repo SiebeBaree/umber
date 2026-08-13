@@ -29,7 +29,7 @@ The shell and the UI are **deliberately separate**: `apps/desktop` owns windows,
 
 ```bash
 pnpm install
-pnpm dev        # launches Electron; the renderer dev server runs on :5174
+pnpm dev        # launches Electron; the renderer dev server prefers :5174 (next free port if busy — see the startup log)
 ```
 
 ## Commands

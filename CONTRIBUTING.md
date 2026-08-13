@@ -9,7 +9,7 @@
 
 ```bash
 pnpm install     # installs the workspace and sets up git hooks (lefthook)
-pnpm dev         # launches Electron; the renderer dev server runs on :5174
+pnpm dev         # launches Electron; the renderer dev server prefers :5174 (next free port if busy — see the startup log)
 ```
 
 ## Before you push

@@ -1,4 +1,4 @@
-import type { AspectRatio } from '../catalog'
+import { ratioParts, type AspectRatio } from '../catalog'
 
 /**
  * A scale drawing of the ratio itself: the outline is the shape you will get
@@ -16,9 +16,7 @@ export interface AspectRatioIconProps {
 }
 
 export function AspectRatioIcon({ className, ratio }: AspectRatioIconProps) {
-    const [widthPart = '1', heightPart = '1'] = ratio.split(':')
-    const width = Number(widthPart)
-    const height = Number(heightPart)
+    const { height, width } = ratioParts(ratio)
 
     // Fit the longer side to the box and scale the other down to match.
     const longest = Math.max(width, height)
