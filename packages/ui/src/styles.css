@@ -197,6 +197,78 @@
     animation: umber-overlay-out 130ms cubic-bezier(0.4, 0, 1, 1);
 }
 
+/*
+ * Modal choreography. The scrim only fades; the panel additionally settles into
+ * place. Both animate the `translate`/`scale` *properties* rather than
+ * `transform`, so the panel's resting Tailwind classes (`-translate-x-1/2
+ * -translate-y-1/2`) take over seamlessly the instant the keyframes finish.
+ * Animating `transform` here would stack on top of those and throw the panel
+ * off-centre for the duration.
+ */
+@keyframes umber-scrim-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes umber-scrim-out {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+@utility scrim-enter {
+    animation: umber-scrim-in 190ms ease-out;
+}
+
+@utility scrim-exit {
+    animation: umber-scrim-out 150ms ease-in;
+}
+
+@keyframes umber-dialog-in {
+    from {
+        opacity: 0;
+        translate: -50% -47%;
+        scale: 0.97;
+    }
+
+    to {
+        opacity: 1;
+        translate: -50% -50%;
+        scale: 1;
+    }
+}
+
+@keyframes umber-dialog-out {
+    from {
+        opacity: 1;
+        translate: -50% -50%;
+        scale: 1;
+    }
+
+    to {
+        opacity: 0;
+        translate: -50% -48%;
+        scale: 0.98;
+    }
+}
+
+@utility dialog-enter {
+    animation: umber-dialog-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility dialog-exit {
+    animation: umber-dialog-out 150ms cubic-bezier(0.4, 0, 1, 1);
+}
+
 /* The same interaction language for controls that carry no surface of their own. */
 @utility tint-control {
     transition: var(--umber-control-transition);
