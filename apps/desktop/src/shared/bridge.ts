@@ -56,10 +56,49 @@ export const VAULT_CHANNELS = {
     credentials: 'umber:vault:credentials',
 } as const
 
+/**
+ * One provider HTTP request, decomposed so it can cross IPC. Mirrors
+ * `@umber/ui`'s transport shapes — the renderer builds these, the main process
+ * performs them with its own network stack, which is not subject to CORS.
+ */
+export type NetFormPartDto =
+    | { readonly kind: 'field'; readonly name: string; readonly value: string }
+    | {
+          readonly kind: 'file'
+          readonly name: string
+          readonly filename: string
+          readonly contentType: string
+          readonly bytes: Uint8Array
+      }
+
+export type NetBodyDto =
+    | { readonly kind: 'text'; readonly text: string; readonly contentType: string }
+    | { readonly kind: 'form'; readonly parts: readonly NetFormPartDto[] }
+
+export interface NetRequestDto {
+    readonly url: string
+    readonly method: string
+    readonly headers: Readonly<Record<string, string>>
+    readonly body?: NetBodyDto
+}
+
+export interface NetResponseDto {
+    readonly status: number
+    readonly headers: Readonly<Record<string, string>>
+    readonly body: Uint8Array
+}
+
+export const NET_CHANNEL = 'umber:net:fetch'
+
+export interface UmberNetBridge {
+    fetch(request: NetRequestDto): Promise<NetResponseDto>
+}
+
 export interface UmberBridge {
     readonly os: UmberOperatingSystem
     readonly versions: UmberVersions
     readonly vault: UmberVaultBridge
+    readonly net: UmberNetBridge
 }
 
 /**

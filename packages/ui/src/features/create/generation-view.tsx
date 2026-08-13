@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { Tooltip } from '../../components/ui/tooltip'
+import { VideoPlayer } from '../../components/ui/video-player'
 import { ImageDetailDialog, type ImageDetails } from '../gallery/image-detail-dialog'
 import { useGeneration, type GenerationJob } from '../generate/generation-context'
 import { RenderingTile } from '../generate/rendering-tile'
@@ -11,7 +12,7 @@ import { ratioParts, ratioToCss } from './catalog'
 
 /**
  * The stage above the composer while a run exists: skeletons while rendering,
- * the images once they land, a plain account of what went wrong if they
+ * the results once they land, a plain account of what went wrong if they
  * don't. One run at a time, front and centre.
  */
 
@@ -56,21 +57,58 @@ interface ResultTileProps {
 
 /** The download control, revealed while the tile is hovered or focused. */
 function ResultTileControls({ index, job, url }: Omit<ResultTileProps, 'onOpen'>) {
+    const extension = job.kind === 'video' ? 'mp4' : 'png'
+
     return (
         <span className="pointer-events-none absolute top-2.5 right-2.5 translate-y-1 opacity-0 transition-[opacity,translate] duration-200 ease-out group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 has-[:focus-visible]:pointer-events-auto has-[:focus-visible]:translate-y-0 has-[:focus-visible]:opacity-100">
             <Tooltip label="Download">
                 <Button
-                    aria-label={`Download image ${index + 1}`}
+                    aria-label={`Download ${job.kind} ${index + 1}`}
                     asChild
                     size="icon-sm"
                     variant="overlay"
                 >
-                    <a download={`umber-${job.id.slice(0, 8)}-${index + 1}.png`} href={url}>
+                    <a
+                        download={`umber-${job.id.slice(0, 8)}-${index + 1}.${extension}`}
+                        href={url}
+                    >
                         <Download aria-hidden />
                     </a>
                 </Button>
             </Tooltip>
         </span>
+    )
+}
+
+const VIDEO_ENTER = { opacity: 0, scale: 0.985 }
+const VIDEO_SETTLED = { opacity: 1, scale: 1 }
+const VIDEO_TRANSITION = { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const }
+
+/**
+ * A finished clip, playing in place. The player owns the surface — its
+ * controls are the interaction — so unlike an image there is no button to a
+ * detail view; only the download control floats above it.
+ */
+function VideoResultTile({ index, job, url }: Omit<ResultTileProps, 'onOpen'>) {
+    const style = useMemo(() => ({ aspectRatio: ratioToCss(job.ratio) }), [job.ratio])
+
+    return (
+        <motion.div
+            animate={VIDEO_SETTLED}
+            className="group relative"
+            initial={VIDEO_ENTER}
+            transition={VIDEO_TRANSITION}
+        >
+            <VideoPlayer
+                autoPlay
+                className="w-full shadow-[0_16px_40px_-18px_var(--umber-glass-shadow)] inset-ring inset-ring-ink/10"
+                label={job.prompt}
+                src={url}
+                style={style}
+            />
+
+            <ResultTileControls index={index} job={job} url={url} />
+        </motion.div>
     )
 }
 
@@ -166,33 +204,35 @@ function FailedCard({
 }
 
 /**
- * The finished image the detail view is showing, described from the run that
- * made it. A job carries one set of settings, so every image in it shares
+ * The finished output the detail view is showing, described from the run that
+ * made it. A job carries one set of settings, so every output in it shares
  * everything but the file.
  */
 function detailsOf(job: GenerationJob, index: number): ImageDetails | null {
-    const image = job.status === 'done' ? job.images[index] : undefined
+    const output = job.status === 'done' ? job.outputs[index] : undefined
 
-    if (image === undefined) {
+    if (output === undefined) {
         return null
     }
 
     return {
-        id: image.id,
-        url: image.url,
+        id: output.id,
+        kind: job.kind,
+        url: output.url,
         prompt: job.prompt,
         providerId: job.providerId,
         modelName: job.modelName,
         ratio: job.ratio,
         resolution: job.resolution,
         quality: job.quality,
+        ...(job.kind === 'video' ? { durationSeconds: job.durationSeconds } : {}),
         // The run's own clock: what the gallery stores is a few milliseconds
         // later, and neither is worth telling apart at minute resolution.
         createdAt: job.startedAt,
     }
 }
 
-/** The run's own tiles: its finished images, or one skeleton per expected one. */
+/** The run's own tiles: its finished outputs, or one skeleton per expected one. */
 function RunTiles({
     job,
     onOpen,
@@ -206,8 +246,14 @@ function RunTiles({
         ))
     }
 
-    return job.images.map((image, index) => (
-        <ResultTile index={index} job={job} key={image.id} onOpen={onOpen} url={image.url} />
+    if (job.kind === 'video') {
+        return job.outputs.map((output, index) => (
+            <VideoResultTile index={index} job={job} key={output.id} url={output.url} />
+        ))
+    }
+
+    return job.outputs.map((output, index) => (
+        <ResultTile index={index} job={job} key={output.id} onOpen={onOpen} url={output.url} />
     ))
 }
 

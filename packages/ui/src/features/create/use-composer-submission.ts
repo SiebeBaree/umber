@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { useGeneration } from '../generate/generation-context'
 import { useKeys } from '../keys/keys-context'
-import { isImageModel, MODELS_BY_MODE, PROVIDERS, type GenerationMode, type Model } from './catalog'
+import { MODELS_BY_MODE, PROVIDERS, type GenerationMode, type Model } from './catalog'
 import { useComposerSettings, type ComposerSettingsApi } from './settings/use-composer-settings'
 
 /**
@@ -21,16 +21,10 @@ export interface ComposerSubmission {
     readonly submit: (prompt: string, references: readonly File[]) => void
 }
 
-function blockerFor(ready: boolean, mode: GenerationMode, connected: boolean, model: Model) {
+function blockerFor(ready: boolean, connected: boolean, model: Model) {
     // Nothing is declared blocked before the vault has answered.
     if (!ready) {
         return null
-    }
-
-    // Video first: telling someone to connect a key for a mode that would not
-    // run anyway sends them on an errand for nothing.
-    if (mode === 'video') {
-        return 'Video generation is not wired up yet'
     }
 
     if (!connected) {
@@ -50,7 +44,7 @@ export function useComposerSubmission(): ComposerSubmission {
     const { model } = composer
     const busy = generation.activeJob?.status === 'running'
     const providerConnected = keys.connectedProviders.has(model.provider)
-    const blocker = blockerFor(keys.ready, mode, providerConnected, model)
+    const blocker = blockerFor(keys.ready, providerConnected, model)
 
     // If the remembered model is locked but some other model in this mode is
     // usable, quietly move to the newest usable one — a fresh install with one
@@ -71,7 +65,7 @@ export function useComposerSubmission(): ComposerSubmission {
 
     const submit = useCallback(
         (prompt: string, references: readonly File[]) => {
-            if (prompt === '' || blocker !== null || busy || !isImageModel(model)) {
+            if (prompt === '' || blocker !== null || busy) {
                 return
             }
 

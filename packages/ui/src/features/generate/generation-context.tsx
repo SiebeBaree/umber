@@ -8,12 +8,12 @@ import {
     type ReactNode,
 } from 'react'
 
-import type { AspectRatio, ImageModel } from '../create/catalog'
+import { isImageModel, type AspectRatio, type Model } from '../create/catalog'
 import type { ModeSettings } from '../create/settings/schema'
 import { saveCreations, type CreationRecord } from '../gallery/creations-db'
 import { useKeys } from '../keys/keys-context'
 import { runGeneration } from './engine'
-import { GenerationError } from './openai'
+import { GenerationError } from './errors'
 
 /**
  * The one in-flight generation and its outcome, shared app-wide: the create
@@ -21,7 +21,7 @@ import { GenerationError } from './openai'
  * and the composer locks its send button while it runs.
  */
 
-export interface GeneratedImage {
+export interface GeneratedOutput {
     readonly id: string
     /** An object URL over the stored blob; owned and revoked by this store. */
     readonly url: string
@@ -29,6 +29,8 @@ export interface GeneratedImage {
 
 interface JobBase {
     readonly id: string
+    /** What the run makes; decides how its tiles render and store. */
+    readonly kind: 'image' | 'video'
     readonly prompt: string
     readonly providerId: string
     readonly modelId: string
@@ -36,19 +38,21 @@ interface JobBase {
     readonly ratio: AspectRatio
     readonly resolution: string
     readonly quality: string
-    /** How many images the run was asked for; sizes the skeleton grid. */
+    /** How many outputs the run was asked for; sizes the skeleton grid. */
     readonly count: number
+    /** Clip length in seconds; zero for image runs. */
+    readonly durationSeconds: number
     readonly startedAt: number
 }
 
 export type GenerationJob =
     | (JobBase & { readonly status: 'running' })
-    | (JobBase & { readonly status: 'done'; readonly images: readonly GeneratedImage[] })
+    | (JobBase & { readonly status: 'done'; readonly outputs: readonly GeneratedOutput[] })
     | (JobBase & { readonly status: 'failed'; readonly error: string })
 
 export interface StartInput {
     readonly prompt: string
-    readonly model: ImageModel
+    readonly model: Model
     readonly settings: ModeSettings
     readonly references: readonly File[]
 }
@@ -66,8 +70,11 @@ export interface GenerationApi {
 const GenerationContext = createContext<GenerationApi | null>(null)
 
 function newJob(input: StartInput): GenerationJob {
+    const image = isImageModel(input.model)
+
     return {
         id: crypto.randomUUID(),
+        kind: input.model.kind,
         prompt: input.prompt,
         providerId: input.model.provider,
         modelId: input.model.id,
@@ -76,8 +83,10 @@ function newJob(input: StartInput): GenerationJob {
         resolution: input.settings.resolution,
         // Only models with tiers price by quality; for the rest the remembered
         // tier is dormant and saying so would be inventing a setting.
-        quality: input.model.quality === undefined ? '' : input.settings.quality,
-        count: input.settings.outputCount,
+        quality: image && input.model.quality !== undefined ? input.settings.quality : '',
+        // Video runs render one clip; the count stepper is an image control.
+        count: image ? input.settings.outputCount : 1,
+        durationSeconds: image ? 0 : input.settings.durationSeconds,
         startedAt: Date.now(),
         status: 'running',
     }
@@ -92,12 +101,13 @@ interface RunResult {
 }
 
 /**
- * One finished image as the gallery stores it. Everything but the file comes
- * from the job, so the record says exactly how the picture was made.
+ * One finished output as the gallery stores it. Everything but the file comes
+ * from the job, so the record says exactly how the piece was made.
  */
-function toRecord(job: GenerationJob, image: Blob): CreationRecord {
+function toRecord(job: GenerationJob, media: Blob): CreationRecord {
     return {
         id: crypto.randomUUID(),
+        kind: job.kind,
         prompt: job.prompt,
         providerId: job.providerId,
         modelId: job.modelId,
@@ -105,8 +115,9 @@ function toRecord(job: GenerationJob, image: Blob): CreationRecord {
         ratio: job.ratio,
         resolution: job.resolution,
         quality: job.quality,
+        ...(job.kind === 'video' ? { durationSeconds: job.durationSeconds } : {}),
         createdAt: Date.now(),
-        image,
+        image: media,
     }
 }
 
@@ -123,20 +134,22 @@ async function performRun(
     }
 
     const blobs = await runGeneration({
+        mode: job.kind,
         providerId: input.model.provider,
         credentials,
         modelId: input.model.id,
         prompt: input.prompt,
-        count: input.settings.outputCount,
+        count: job.count,
         ratio: job.ratio,
         resolution: input.settings.resolution,
         quality: input.settings.quality,
+        durationSeconds: job.durationSeconds,
         references: input.references,
     })
 
     const records = blobs.map((blob) => toRecord(job, blob))
 
-    // Persistence failing must not eat a finished render; the images still
+    // Persistence failing must not eat a finished render; the results still
     // show, they just won't survive a restart.
     let persisted = true
     try {
@@ -145,12 +158,12 @@ async function performRun(
         persisted = false
     }
 
-    const images = records.map((record) => ({
+    const outputs = records.map((record) => ({
         id: record.id,
         url: URL.createObjectURL(record.image),
     }))
 
-    return { outcome: { ...job, status: 'done', images }, persisted }
+    return { outcome: { ...job, status: 'done', outputs }, persisted }
 }
 
 function failureOf(job: GenerationJob, error: unknown): GenerationJob {
@@ -185,7 +198,7 @@ async function launchRun(
         }
 
         effects.replaceUrls(
-            outcome.status === 'done' ? outcome.images.map((image) => image.url) : [],
+            outcome.status === 'done' ? outcome.outputs.map((output) => output.url) : [],
         )
         effects.settle(outcome)
     } catch (error: unknown) {

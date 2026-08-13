@@ -1,4 +1,4 @@
-import { App, type KeyVault } from '@umber/ui'
+import { App, type HttpTransport, type KeyVault } from '@umber/ui'
 import { StrictMode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
@@ -21,6 +21,11 @@ function toKeyVault(bridge: UmberBridge): KeyVault {
     }
 }
 
+/** Provider requests, routed through the main process where CORS cannot bite. */
+function toTransport(bridge: UmberBridge): HttpTransport {
+    return (request) => bridge.net.fetch(request)
+}
+
 /**
  * Mounts the shared UI into `container`. Kept separate from `main.tsx` so the
  * wiring can be exercised in tests without an Electron window.
@@ -33,6 +38,7 @@ export function mount(container: HTMLElement): Root {
             <App
                 overlaidWindowControls={window.umber?.os === 'macos'}
                 runtime={describeRuntime(window.umber)}
+                transport={window.umber === undefined ? undefined : toTransport(window.umber)}
                 vault={window.umber === undefined ? undefined : toKeyVault(window.umber)}
             />
         </StrictMode>,

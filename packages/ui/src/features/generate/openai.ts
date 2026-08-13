@@ -1,9 +1,13 @@
+import { httpFetch } from '../../lib/http'
 import { ratioParts, type AspectRatio } from '../create/catalog'
+import { GenerationError } from './errors'
+import type { EngineRequest } from './request'
+import { decodeBase64Blob, readJson } from './shared'
 
 /**
- * The OpenAI Images API, spoken directly from the renderer with the user's own
- * key. Everything here is plain `fetch`: no SDK, no shared state, errors
- * translated once into sentences the composer can show.
+ * The OpenAI Images and Videos APIs, spoken with the user's own key. Plain
+ * requests over `httpFetch`: no SDK, no shared state, errors translated once
+ * into sentences the composer can show.
  */
 
 const API_ROOT = 'https://api.openai.com/v1'
@@ -24,9 +28,6 @@ const TIER_PIXELS: Readonly<Record<string, number>> = {
 const MAX_EDGE = 3840
 const MAX_PIXELS = 8_294_400
 const GRID = 16
-
-/** Thrown for anything the user can act on; `message` is display-ready. */
-export class GenerationError extends Error {}
 
 /**
  * The fixed sizes every GPT Image model before 2 accepts, keyed by the
@@ -86,14 +87,10 @@ interface OpenAiErrorBody {
 
 /** Reads the API's own error message without trusting its shape. */
 async function apiErrorMessage(response: Response): Promise<string | null> {
-    try {
-        const body = (await response.json()) as OpenAiErrorBody
-        const message = body.error?.message
+    const body = (await readJson(response)) as OpenAiErrorBody | null
+    const message = body?.error?.message
 
-        return typeof message === 'string' && message !== '' ? message : null
-    } catch {
-        return null
-    }
+    return typeof message === 'string' && message !== '' ? message : null
 }
 
 async function toGenerationError(response: Response): Promise<GenerationError> {
@@ -105,7 +102,7 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
 
     if (response.status === 403 || detail?.toLowerCase().includes('verif') === true) {
         return new GenerationError(
-            'Your OpenAI organisation is not verified for image models yet. Verify it in the OpenAI console, then try again.',
+            'Your OpenAI organisation is not verified for this model yet. Verify it in the OpenAI console, then try again.',
         )
     }
 
@@ -129,12 +126,6 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
     )
 }
 
-function decodeImage(b64: string): Blob {
-    const bytes = Uint8Array.from(atob(b64), (character) => character.codePointAt(0) ?? 0)
-
-    return new Blob([bytes], { type: 'image/png' })
-}
-
 interface ImagesResponse {
     readonly data?: readonly { readonly b64_json?: string }[]
 }
@@ -143,7 +134,7 @@ function decodeResponse(body: ImagesResponse): Blob[] {
     const images = (body.data ?? [])
         .map((entry) => entry.b64_json)
         .filter((b64): b64 is string => typeof b64 === 'string' && b64 !== '')
-        .map((b64) => decodeImage(b64))
+        .map((b64) => decodeBase64Blob(b64, 'image/png'))
 
     if (images.length === 0) {
         throw new GenerationError('OpenAI returned no images for this prompt.')
@@ -152,42 +143,29 @@ function decodeResponse(body: ImagesResponse): Blob[] {
     return images
 }
 
-export interface OpenAiImageRequest {
-    readonly apiKey: string
-    /** Catalog id, translated to the wire name here. */
-    readonly modelId: string
-    readonly prompt: string
-    readonly count: number
-    readonly ratio: AspectRatio
-    readonly resolution: string
-    readonly quality: string
-    /** When present, the request becomes an edit grounded on these images. */
-    readonly references: readonly File[]
-}
-
 /** One network failure message, shared by generation and verification. */
 const OFFLINE_MESSAGE = 'Could not reach OpenAI. Check your connection and try again.'
 
-function postJson(request: OpenAiImageRequest): Promise<Response> {
-    return fetch(`${API_ROOT}/images/generations`, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${request.apiKey}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+function apiKeyOf(request: EngineRequest): string {
+    return request.credentials['apiKey'] ?? ''
+}
+
+function postJson(request: EngineRequest): Promise<Response> {
+    return httpFetch(`${API_ROOT}/images/generations`, {
+        headers: { Authorization: `Bearer ${apiKeyOf(request)}` },
+        json: {
             model: WIRE_MODEL_IDS[request.modelId] ?? request.modelId,
             prompt: request.prompt,
             n: request.count,
             size: sizeFor(request.modelId, request.ratio, request.resolution),
             quality: request.quality,
             output_format: 'png',
-        }),
+        },
     })
 }
 
 /** Edits are multipart: the same knobs, plus the reference images as files. */
-function postEdit(request: OpenAiImageRequest): Promise<Response> {
+function postEdit(request: EngineRequest): Promise<Response> {
     const form = new FormData()
     form.set('model', WIRE_MODEL_IDS[request.modelId] ?? request.modelId)
     form.set('prompt', request.prompt)
@@ -199,14 +177,13 @@ function postEdit(request: OpenAiImageRequest): Promise<Response> {
         form.append('image[]', reference, reference.name)
     }
 
-    return fetch(`${API_ROOT}/images/edits`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${request.apiKey}` },
-        body: form,
+    return httpFetch(`${API_ROOT}/images/edits`, {
+        headers: { Authorization: `Bearer ${apiKeyOf(request)}` },
+        form,
     })
 }
 
-export async function generateOpenAiImages(request: OpenAiImageRequest): Promise<Blob[]> {
+export async function generateOpenAiImages(request: EngineRequest): Promise<Blob[]> {
     let response: Response
 
     try {
@@ -222,6 +199,15 @@ export async function generateOpenAiImages(request: OpenAiImageRequest): Promise
     return decodeResponse((await response.json()) as ImagesResponse)
 }
 
+/** Shared with the Sora module, which speaks the same API with the same key. */
+export {
+    API_ROOT as OPENAI_API_ROOT,
+    OFFLINE_MESSAGE as OPENAI_OFFLINE_MESSAGE,
+    WIRE_MODEL_IDS as OPENAI_WIRE_MODEL_IDS,
+    apiKeyOf as openAiKeyOf,
+    toGenerationError as toOpenAiError,
+}
+
 export type KeyVerification =
     | { readonly ok: true; readonly warning?: string }
     | { readonly ok: false; readonly message: string }
@@ -235,7 +221,7 @@ export async function verifyOpenAiKey(apiKey: string): Promise<KeyVerification> 
     let response: Response
 
     try {
-        response = await fetch(`${API_ROOT}/models`, {
+        response = await httpFetch(`${API_ROOT}/models`, {
             headers: { Authorization: `Bearer ${apiKey}` },
         })
     } catch {

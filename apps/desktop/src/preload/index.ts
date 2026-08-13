@@ -2,8 +2,10 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 import {
     BRIDGE_KEY,
+    NET_CHANNEL,
     toOperatingSystem,
     VAULT_CHANNELS,
+    type NetRequestDto,
     type UmberBridge,
     type VaultSaveDto,
 } from '../shared/bridge'
@@ -26,6 +28,9 @@ const bridge: UmberBridge = {
         remove: (providerId: string) => ipcRenderer.invoke(VAULT_CHANNELS.remove, providerId),
         credentials: (providerId: string) =>
             ipcRenderer.invoke(VAULT_CHANNELS.credentials, providerId),
+    },
+    net: {
+        fetch: (request: NetRequestDto) => ipcRenderer.invoke(NET_CHANNEL, request),
     },
 }
 

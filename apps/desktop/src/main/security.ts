@@ -30,12 +30,67 @@ export const CONTENT_SECURITY_POLICY = [
     "style-src 'self' 'unsafe-inline'",
     // blob: because generated images render from object URLs over stored blobs.
     "img-src 'self' data: blob:",
+    // Generated videos play from object URLs the same way.
+    "media-src 'self' blob:",
     "font-src 'self' data:",
-    // Every provider the renderer may call with the user's own key, named one
-    // by one — a provider integration that forgets its entry fails loudly here.
-    "connect-src 'self' https://api.openai.com",
+    // Provider calls do not appear here: the renderer reaches providers only
+    // through the main-process net proxy, which enforces its own allowlist.
+    "connect-src 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
     "base-uri 'none'",
     "form-action 'none'",
 ].join('; ')
+
+/**
+ * The API hosts the net proxy will speak to with full requests — methods,
+ * bodies and credential headers included. One entry per provider integration;
+ * an integration that forgets its host fails loudly on the first call.
+ */
+export const PROVIDER_API_HOSTS: ReadonlySet<string> = new Set([
+    'api.openai.com',
+    'generativelanguage.googleapis.com',
+    'api.bfl.ai',
+    'api.eu.bfl.ai',
+    'api.us.bfl.ai',
+    'api.stability.ai',
+    'api.ideogram.ai',
+    'external.api.recraft.ai',
+    'api.dev.runwayml.com',
+    'agents.lumalabs.ai',
+    'api-singapore.klingai.com',
+    'api.minimax.io',
+    'ark.ap-southeast.bytepluses.com',
+    'dashscope-intl.aliyuncs.com',
+    'dashscope.aliyuncs.com',
+    'app-api.pixverse.ai',
+    'api.ltx.io',
+])
+
+/**
+ * What the proxy may do with a URL: everything for allowlisted API hosts,
+ * header-less GETs for any other https host — providers hand finished files
+ * back on short-lived CDN URLs whose hosts cannot be enumerated, and a bare
+ * GET there is no more capable than an `<img src>`. Anything else is refused.
+ */
+export type ProxyVerdict = 'full' | 'bare-get' | 'refuse'
+
+export function proxyVerdictFor(url: string, method: string): ProxyVerdict {
+    let parsed: URL
+
+    try {
+        parsed = new URL(url)
+    } catch {
+        return 'refuse'
+    }
+
+    if (parsed.protocol !== 'https:') {
+        return 'refuse'
+    }
+
+    if (PROVIDER_API_HOSTS.has(parsed.hostname)) {
+        return 'full'
+    }
+
+    return method.toUpperCase() === 'GET' ? 'bare-get' : 'refuse'
+}

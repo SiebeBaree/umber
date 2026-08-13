@@ -1,21 +1,24 @@
 import { ArrowLeft, Download, Trash2 } from 'lucide-react'
-import { useCallback, useRef, type MouseEvent, type ReactNode } from 'react'
+import { useCallback, useMemo, useRef, type MouseEvent, type ReactNode } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '../../components/ui/dialog'
-import { ProviderMark, type AspectRatio, type ProviderId } from '../create/catalog'
+import { VideoPlayer } from '../../components/ui/video-player'
+import { ProviderMark, ratioToCss, type AspectRatio, type ProviderId } from '../create/catalog'
 import type { DeleteRequest } from './gallery-tile'
 
 /**
- * One creation at full size: how it was made on the left, the picture itself
- * on the right. Opened from a gallery tile or from a finished run on the
- * create page, which is why it takes a plain description rather than either
- * page's own shape.
+ * One creation at full size: how it was made on the left, the piece itself
+ * on the right — a picture contained, or a clip in the player. Opened from a
+ * gallery tile or from a finished run on the create page, which is why it
+ * takes a plain description rather than either page's own shape.
  */
 
 export interface ImageDetails {
     readonly id: string
-    /** An object URL over the image; owned by whoever opened this. */
+    /** What the creation is; a video opens as a player instead of a still. */
+    readonly kind: 'image' | 'video'
+    /** An object URL over the media; owned by whoever opened this. */
     readonly url: string
     readonly prompt: string
     readonly providerId: string
@@ -25,6 +28,8 @@ export interface ImageDetails {
     readonly resolution?: string | undefined
     /** Absent on models that do not price by quality. */
     readonly quality?: string | undefined
+    /** Clip length in seconds; only videos carry one. */
+    readonly durationSeconds?: number | undefined
     /** Epoch milliseconds. */
     readonly createdAt: number
 }
@@ -84,6 +89,9 @@ function DetailRows({ image }: { readonly image: ImageDetails }) {
             {image.quality === undefined || image.quality === '' ? null : (
                 <DetailRow label="Quality">{formatQuality(image.quality)}</DetailRow>
             )}
+            {image.durationSeconds === undefined ? null : (
+                <DetailRow label="Duration">{image.durationSeconds}s</DetailRow>
+            )}
         </dl>
     )
 }
@@ -95,13 +103,19 @@ interface DetailPanelProps {
 }
 
 /**
- * The record beside the picture, and the two things one can do with it.
+ * The two things one can do with a creation from here.
  *
- * Deleting does not close this panel: the request may still be waiting on a
+ * Deleting does not close the panel: the request may still be waiting on a
  * confirmation, and this view is where that question belongs. Whoever owns the
  * deletion takes the view down with the picture once it actually goes.
  */
-function DetailPanel({ image, onClose, onDelete }: DetailPanelProps) {
+function DetailActions({
+    image,
+    onDelete,
+}: {
+    readonly image: ImageDetails
+    readonly onDelete?: DeleteRequest | undefined
+}) {
     const remove = useCallback(
         (event: MouseEvent<HTMLButtonElement>) => {
             onDelete?.(image.id, event.shiftKey)
@@ -109,6 +123,29 @@ function DetailPanel({ image, onClose, onDelete }: DetailPanelProps) {
         [image.id, onDelete],
     )
 
+    return (
+        <div className="mt-5 flex flex-wrap gap-2">
+            <Button asChild size="sm">
+                <a
+                    download={`umber-${image.id.slice(0, 8)}.${image.kind === 'video' ? 'mp4' : 'png'}`}
+                    href={image.url}
+                >
+                    <Download aria-hidden />
+                    Download
+                </a>
+            </Button>
+            {onDelete === undefined ? null : (
+                <Button className="hover:text-rose-600" onClick={remove} size="sm" variant="glass">
+                    <Trash2 aria-hidden />
+                    Delete
+                </Button>
+            )}
+        </div>
+    )
+}
+
+/** The record beside the picture, and what one can do with it. */
+function DetailPanel({ image, onClose, onDelete }: DetailPanelProps) {
     return (
         <div className="flex min-h-0 shrink-0 flex-col overflow-y-auto p-5 sm:w-[21rem] sm:p-6">
             <div>
@@ -122,25 +159,7 @@ function DetailPanel({ image, onClose, onDelete }: DetailPanelProps) {
                 moment — the details card below states exactly. */}
             <DialogTitle className="mt-4 pe-0 text-lg leading-snug">{image.prompt}</DialogTitle>
 
-            <div className="mt-5 flex flex-wrap gap-2">
-                <Button asChild size="sm">
-                    <a download={`umber-${image.id.slice(0, 8)}.png`} href={image.url}>
-                        <Download aria-hidden />
-                        Download
-                    </a>
-                </Button>
-                {onDelete === undefined ? null : (
-                    <Button
-                        className="hover:text-rose-600"
-                        onClick={remove}
-                        size="sm"
-                        variant="glass"
-                    >
-                        <Trash2 aria-hidden />
-                        Delete
-                    </Button>
-                )}
-            </div>
+            <DetailActions image={image} onDelete={onDelete} />
 
             <h3 className="mt-7 text-[11px] font-semibold tracking-wide text-muted uppercase">
                 Details
@@ -150,17 +169,29 @@ function DetailPanel({ image, onClose, onDelete }: DetailPanelProps) {
     )
 }
 
-/** The picture itself, contained rather than cropped: this is the view you
- * open to see the whole thing. */
+/** The piece itself, contained rather than cropped: this is the view you
+ * open to see the whole thing. A clip arrives playing, with sound. */
 function BigPicture({ image }: { readonly image: ImageDetails }) {
+    const frameStyle = useMemo(() => ({ aspectRatio: ratioToCss(image.ratio) }), [image.ratio])
+
     return (
         <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center p-5 sm:ps-0">
-            <img
-                alt={image.prompt}
-                className="max-h-[min(72vh,36rem)] max-w-full rounded-2xl object-contain shadow-[0_16px_40px_-20px_var(--umber-glass-shadow)]"
-                draggable={false}
-                src={image.url}
-            />
+            {image.kind === 'video' ? (
+                <VideoPlayer
+                    autoPlay
+                    className="max-h-[min(72vh,36rem)] w-full max-w-full shadow-[0_16px_40px_-20px_var(--umber-glass-shadow)]"
+                    label={image.prompt}
+                    src={image.url}
+                    style={frameStyle}
+                />
+            ) : (
+                <img
+                    alt={image.prompt}
+                    className="max-h-[min(72vh,36rem)] max-w-full rounded-2xl object-contain shadow-[0_16px_40px_-20px_var(--umber-glass-shadow)]"
+                    draggable={false}
+                    src={image.url}
+                />
+            )}
         </div>
     )
 }
