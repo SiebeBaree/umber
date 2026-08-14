@@ -41,7 +41,11 @@ const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
     },
     {
         title: 'Gallery',
-        shortcuts: [{ label: 'Delete creation', keys: ['⌘', '⌫'] }],
+        shortcuts: [
+            { label: 'Delete creation or selection', keys: ['⌘', '⌫'] },
+            { label: 'Select all', keys: ['⌘', 'A'] },
+            { label: 'Clear selection', keys: ['Esc'] },
+        ],
     },
 ]
 

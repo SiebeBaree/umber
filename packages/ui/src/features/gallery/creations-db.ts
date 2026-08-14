@@ -130,14 +130,24 @@ export async function saveCreations(records: readonly CreationRecord[]): Promise
     })
 }
 
-export async function deleteCreation(id: string): Promise<void> {
+export async function deleteCreations(ids: readonly string[]): Promise<void> {
     if (typeof indexedDB === 'undefined') {
-        memoryStore().delete(id)
+        for (const id of ids) {
+            memoryStore().delete(id)
+        }
 
         return
     }
 
-    await withStore('readwrite', (store) => store.delete(id))
+    // One transaction for the lot: a multi-delete either lands or doesn't,
+    // rather than erasing half a selection on the way to a failure.
+    await withStore('readwrite', (store) => {
+        for (const id of ids) {
+            store.delete(id)
+        }
+
+        return null
+    })
 }
 
 /** How many creations are stored, without reading a single blob back out. */

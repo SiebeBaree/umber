@@ -144,7 +144,7 @@ function DetailActions({
 }) {
     const remove = useCallback(
         (event: MouseEvent<HTMLButtonElement>) => {
-            onDelete?.(image.id, event.shiftKey)
+            onDelete?.([image.id], event.shiftKey)
         },
         [image.id, onDelete],
     )
