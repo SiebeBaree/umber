@@ -2,7 +2,7 @@ import { motion, useReducedMotion, type Transition } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { RenderingTile } from '../generate/rendering-tile'
-import { GalleryTile, type DeleteRequest } from './gallery-tile'
+import { GalleryTile, type DeleteRequest, type SelectRequest } from './gallery-tile'
 import { splitIntoColumns } from './masonry'
 import { useColumnCount } from './use-column-count'
 import type { GalleryEntry } from './use-gallery-entries'
@@ -35,6 +35,9 @@ interface StaggeredTileProps {
     readonly reducedMotion: boolean
     readonly onDelete: DeleteRequest
     readonly onOpen: (id: string) => void
+    readonly onSelect: SelectRequest
+    readonly selectedIds: ReadonlySet<string>
+    readonly selectionActive: boolean
 }
 
 function StaggeredTile({
@@ -42,8 +45,11 @@ function StaggeredTile({
     index,
     onDelete,
     onOpen,
+    onSelect,
     reducedMotion,
     seenIds,
+    selectedIds,
+    selectionActive,
 }: StaggeredTileProps) {
     // Decided once, at mount, via the lazy initialiser (the sanctioned way to
     // consult a mutable registry during render): a tile that already entered
@@ -68,7 +74,14 @@ function StaggeredTile({
     return (
         <motion.div animate={SETTLED} initial={initial} transition={transition}>
             {entry.kind === 'creation' ? (
-                <GalleryTile image={entry.image} onDelete={onDelete} onOpen={onOpen} />
+                <GalleryTile
+                    image={entry.image}
+                    onDelete={onDelete}
+                    onOpen={onOpen}
+                    onSelect={onSelect}
+                    selected={selectedIds.has(entry.id)}
+                    selectionActive={selectionActive}
+                />
             ) : (
                 <RenderingTile providerId={entry.providerId} ratio={entry.ratio} />
             )}
@@ -80,13 +93,23 @@ export interface MasonryProps {
     readonly entries: readonly GalleryEntry[]
     readonly onDelete: DeleteRequest
     readonly onOpen: (id: string) => void
+    readonly onSelect: SelectRequest
+    readonly selectedIds: ReadonlySet<string>
+    readonly selectionActive: boolean
 }
 
 /**
  * The wall itself. Columns are plain flex children; the masonry lives in how
  * items are dealt into them, not in CSS.
  */
-export function Masonry({ entries, onDelete, onOpen }: MasonryProps) {
+export function Masonry({
+    entries,
+    onDelete,
+    onOpen,
+    onSelect,
+    selectedIds,
+    selectionActive,
+}: MasonryProps) {
     const [gridRef, columnCount] = useColumnCount()
     const reducedMotion = useReducedMotion() === true
 
@@ -104,9 +127,9 @@ export function Masonry({ entries, onDelete, onOpen }: MasonryProps) {
     const [seenIds] = useState(() => new Set<string>())
 
     return (
-        <div className="flex items-start gap-4" ref={gridRef}>
+        <div className="flex items-start gap-3" ref={gridRef}>
             {columns.map((column) => (
-                <div className="flex min-w-0 flex-1 flex-col gap-4" key={column.key}>
+                <div className="flex min-w-0 flex-1 flex-col gap-3" key={column.key}>
                     {column.items.map(({ index, item }) => (
                         <StaggeredTile
                             entry={item}
@@ -114,8 +137,11 @@ export function Masonry({ entries, onDelete, onOpen }: MasonryProps) {
                             key={item.id}
                             onDelete={onDelete}
                             onOpen={onOpen}
+                            onSelect={onSelect}
                             reducedMotion={reducedMotion}
                             seenIds={seenIds}
+                            selectedIds={selectedIds}
+                            selectionActive={selectionActive}
                         />
                     ))}
                 </div>
