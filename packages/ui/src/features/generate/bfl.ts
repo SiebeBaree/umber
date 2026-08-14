@@ -1,5 +1,5 @@
 import { httpFetch } from '../../lib/http'
-import { ratioParts, type AspectRatio } from '../create/catalog'
+import { FLUX_1_1_SIZE, FLUX_2_SIZE, pixelSize } from '../create/catalog'
 import { GenerationError, offlineError } from './errors'
 import type { KeyVerification } from './openai'
 import type { EngineRequest } from './request'
@@ -18,39 +18,6 @@ const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'flux-2-pro': 'flux-2-pro',
     'flux-1-kontext-pro': 'flux-kontext-pro',
     'flux-pro-1-1': 'flux-pro-1.1',
-}
-
-/** Pixel budgets for the models that take explicit width × height. */
-const TIER_PIXELS: Readonly<Record<string, number>> = {
-    '1K': 1024 * 1024,
-    '2K': 2048 * 2048,
-}
-
-/** Snapped to multiples of 32 — FLUX 1.1's hard rule, and a safe grid for
- * FLUX.2's free-form sizes. */
-const snap = (edge: number) => Math.max(256, Math.round(edge / 32) * 32)
-
-/** A `width`/`height` pair for the ratio and tier. */
-function sizeFor(
-    ratio: AspectRatio,
-    resolution: string,
-    maxEdge: number,
-): { width: number; height: number } {
-    const { height, width } = ratioParts(ratio)
-    const budget = TIER_PIXELS[resolution] ?? TIER_PIXELS['1K'] ?? 1_048_576
-
-    const scale = Math.sqrt(budget / (width * height))
-
-    let pixelWidth = snap(width * scale)
-    let pixelHeight = snap(height * scale)
-
-    if (Math.max(pixelWidth, pixelHeight) > maxEdge) {
-        const shrink = maxEdge / Math.max(pixelWidth, pixelHeight)
-        pixelWidth = snap(pixelWidth * shrink)
-        pixelHeight = snap(pixelHeight * shrink)
-    }
-
-    return { width: pixelWidth, height: pixelHeight }
 }
 
 interface BflTask {
@@ -109,7 +76,7 @@ async function payloadFor(request: EngineRequest): Promise<Record<string, unknow
     }
 
     if (request.modelId === 'flux-pro-1-1') {
-        const { height, width } = sizeFor(request.ratio, '1K', 1440)
+        const { height, width } = pixelSize(request.ratio, '1K', FLUX_1_1_SIZE)
         const [imagePrompt] = await Promise.all(
             references.slice(0, 1).map((file) => encodeBase64(file)),
         )
@@ -123,7 +90,7 @@ async function payloadFor(request: EngineRequest): Promise<Record<string, unknow
     }
 
     // FLUX.2: free-form sizes, up to eight reference images.
-    const { height, width } = sizeFor(request.ratio, request.resolution, 2048)
+    const { height, width } = pixelSize(request.ratio, request.resolution, FLUX_2_SIZE)
     const encoded = await Promise.all(references.slice(0, 8).map((file) => encodeBase64(file)))
     const referenceFields = Object.fromEntries(
         encoded.map((image, index) => [

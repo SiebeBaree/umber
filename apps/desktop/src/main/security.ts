@@ -53,18 +53,13 @@ export const PROVIDER_API_HOSTS: ReadonlySet<string> = new Set([
     'api.bfl.ai',
     'api.eu.bfl.ai',
     'api.us.bfl.ai',
-    'api.stability.ai',
     'api.ideogram.ai',
     'external.api.recraft.ai',
     'api.dev.runwayml.com',
-    'agents.lumalabs.ai',
     'api-singapore.klingai.com',
-    'api.minimax.io',
     'ark.ap-southeast.bytepluses.com',
     'dashscope-intl.aliyuncs.com',
     'dashscope.aliyuncs.com',
-    'app-api.pixverse.ai',
-    'api.ltx.io',
 ])
 
 /**

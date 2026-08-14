@@ -1,9 +1,10 @@
 import type { VideoModel } from './types'
 
 /**
- * The video models Umber can drive. Same caveats as the image catalog: clip
- * lengths, resolutions and prices are transcribed by hand from public docs and
- * are estimates until the provider integrations report their own limits.
+ * The video models Umber can drive. Same rules as the image catalog: clip
+ * lengths, resolutions and prices are transcribed from each vendor's own
+ * documentation, with a per-second table wherever resolution changes the rate,
+ * which for video it almost always does.
  */
 export const VIDEO_MODELS: readonly VideoModel[] = [
     {
@@ -15,18 +16,18 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16'],
         resolutions: ['720p', '1080p', '4K'],
         durations: { kind: 'list', seconds: [4, 6, 8] },
-        pricePerSecond: 0.4,
+        pricePerSecond: { '720p': 0.4, '1080p': 0.4, '4K': 0.6 },
     },
     {
         id: 'veo-3-1-fast',
         name: 'Veo 3.1 Fast',
         provider: 'google',
         kind: 'video',
-        releasedOn: '2026-06-30',
+        releasedOn: '2025-10-15',
         aspectRatios: ['16:9', '9:16'],
         resolutions: ['720p', '1080p', '4K'],
         durations: { kind: 'list', seconds: [4, 6, 8] },
-        pricePerSecond: 0.1,
+        pricePerSecond: { '720p': 0.1, '1080p': 0.12, '4K': 0.3 },
     },
     {
         id: 'sora-2-pro',
@@ -37,7 +38,7 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16'],
         resolutions: ['720p', '1080p'],
         durations: { kind: 'list', seconds: [4, 8, 12] },
-        pricePerSecond: 0.3,
+        pricePerSecond: { '720p': 0.3, '1080p': 0.7 },
     },
     {
         id: 'sora-2',
@@ -59,7 +60,7 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16', '1:1'],
         resolutions: ['720p', '1080p'],
         durations: { kind: 'list', seconds: [5, 10] },
-        pricePerSecond: 0.042,
+        pricePerSecond: { '720p': 0.042, '1080p': 0.07 },
     },
     {
         id: 'kling-2-5-turbo',
@@ -70,7 +71,7 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16', '1:1'],
         resolutions: ['720p', '1080p'],
         durations: { kind: 'list', seconds: [5, 10] },
-        pricePerSecond: 0.042,
+        pricePerSecond: { '720p': 0.042, '1080p': 0.07 },
     },
     {
         id: 'seedance-2-0',
@@ -81,7 +82,7 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
         resolutions: ['480p', '720p', '1080p', '4K'],
         durations: { kind: 'range', min: 4, max: 15, step: 1 },
-        pricePerSecond: 0.07,
+        pricePerSecond: { '480p': 0.07, '720p': 0.15, '1080p': 0.37, '4K': 0.78 },
     },
     {
         id: 'seedance-1-pro',
@@ -92,29 +93,7 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
         resolutions: ['480p', '720p', '1080p'],
         durations: { kind: 'range', min: 2, max: 12, step: 1 },
-        pricePerSecond: 0.024,
-    },
-    {
-        id: 'hailuo-2-3',
-        name: 'Hailuo 2.3',
-        provider: 'minimax',
-        kind: 'video',
-        releasedOn: '2025-10-21',
-        aspectRatios: ['16:9'],
-        resolutions: ['720p', '1080p'],
-        durations: { kind: 'list', seconds: [6, 10] },
-        pricePerSecond: 0.047,
-    },
-    {
-        id: 'hailuo-2-3-fast',
-        name: 'Hailuo 2.3 Fast',
-        provider: 'minimax',
-        kind: 'video',
-        releasedOn: '2025-10-21',
-        aspectRatios: ['16:9'],
-        resolutions: ['720p', '1080p'],
-        durations: { kind: 'list', seconds: [6, 10] },
-        pricePerSecond: 0.032,
+        pricePerSecond: { '480p': 0.024, '720p': 0.052, '1080p': 0.122 },
     },
     {
         id: 'wan-2-6',
@@ -122,10 +101,11 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         provider: 'alibaba',
         kind: 'video',
         releasedOn: '2026-01-08',
-        aspectRatios: ['16:9', '9:16', '1:1'],
-        resolutions: ['480p', '720p', '1080p'],
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+        // Wan 2.6 renders the 720p and 1080p tiers only; 480p belonged to 2.5.
+        resolutions: ['720p', '1080p'],
         durations: { kind: 'list', seconds: [5, 10] },
-        pricePerSecond: 0.05,
+        pricePerSecond: { '720p': 0.1, '1080p': 0.15 },
     },
     {
         id: 'gen-4-5',
@@ -148,60 +128,5 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         resolutions: ['720p'],
         durations: { kind: 'list', seconds: [5, 10] },
         pricePerSecond: 0.05,
-    },
-    {
-        id: 'ray-3-2',
-        name: 'Ray 3.2',
-        provider: 'luma',
-        kind: 'video',
-        releasedOn: '2026-05-12',
-        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
-        resolutions: ['720p', '1080p'],
-        durations: { kind: 'list', seconds: [5, 10] },
-        pricePerSecond: 0.06,
-    },
-    {
-        id: 'pixverse-c1',
-        name: 'PixVerse C1',
-        provider: 'pixverse',
-        kind: 'video',
-        releasedOn: '2026-06-18',
-        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '3:2', '2:3', '21:9'],
-        resolutions: ['720p', '1080p'],
-        durations: { kind: 'range', min: 1, max: 15, step: 1 },
-        pricePerSecond: 0.1,
-    },
-    {
-        id: 'pixverse-v6',
-        name: 'PixVerse V6',
-        provider: 'pixverse',
-        kind: 'video',
-        releasedOn: '2026-01-08',
-        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '3:2', '2:3', '21:9'],
-        resolutions: ['720p', '1080p'],
-        durations: { kind: 'range', min: 1, max: 15, step: 1 },
-        pricePerSecond: 0.09,
-    },
-    {
-        id: 'ltx-2-5-pro',
-        name: 'LTX-2.5 Pro',
-        provider: 'lightricks',
-        kind: 'video',
-        releasedOn: '2026-05-20',
-        aspectRatios: ['16:9', '9:16'],
-        resolutions: ['720p', '1080p'],
-        durations: { kind: 'list', seconds: [6, 8, 10] },
-        pricePerSecond: 0.12,
-    },
-    {
-        id: 'ltx-2-5-fast',
-        name: 'LTX-2.5 Fast',
-        provider: 'lightricks',
-        kind: 'video',
-        releasedOn: '2026-05-20',
-        aspectRatios: ['16:9', '9:16'],
-        resolutions: ['720p', '1080p', '4K'],
-        durations: { kind: 'list', seconds: [6, 8, 10] },
-        pricePerSecond: 0.09,
     },
 ]

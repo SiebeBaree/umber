@@ -1,14 +1,12 @@
-import { Download, TriangleAlert, X } from 'lucide-react'
-import { motion } from 'motion/react'
+import { TriangleAlert, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { Button } from '../../components/ui/button'
-import { Tooltip } from '../../components/ui/tooltip'
-import { VideoPlayer } from '../../components/ui/video-player'
 import { ImageDetailDialog, type ImageDetails } from '../gallery/image-detail-dialog'
 import { useGeneration, type GenerationJob } from '../generate/generation-context'
 import { RenderingTile } from '../generate/rendering-tile'
-import { ratioParts, ratioToCss } from './catalog'
+import { ratioParts } from './catalog'
+import { ResultTile, VideoResultTile } from './result-tile'
 
 /**
  * The stage above the composer while a run exists: skeletons while rendering,
@@ -43,111 +41,6 @@ function gridMaxWidth(job: GenerationJob): string {
     const tileHeight = `max(140px, (100vh - ${CHROME_HEIGHT}px) / ${rows})`
 
     return `min(100%, calc(${columns} * (${tileHeight}) * ${ratio} + ${(columns - 1) * 16}px))`
-}
-
-const IMAGE_ENTER = { opacity: 0, scale: 0.985, filter: 'blur(10px)' }
-const IMAGE_SETTLED = { opacity: 1, scale: 1, filter: 'blur(0px)' }
-
-interface ResultTileProps {
-    readonly job: GenerationJob
-    readonly url: string
-    readonly index: number
-    readonly onOpen: (index: number) => void
-}
-
-/** The download control, revealed while the tile is hovered or focused. */
-function ResultTileControls({ index, job, url }: Omit<ResultTileProps, 'onOpen'>) {
-    const extension = job.kind === 'video' ? 'mp4' : 'png'
-
-    return (
-        <span className="pointer-events-none absolute top-2.5 right-2.5 translate-y-1 opacity-0 transition-[opacity,translate] duration-200 ease-out group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 has-[:focus-visible]:pointer-events-auto has-[:focus-visible]:translate-y-0 has-[:focus-visible]:opacity-100">
-            <Tooltip label="Download">
-                <Button
-                    aria-label={`Download ${job.kind} ${index + 1}`}
-                    asChild
-                    size="icon-sm"
-                    variant="overlay"
-                >
-                    <a
-                        download={`umber-${job.id.slice(0, 8)}-${index + 1}.${extension}`}
-                        href={url}
-                    >
-                        <Download aria-hidden />
-                    </a>
-                </Button>
-            </Tooltip>
-        </span>
-    )
-}
-
-const VIDEO_ENTER = { opacity: 0, scale: 0.985 }
-const VIDEO_SETTLED = { opacity: 1, scale: 1 }
-const VIDEO_TRANSITION = { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const }
-
-/**
- * A finished clip, playing in place. The player owns the surface — its
- * controls are the interaction — so unlike an image there is no button to a
- * detail view; only the download control floats above it.
- */
-function VideoResultTile({ index, job, url }: Omit<ResultTileProps, 'onOpen'>) {
-    const style = useMemo(() => ({ aspectRatio: ratioToCss(job.ratio) }), [job.ratio])
-
-    return (
-        <motion.div
-            animate={VIDEO_SETTLED}
-            className="group relative"
-            initial={VIDEO_ENTER}
-            transition={VIDEO_TRANSITION}
-        >
-            <VideoPlayer
-                autoPlay
-                className="w-full shadow-[0_16px_40px_-18px_var(--umber-glass-shadow)] inset-ring inset-ring-ink/10"
-                label={job.prompt}
-                src={url}
-                style={style}
-            />
-
-            <ResultTileControls index={index} job={job} url={url} />
-        </motion.div>
-    )
-}
-
-function ResultTile({ index, job, onOpen, url }: ResultTileProps) {
-    const style = useMemo(() => ({ aspectRatio: ratioToCss(job.ratio) }), [job.ratio])
-    const transition = useMemo(
-        () => ({ duration: 0.55, ease: [0.22, 1, 0.36, 1] as const, delay: index * 0.08 }),
-        [index],
-    )
-
-    const open = useCallback(() => {
-        onOpen(index)
-    }, [index, onOpen])
-
-    return (
-        <div className="group relative">
-            {/* A button rather than a click handler on the image: opening the
-                picture is an action, and this way it is reachable by keyboard
-                and announced as one. */}
-            <button
-                className="block w-full cursor-pointer rounded-2xl outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                onClick={open}
-                type="button"
-            >
-                <motion.img
-                    alt={`${job.prompt} — image ${index + 1}`}
-                    animate={IMAGE_SETTLED}
-                    className="block w-full rounded-2xl object-cover shadow-[0_16px_40px_-18px_var(--umber-glass-shadow)] inset-ring inset-ring-ink/10"
-                    draggable={false}
-                    initial={IMAGE_ENTER}
-                    src={url}
-                    style={style}
-                    transition={transition}
-                />
-            </button>
-
-            <ResultTileControls index={index} job={job} url={url} />
-        </div>
-    )
 }
 
 /** "Rendering with GPT Image 2 · 14s", ticking while the run is in flight. */
@@ -223,6 +116,7 @@ function detailsOf(job: GenerationJob, index: number): ImageDetails | null {
         id: output.id,
         kind: job.kind,
         url: output.url,
+        mediaType: output.mediaType,
         prompt: job.prompt,
         providerId: job.providerId,
         modelName: job.modelName,
@@ -253,12 +147,25 @@ function RunTiles({
 
     if (job.kind === 'video') {
         return job.outputs.map((output, index) => (
-            <VideoResultTile index={index} job={job} key={output.id} url={output.url} />
+            <VideoResultTile
+                index={index}
+                job={job}
+                key={output.id}
+                mediaType={output.mediaType}
+                url={output.url}
+            />
         ))
     }
 
     return job.outputs.map((output, index) => (
-        <ResultTile index={index} job={job} key={output.id} onOpen={onOpen} url={output.url} />
+        <ResultTile
+            index={index}
+            job={job}
+            key={output.id}
+            mediaType={output.mediaType}
+            onOpen={onOpen}
+            url={output.url}
+        />
     ))
 }
 

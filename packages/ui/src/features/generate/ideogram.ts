@@ -4,23 +4,39 @@ import type { EngineRequest } from './request'
 import { fetchBinary, readJson } from './shared'
 
 /**
- * The Ideogram API: synchronous generation, one call returning every image
- * as a short-lived signed URL. The composer's quality tiers map onto
- * Ideogram's rendering speeds, which is also how Ideogram prices.
+ * The Ideogram API: synchronous generation returning short-lived signed URLs.
+ * The composer's quality tiers map onto Ideogram's rendering speeds, which is
+ * also how Ideogram prices.
+ *
+ * The two generations do not share a request shape. V3 takes a multipart form
+ * with an aspect ratio, a count and optional style references. Ideogram 4.0
+ * takes `text_prompt` with an exact pixel `resolution`, renders one image per
+ * call and accepts no references at all, so a multi-image run there is
+ * parallel calls.
  */
 
 const API_ROOT = 'https://api.ideogram.ai'
 
-const WIRE_ENDPOINTS: Readonly<Record<string, string>> = {
-    'ideogram-v3': 'v1/ideogram-v3/generate',
-    'ideogram-v4': 'v1/ideogram-v4/generate',
-}
-
-/** Composer tier → Ideogram rendering speed. */
+/** Composer tier to Ideogram rendering speed. */
 const RENDERING_SPEEDS: Readonly<Record<string, string>> = {
     low: 'TURBO',
     medium: 'DEFAULT',
     high: 'QUALITY',
+}
+
+/**
+ * Ideogram 4.0 picks a shape from a closed list of exact pixel sizes rather
+ * than a ratio. These are the 1K entries of that list, one per ratio the
+ * catalog offers for the model.
+ */
+const V4_RESOLUTIONS: Readonly<Record<string, string>> = {
+    '1:1': '1024x1024',
+    '3:2': '1248x832',
+    '2:3': '832x1248',
+    '4:3': '1152x864',
+    '3:4': '864x1152',
+    '16:9': '1280x720',
+    '9:16': '720x1280',
 }
 
 interface IdeogramResponse {
@@ -54,50 +70,16 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
     )
 }
 
-function requestIdeogram(request: EngineRequest, endpoint: string): Promise<Response> {
-    const headers = { 'Api-Key': request.credentials['apiKey'] ?? '' }
-
-    // Ideogram writes ratios as 16x9; the catalog as 16:9.
-    const aspectRatio = request.ratio.replace(':', 'x')
-    const speed = RENDERING_SPEEDS[request.quality] ?? 'DEFAULT'
-
-    if (request.references.length === 0) {
-        return httpFetch(`${API_ROOT}/${endpoint}`, {
-            headers,
-            json: {
-                prompt: request.prompt,
-                aspect_ratio: aspectRatio,
-                rendering_speed: speed,
-                num_images: request.count,
-            },
-        })
-    }
-
-    // Reference images make it a multipart request, as style references.
-    const form = new FormData()
-    form.set('prompt', request.prompt)
-    form.set('aspect_ratio', aspectRatio)
-    form.set('rendering_speed', speed)
-    form.set('num_images', String(request.count))
-
-    for (const reference of request.references) {
-        form.append('style_reference_images', reference, reference.name)
-    }
-
-    return httpFetch(`${API_ROOT}/${endpoint}`, { headers, form })
+function headersOf(request: EngineRequest): Readonly<Record<string, string>> {
+    return { 'Api-Key': request.credentials['apiKey'] ?? '' }
 }
 
-export async function generateIdeogramImages(request: EngineRequest): Promise<Blob[]> {
-    const endpoint = WIRE_ENDPOINTS[request.modelId] ?? WIRE_ENDPOINTS['ideogram-v3'] ?? ''
+function speedOf(request: EngineRequest): string {
+    return RENDERING_SPEEDS[request.quality] ?? 'DEFAULT'
+}
 
-    let response: Response
-
-    try {
-        response = await requestIdeogram(request, endpoint)
-    } catch {
-        throw offlineError('Ideogram')
-    }
-
+/** The signed URLs from one response, or the reason there are none. */
+async function urlsOf(response: Response): Promise<readonly string[]> {
     if (!response.ok) {
         throw await toGenerationError(response)
     }
@@ -116,6 +98,79 @@ export async function generateIdeogramImages(request: EngineRequest): Promise<Bl
                 : 'Ideogram returned no images for this prompt.',
         )
     }
+
+    return urls
+}
+
+/** V3: one multipart call for the whole run, references included. */
+async function generateV3(request: EngineRequest): Promise<readonly string[]> {
+    // Ideogram writes ratios as 16x9, the catalog as 16:9.
+    const form = new FormData()
+    form.set('prompt', request.prompt)
+    form.set('aspect_ratio', request.ratio.replace(':', 'x'))
+    form.set('rendering_speed', speedOf(request))
+    form.set('num_images', String(request.count))
+
+    for (const reference of request.references) {
+        form.append('style_reference_images', reference, reference.name)
+    }
+
+    let response: Response
+
+    try {
+        response = await httpFetch(`${API_ROOT}/v1/ideogram-v3/generate`, {
+            headers: headersOf(request),
+            form,
+        })
+    } catch {
+        throw offlineError('Ideogram')
+    }
+
+    return urlsOf(response)
+}
+
+/** Ideogram 4.0: one image per call, so the run fans out. */
+async function generateOneV4(request: EngineRequest): Promise<string> {
+    let response: Response
+
+    try {
+        response = await httpFetch(`${API_ROOT}/v1/ideogram-v4/generate`, {
+            headers: headersOf(request),
+            json: {
+                text_prompt: request.prompt,
+                resolution: V4_RESOLUTIONS[request.ratio] ?? '1024x1024',
+                rendering_speed: speedOf(request),
+            },
+        })
+    } catch {
+        throw offlineError('Ideogram')
+    }
+
+    const [url] = await urlsOf(response)
+
+    if (url === undefined) {
+        throw new GenerationError('Ideogram returned no images for this prompt.')
+    }
+
+    return url
+}
+
+function generateV4(request: EngineRequest): Promise<readonly string[]> {
+    if (request.references.length > 0) {
+        return Promise.reject(
+            new GenerationError(
+                'Ideogram 4.0 cannot take reference images. Use Ideogram V3 for those.',
+            ),
+        )
+    }
+
+    return Promise.all(Array.from({ length: request.count }, () => generateOneV4(request)))
+}
+
+export async function generateIdeogramImages(request: EngineRequest): Promise<Blob[]> {
+    const urls = await (request.modelId === 'ideogram-v4'
+        ? generateV4(request)
+        : generateV3(request))
 
     return Promise.all(urls.map((url) => fetchBinary('Ideogram', url, 'image/png')))
 }

@@ -1,10 +1,8 @@
 import { verifyBflKey } from '../generate/bfl'
 import { verifyGoogleKey } from '../generate/google'
 import { verifyOpenAiKey, type KeyVerification } from '../generate/openai'
-import { verifyPixverseKey } from '../generate/pixverse'
 import { verifyRecraftKey } from '../generate/recraft'
 import { verifyRunwayKey } from '../generate/runway'
-import { verifyStabilityKey } from '../generate/stability'
 import type { KeyProvider } from './key-providers'
 
 /**
@@ -20,10 +18,8 @@ const VERIFIERS: Readonly<Record<string, Verifier>> = {
     openai: verifyOpenAiKey,
     google: verifyGoogleKey,
     blackForestLabs: verifyBflKey,
-    stability: verifyStabilityKey,
     recraft: verifyRecraftKey,
     runway: verifyRunwayKey,
-    pixverse: verifyPixverseKey,
 }
 
 export function verifyConnection(

@@ -2,15 +2,14 @@ import { PROVIDERS, type ProviderId } from '../create/catalog'
 
 /**
  * Everything the settings page knows about connecting a provider: the model
- * catalog says what each vendor's models can *do*; this file says what Umber
- * has to *ask the user for* before it may call them. Most vendors need one
- * API key, but not all — Kling signs with a key pair, MiniMax scopes calls to
- * a group, Alibaba issues region-locked keys — so each provider declares its
- * own credential fields and the add dialog renders whatever is declared.
- * Aggregators sit on top: one key that resells many vendors' models.
+ * catalog says what each vendor's models can *do*, this file says what Umber
+ * has to *ask the user for* before it may call them. Most vendors need one API
+ * key, but not all. Kling signs with a key pair and Alibaba issues
+ * region-locked keys, so each provider declares its own credential fields and
+ * the add dialog renders whatever is declared.
  */
 
-export type KeyProviderId = ProviderId | 'fal' | 'higgsfield'
+export type KeyProviderId = ProviderId
 
 interface CredentialFieldBase {
     readonly id: string
@@ -35,8 +34,9 @@ export type CredentialField =
 
 /**
  * One thing to do in the provider's console before the key will work. Some
- * vendors need more than "create a key" — verification, prepaid billing — and
- * hiding those would just move the failure to the first generation.
+ * vendors need more than "create a key", like verification, prepaid billing or
+ * activating a model, and hiding those would just move the failure to the first
+ * generation.
  */
 export interface SetupStep {
     readonly title: string
@@ -49,8 +49,6 @@ export interface SetupStep {
 export interface KeyProvider {
     readonly id: KeyProviderId
     readonly name: string
-    /** Vendors sell their own models; aggregators resell many vendors' models. */
-    readonly group: 'vendor' | 'aggregator'
     /** What connecting this provider switches on, in model names the user knows. */
     readonly unlocks: string
     /** Where the credentials come from, opened in the system browser. */
@@ -83,15 +81,25 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
     {
         id: 'google',
         name: PROVIDERS.google.name,
-        group: 'vendor',
         unlocks: 'Nano Banana and Veo',
         console: { label: 'Google AI Studio', url: 'https://aistudio.google.com/apikey' },
+        setup: [
+            {
+                title: 'Create an API key',
+                detail: 'Keys are created in AI Studio and work straight away for image models.',
+                url: 'https://aistudio.google.com/apikey',
+            },
+            {
+                title: 'Enable billing for Veo',
+                detail: 'Veo has no free tier. Video generation needs a key on a paid-tier project.',
+            },
+        ],
         fields: [apiKeyField('AIza…')],
+        note: 'Umber checks the key with Google when you connect.',
     },
     {
         id: 'openai',
         name: PROVIDERS.openai.name,
-        group: 'vendor',
         unlocks: 'GPT Image and Sora',
         console: { label: 'OpenAI platform', url: 'https://platform.openai.com/api-keys' },
         setup: [
@@ -117,42 +125,51 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
     {
         id: 'blackForestLabs',
         name: PROVIDERS.blackForestLabs.name,
-        group: 'vendor',
         unlocks: 'The FLUX image family',
-        console: { label: 'BFL API portal', url: 'https://api.bfl.ai' },
+        console: { label: 'BFL dashboard', url: 'https://dashboard.bfl.ai' },
+        setup: [
+            {
+                title: 'Create an API key',
+                detail: 'Copy the key as soon as it appears. BFL shows it only once.',
+                url: 'https://dashboard.bfl.ai',
+            },
+            {
+                title: 'Add credits',
+                detail: 'API usage is prepaid. Credits are bought in the same dashboard.',
+                url: 'https://dashboard.bfl.ai',
+            },
+        ],
         fields: [apiKeyField('Your BFL API key')],
-    },
-    {
-        id: 'stability',
-        name: PROVIDERS.stability.name,
-        group: 'vendor',
-        unlocks: 'Stable Image and SD 3.5',
-        console: {
-            label: 'Stability AI platform',
-            url: 'https://platform.stability.ai/account/keys',
-        },
-        fields: [apiKeyField('sk-…')],
     },
     {
         id: 'ideogram',
         name: PROVIDERS.ideogram.name,
-        group: 'vendor',
-        unlocks: 'Ideogram V3 and 4.0',
+        unlocks: 'Ideogram 4.0 and V3',
         console: { label: 'Ideogram API settings', url: 'https://ideogram.ai/manage-api' },
         fields: [apiKeyField('Your Ideogram API key')],
     },
     {
         id: 'recraft',
         name: PROVIDERS.recraft.name,
-        group: 'vendor',
         unlocks: 'Recraft V4.1 and V3',
-        console: { label: 'Recraft profile', url: 'https://www.recraft.ai/profile/api' },
+        console: { label: 'Recraft API settings', url: 'https://app.recraft.ai/profile/api' },
+        setup: [
+            {
+                title: 'Buy API units',
+                detail: 'Recraft only issues a key once the account has a positive API unit balance.',
+                url: 'https://app.recraft.ai/profile/api',
+            },
+            {
+                title: 'Create an API key',
+                detail: 'Keys live under the API tab of your Recraft profile.',
+                url: 'https://app.recraft.ai/profile/api',
+            },
+        ],
         fields: [apiKeyField('Your Recraft API key')],
     },
     {
         id: 'runway',
         name: PROVIDERS.runway.name,
-        group: 'vendor',
         unlocks: 'Gen-4.5 video and Gen-4 Image',
         setup: [
             {
@@ -170,19 +187,22 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
         fields: [apiKeyField('key_…')],
     },
     {
-        id: 'luma',
-        name: PROVIDERS.luma.name,
-        group: 'vendor',
-        unlocks: 'Ray video and Uni images',
-        console: { label: 'Luma platform', url: 'https://platform.lumalabs.ai' },
-        fields: [apiKeyField('luma-…')],
-    },
-    {
         id: 'kuaishou',
         name: PROVIDERS.kuaishou.name,
-        group: 'vendor',
         unlocks: 'Kling video and images',
-        console: { label: 'Kling AI open platform', url: 'https://app.klingai.com' },
+        console: { label: 'Kling developer console', url: 'https://kling.ai/dev' },
+        setup: [
+            {
+                title: 'Create a key pair',
+                detail: 'The developer console issues an access key and a secret key together.',
+                url: 'https://kling.ai/dev/api-key',
+            },
+            {
+                title: 'Buy a resource package',
+                detail: 'Calls fail until the account holds an image or video package. There is a trial package.',
+                url: 'https://kling.ai/dev',
+            },
+        ],
         fields: [
             {
                 kind: 'secret',
@@ -200,33 +220,45 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
         note: 'Kling signs every request with a key pair, so both parts are needed.',
     },
     {
-        id: 'minimax',
-        name: PROVIDERS.minimax.name,
-        group: 'vendor',
-        unlocks: 'Hailuo video and Image-01',
-        console: {
-            label: 'MiniMax platform',
-            url: 'https://platform.minimax.io/user-center/basic-information/interface-key',
-        },
-        fields: [apiKeyField('eyJhbGci…')],
-    },
-    {
         id: 'bytedance',
         name: PROVIDERS.bytedance.name,
-        group: 'vendor',
         unlocks: 'Seedream images and Seedance video',
         console: { label: 'BytePlus ModelArk', url: 'https://console.byteplus.com/ark' },
+        setup: [
+            {
+                title: 'Create an API key',
+                detail: 'Keys are made in the ModelArk console.',
+                url: 'https://console.byteplus.com/ark',
+            },
+            {
+                title: 'Activate the models',
+                detail: 'ModelArk gates each model separately. Activate Seedream and Seedance before generating.',
+                url: 'https://console.byteplus.com/ark',
+            },
+        ],
         fields: [apiKeyField('Your ModelArk API key')],
+        note: 'Seedance 2.0 also needs a balance over $30 or a Seedance resource pack.',
     },
     {
         id: 'alibaba',
         name: PROVIDERS.alibaba.name,
-        group: 'vendor',
         unlocks: 'Qwen Image and Wan video',
         console: {
             label: 'Alibaba Cloud Model Studio',
             url: 'https://modelstudio.console.alibabacloud.com',
         },
+        setup: [
+            {
+                title: 'Activate Model Studio',
+                detail: 'The service has to be activated once on the account before any key works.',
+                url: 'https://modelstudio.console.alibabacloud.com',
+            },
+            {
+                title: 'Create an API key',
+                detail: 'Keys belong to the region they were made in, which the field below asks for.',
+                url: 'https://modelstudio.console.alibabacloud.com',
+            },
+        ],
         fields: [
             apiKeyField('sk-…'),
             {
@@ -240,44 +272,6 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
                 hint: 'Model Studio keys are region-locked, so pick where yours was created.',
             },
         ],
-    },
-    {
-        id: 'pixverse',
-        name: PROVIDERS.pixverse.name,
-        group: 'vendor',
-        unlocks: 'PixVerse video',
-        console: { label: 'PixVerse platform', url: 'https://platform.pixverse.ai' },
-        fields: [apiKeyField('Your PixVerse API key')],
-    },
-    {
-        id: 'lightricks',
-        name: PROVIDERS.lightricks.name,
-        group: 'vendor',
-        unlocks: 'LTX-2.5 video',
-        console: { label: 'LTX console', url: 'https://console.ltx.io' },
-        fields: [apiKeyField('Your LTX API key')],
-    },
-    {
-        id: 'fal',
-        name: 'Fal.ai',
-        group: 'aggregator',
-        unlocks: 'Most of the catalog, hosted on Fal',
-        console: { label: 'Fal dashboard', url: 'https://fal.ai/dashboard/keys' },
-        fields: [
-            apiKeyField(
-                'key-id:key-secret',
-                'Fal issues the id and secret as one colon-joined key.',
-            ),
-        ],
-        note: 'One Fal key runs models from many vendors at once, without a dozen separate accounts.',
-    },
-    {
-        id: 'higgsfield',
-        name: 'Higgsfield',
-        group: 'aggregator',
-        unlocks: 'Soul images plus hosted partner models',
-        console: { label: 'Higgsfield platform', url: 'https://higgsfield.ai' },
-        fields: [apiKeyField('Your Higgsfield API key')],
     },
 ]
 

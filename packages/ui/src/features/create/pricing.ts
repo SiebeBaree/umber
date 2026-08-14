@@ -1,43 +1,67 @@
-import { isImageModel, type Model } from './catalog'
+import { isImageModel, priceAt, type Model, type Price, type PriceContext } from './catalog'
 import type { ModeSettings } from './settings/schema'
-
-/**
- * How much dearer a run gets at each step up in resolution. Applied on top of a
- * model's base price, which is quoted at its cheapest resolution.
- */
-const RESOLUTION_MULTIPLIER: Readonly<Record<string, number>> = {
-    '1K': 1,
-    '2K': 1.8,
-    '4K': 3.4,
-    '480p': 1,
-    '720p': 1.4,
-    '1080p': 2.2,
-}
 
 /**
  * The estimate shown on the Generate button.
  *
  * Deliberately a pure function of the current settings: every control that
- * changes cost — resolution, image count, clip length — moves this number, so
- * the button always reflects what the next run would actually charge.
+ * changes cost (resolution, shape, quality, image count, clip length, whether
+ * a reference is attached) moves this number, so the button always reflects
+ * what the next run would actually charge.
  *
- * Prices come from the hard-coded catalog and are estimates, not quotes.
+ * Every figure comes from the catalog, which carries each vendor's own
+ * published rate. Nothing here scales one tier off another, so a model that
+ * charges the same at every resolution correctly shows a flat price.
  */
-export function estimateCost(model: Model, settings: ModeSettings): number {
-    const multiplier = RESOLUTION_MULTIPLIER[settings.resolution] ?? 1
+
+/** What one image or one second costs, given everything that can change it. */
+function unitPrice(model: Model, context: PriceContext): number {
+    const cheapest = model.resolutions[0]
+    const fromImage = context.references > 0
 
     if (!isImageModel(model)) {
-        return model.pricePerSecond * multiplier * settings.durationSeconds
+        const rate: Price =
+            fromImage && model.pricePerSecondFromImage !== undefined
+                ? model.pricePerSecondFromImage
+                : model.pricePerSecond
+
+        return priceAt(rate, context, cheapest)
     }
 
     // A tiered model is priced off the chosen quality; `reconcileToModel`
     // guarantees the tier is one the model offers.
-    const perImage =
-        model.quality?.pricePerImage[
-            settings.quality as keyof typeof model.quality.pricePerImage
-        ] ?? model.pricePerImage
+    if (model.quality !== undefined) {
+        const tier = context.quality as keyof typeof model.quality.pricePerImage
 
-    return perImage * multiplier * settings.outputCount
+        return priceAt(model.quality.pricePerImage[tier] ?? model.pricePerImage, context, cheapest)
+    }
+
+    const rate: Price =
+        fromImage && model.pricePerImageFromImage !== undefined
+            ? model.pricePerImageFromImage
+            : model.pricePerImage
+
+    return priceAt(rate, context, cheapest)
+}
+
+export function estimateCost(model: Model, settings: ModeSettings, references = 0): number {
+    const context: PriceContext = {
+        resolution: settings.resolution,
+        ratio: settings.aspectRatio as PriceContext['ratio'],
+        quality: settings.quality,
+        references,
+    }
+
+    const unit = unitPrice(model, context)
+
+    if (!isImageModel(model)) {
+        // Some vendors bill the supplied first frame on top of the clip.
+        const firstFrame = references > 0 ? (model.firstFramePrice ?? 0) : 0
+
+        return unit * settings.durationSeconds + firstFrame
+    }
+
+    return unit * settings.outputCount
 }
 
 /**

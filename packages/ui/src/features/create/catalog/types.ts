@@ -12,15 +12,10 @@ export const PROVIDER_IDS = [
     'blackForestLabs',
     'bytedance',
     'kuaishou',
-    'minimax',
     'alibaba',
     'runway',
-    'luma',
-    'pixverse',
-    'lightricks',
     'ideogram',
     'recraft',
-    'stability',
 ] as const
 
 export type ProviderId = (typeof PROVIDER_IDS)[number]
@@ -65,16 +60,48 @@ export type ImageResolution = '1K' | '2K' | '4K'
 export type VideoResolution = '480p' | '720p' | '1080p' | '4K'
 
 /**
- * The render-effort tiers some models expose (today, OpenAI's GPT Image
- * family). Quality is priced per tier, so a model that supports it carries its
- * own price table instead of a single per-image figure.
+ * The render-effort tiers some models expose. Quality is priced per tier, so a
+ * model that supports it carries its own price table instead of one figure.
  */
 export type ImageQuality = 'low' | 'medium' | 'high'
 
 export interface QualityRule {
     readonly options: readonly [ImageQuality, ...ImageQuality[]]
-    /** USD for one image at the model's base size, per tier. */
-    readonly pricePerImage: Readonly<Record<ImageQuality, number>>
+    /** USD for one image, per tier. */
+    readonly pricePerImage: Readonly<Record<ImageQuality, Price>>
+}
+
+/** Everything about a run that a vendor might charge differently for. */
+export interface PriceContext {
+    readonly resolution: string
+    readonly ratio: AspectRatio
+    readonly quality: string
+    /** Reference images attached, which some vendors bill for. */
+    readonly references: number
+}
+
+/**
+ * USD for one unit of output, meaning one image or one second of video.
+ *
+ * Vendors are split on how output size enters the bill. A single number is a
+ * model that charges the same whatever it renders, a table is one that charges
+ * per resolution tier, and a function is one that genuinely computes it, as
+ * OpenAI does from output tokens and Black Forest Labs by the megapixel.
+ * Every form is the vendor's own published rate, never an extrapolation.
+ */
+export type Price = number | Readonly<Record<string, number>> | ((context: PriceContext) => number)
+
+/** The figure that applies to `context`, falling back to the model's cheapest tier. */
+export function priceAt(price: Price, context: PriceContext, cheapest: string): number {
+    if (typeof price === 'number') {
+        return price
+    }
+
+    if (typeof price === 'function') {
+        return price(context)
+    }
+
+    return price[context.resolution] ?? price[cheapest] ?? 0
 }
 
 /**
@@ -116,18 +143,24 @@ export interface ImageModel extends ModelBase {
     readonly resolutions: readonly [ImageResolution, ...ImageResolution[]]
     /** Most images this model will return in one request; the stepper caps at 4. */
     readonly maxOutputs: number
-    /** USD for one image at the model's cheapest resolution and quality. */
-    readonly pricePerImage: number
+    /** USD for one image. Ignored when the model prices by quality tier. */
+    readonly pricePerImage: Price
     /** Present only when the model trades render quality against price. */
     readonly quality?: QualityRule
+    /** Only where editing a picture is billed differently from drawing one. */
+    readonly pricePerImageFromImage?: Price
 }
 
 export interface VideoModel extends ModelBase {
     readonly kind: 'video'
     readonly resolutions: readonly [VideoResolution, ...VideoResolution[]]
     readonly durations: DurationRule
-    /** USD for one second at the model's cheapest resolution. */
-    readonly pricePerSecond: number
+    /** USD for one second of finished clip. */
+    readonly pricePerSecond: Price
+    /** Only where animating a still is billed differently from text alone. */
+    readonly pricePerSecondFromImage?: Price
+    /** A one-off charge some vendors add for the supplied first frame. */
+    readonly firstFramePrice?: number
 }
 
 export type Model = ImageModel | VideoModel

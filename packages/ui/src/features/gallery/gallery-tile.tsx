@@ -3,6 +3,7 @@ import { useCallback, useMemo, type MouseEvent } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { Tooltip } from '../../components/ui/tooltip'
+import { mediaExtension } from '../../lib/media'
 import { ratioToCss, type AspectRatio } from '../create/catalog'
 import { TileImage, TileVideo } from './tile-media'
 
@@ -29,6 +30,8 @@ export interface GalleryImage {
     readonly createdAt: number
     /** An object URL over the stored blob, owned by the page that loaded it. */
     readonly url: string
+    /** The blob's own media type, so a download can be named correctly. */
+    readonly mediaType: string
 }
 
 /** `8` → `0:08`, matching the player's clock. */
@@ -84,7 +87,7 @@ function TileControls({
                     variant="overlay"
                 >
                     <a
-                        download={`umber-${image.id.slice(0, 8)}.${image.kind === 'video' ? 'mp4' : 'png'}`}
+                        download={`umber-${image.id.slice(0, 8)}.${mediaExtension(image.mediaType, image.kind)}`}
                         href={image.url}
                     >
                         <Download aria-hidden />

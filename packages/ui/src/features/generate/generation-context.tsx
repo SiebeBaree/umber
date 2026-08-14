@@ -25,6 +25,8 @@ export interface GeneratedOutput {
     readonly id: string
     /** An object URL over the stored blob; owned and revoked by this store. */
     readonly url: string
+    /** The blob's own media type, so a download can be named correctly. */
+    readonly mediaType: string
 }
 
 interface JobBase {
@@ -170,6 +172,7 @@ async function performRun(
     const outputs = records.map((record) => ({
         id: record.id,
         url: URL.createObjectURL(record.image),
+        mediaType: record.image.type,
     }))
 
     return { outcome: { ...job, status: 'done', outputs, generationMs }, persisted }

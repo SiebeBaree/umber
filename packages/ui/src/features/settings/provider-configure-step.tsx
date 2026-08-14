@@ -11,8 +11,8 @@ import { useCallback, useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/button'
 import { DialogDescription, DialogTitle } from '../../components/ui/dialog'
 import { cn } from '../../lib/cn'
+import { ProviderMark } from '../create/catalog'
 import { CredentialFieldControl } from './credential-fields'
-import { KeyProviderMark } from './key-provider-mark'
 import type { KeyProvider, NewConnection, SetupStep } from './key-providers'
 import { useConnectCheck, type CheckState } from './use-connect-check'
 
@@ -47,7 +47,7 @@ function ConfigureHeader({
                 <ArrowLeft aria-hidden />
             </Button>
             <div className="glass flex size-10 shrink-0 items-center justify-center rounded-xl">
-                <KeyProviderMark className="size-5 text-ink" provider={provider.id} />
+                <ProviderMark className="size-5 text-ink" provider={provider.id} />
             </div>
             <div className="min-w-0">
                 <DialogTitle className="pe-0 text-base">Connect {provider.name}</DialogTitle>

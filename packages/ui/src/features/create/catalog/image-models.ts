@@ -1,12 +1,15 @@
+import { fluxTwoPrice, gptImagePrice } from './price-rules'
 import type { ImageModel } from './types'
 
 /**
  * The image models Umber can drive.
  *
- * Capabilities and prices are transcribed by hand from each vendor's public
- * documentation and are approximations — the price shown in the composer is an
- * estimate, and none of this is authoritative until the provider integrations
- * report their own limits. Keep entries newest-first within a provider.
+ * Capabilities and prices are transcribed by hand from each vendor's own
+ * documentation: a bare number where the vendor charges one rate however big
+ * the image, a table where it charges per resolution tier, and a rule from
+ * `price-rules` for the two that genuinely compute it. What a run costs is
+ * still an estimate, since only the provider can bill it, but no figure here
+ * is scaled or guessed off another. Keep entries newest-first per provider.
  */
 export const IMAGE_MODELS: readonly ImageModel[] = [
     {
@@ -18,7 +21,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K', '2K', '4K'],
         maxOutputs: 4,
-        pricePerImage: 0.067,
+        pricePerImage: { '1K': 0.067, '2K': 0.101, '4K': 0.151 },
     },
     {
         id: 'nano-banana-pro',
@@ -29,7 +32,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K', '2K', '4K'],
         maxOutputs: 4,
-        pricePerImage: 0.134,
+        pricePerImage: { '1K': 0.134, '2K': 0.134, '4K': 0.24 },
     },
     {
         id: 'nano-banana',
@@ -42,9 +45,10 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         maxOutputs: 4,
         pricePerImage: 0.039,
     },
-    // The GPT Image family: a size is derived from aspect ratio and resolution
-    // at request time, and cost tracks the quality tier rather than the pixel
-    // count — hence the per-tier price tables.
+    // The GPT Image family: OpenAI bills these by output tokens, which fall out
+    // of the quality tier and the exact pixel grid, so their prices are
+    // computed rather than quoted. A wide 4K frame really is cheaper than a
+    // 2K square.
     {
         id: 'gpt-image-2',
         name: 'GPT Image 2',
@@ -56,10 +60,14 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K', '2K', '4K'],
         maxOutputs: 4,
-        pricePerImage: 0.006,
+        pricePerImage: gptImagePrice('gpt-image-2', 'low'),
         quality: {
             options: ['low', 'medium', 'high'],
-            pricePerImage: { low: 0.006, medium: 0.053, high: 0.211 },
+            pricePerImage: {
+                low: gptImagePrice('gpt-image-2', 'low'),
+                medium: gptImagePrice('gpt-image-2', 'medium'),
+                high: gptImagePrice('gpt-image-2', 'high'),
+            },
         },
     },
     {
@@ -71,10 +79,14 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3'],
         resolutions: ['1K'],
         maxOutputs: 4,
-        pricePerImage: 0.009,
+        pricePerImage: gptImagePrice('gpt-image-1-5', 'low'),
         quality: {
             options: ['low', 'medium', 'high'],
-            pricePerImage: { low: 0.009, medium: 0.034, high: 0.133 },
+            pricePerImage: {
+                low: gptImagePrice('gpt-image-1-5', 'low'),
+                medium: gptImagePrice('gpt-image-1-5', 'medium'),
+                high: gptImagePrice('gpt-image-1-5', 'high'),
+            },
         },
     },
     {
@@ -86,10 +98,14 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3'],
         resolutions: ['1K'],
         maxOutputs: 4,
-        pricePerImage: 0.005,
+        pricePerImage: gptImagePrice('gpt-image-1-mini', 'low'),
         quality: {
             options: ['low', 'medium', 'high'],
-            pricePerImage: { low: 0.005, medium: 0.011, high: 0.036 },
+            pricePerImage: {
+                low: gptImagePrice('gpt-image-1-mini', 'low'),
+                medium: gptImagePrice('gpt-image-1-mini', 'medium'),
+                high: gptImagePrice('gpt-image-1-mini', 'high'),
+            },
         },
     },
     {
@@ -101,10 +117,14 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3'],
         resolutions: ['1K'],
         maxOutputs: 4,
-        pricePerImage: 0.011,
+        pricePerImage: gptImagePrice('gpt-image-1', 'low'),
         quality: {
             options: ['low', 'medium', 'high'],
-            pricePerImage: { low: 0.011, medium: 0.042, high: 0.167 },
+            pricePerImage: {
+                low: gptImagePrice('gpt-image-1', 'low'),
+                medium: gptImagePrice('gpt-image-1', 'medium'),
+                high: gptImagePrice('gpt-image-1', 'high'),
+            },
         },
     },
     {
@@ -116,7 +136,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K', '2K'],
         maxOutputs: 4,
-        pricePerImage: 0.03,
+        pricePerImage: fluxTwoPrice,
     },
     {
         id: 'flux-1-kontext-pro',
@@ -147,7 +167,8 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         kind: 'image',
         releasedOn: '2025-12-18',
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16'],
-        resolutions: ['1K', '2K', '4K'],
+        // 4.5 has a pixel floor above the whole 1K tier, which 4.0 still has.
+        resolutions: ['2K', '4K'],
         maxOutputs: 4,
         pricePerImage: 0.04,
     },
@@ -185,17 +206,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         resolutions: ['1K', '2K'],
         maxOutputs: 4,
         pricePerImage: 0.014,
-    },
-    {
-        id: 'minimax-image-01',
-        name: 'Image-01',
-        provider: 'minimax',
-        kind: 'image',
-        releasedOn: '2025-01-20',
-        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16'],
-        resolutions: ['1K'],
-        maxOutputs: 4,
-        pricePerImage: 0.0035,
+        pricePerImageFromImage: 0.028,
     },
     {
         id: 'gen-4-image',
@@ -206,29 +217,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K', '2K'],
         maxOutputs: 4,
-        pricePerImage: 0.05,
-    },
-    {
-        id: 'uni-1-max',
-        name: 'Uni-1 Max',
-        provider: 'luma',
-        kind: 'image',
-        releasedOn: '2026-06-05',
-        aspectRatios: ['1:1', '3:2', '2:3', '16:9', '9:16'],
-        resolutions: ['1K'],
-        maxOutputs: 4,
-        pricePerImage: 0.1,
-    },
-    {
-        id: 'uni-1',
-        name: 'Uni-1',
-        provider: 'luma',
-        kind: 'image',
-        releasedOn: '2026-06-05',
-        aspectRatios: ['1:1', '3:2', '2:3', '16:9', '9:16'],
-        resolutions: ['1K'],
-        maxOutputs: 4,
-        pricePerImage: 0.04,
+        pricePerImage: { '1K': 0.05, '2K': 0.08 },
     },
     // Ideogram prices by rendering speed, which is what its quality tiers are.
     {
@@ -236,7 +225,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         name: 'Ideogram 4.0',
         provider: 'ideogram',
         kind: 'image',
-        releasedOn: '2026-03-10',
+        releasedOn: '2026-06-03',
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16'],
         resolutions: ['1K'],
         maxOutputs: 4,
@@ -282,38 +271,5 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         resolutions: ['1K'],
         maxOutputs: 4,
         pricePerImage: 0.04,
-    },
-    {
-        id: 'stable-image-ultra',
-        name: 'Stable Image Ultra',
-        provider: 'stability',
-        kind: 'image',
-        releasedOn: '2024-07-18',
-        aspectRatios: ['1:1', '3:2', '2:3', '16:9', '9:16', '21:9'],
-        resolutions: ['1K'],
-        maxOutputs: 4,
-        pricePerImage: 0.08,
-    },
-    {
-        id: 'stable-diffusion-3-5-large',
-        name: 'Stable Diffusion 3.5 Large',
-        provider: 'stability',
-        kind: 'image',
-        releasedOn: '2024-10-22',
-        aspectRatios: ['1:1', '3:2', '2:3', '16:9', '9:16', '21:9'],
-        resolutions: ['1K'],
-        maxOutputs: 4,
-        pricePerImage: 0.065,
-    },
-    {
-        id: 'stable-image-core',
-        name: 'Stable Image Core',
-        provider: 'stability',
-        kind: 'image',
-        releasedOn: '2024-04-17',
-        aspectRatios: ['1:1', '3:2', '2:3', '16:9', '9:16', '21:9'],
-        resolutions: ['1K'],
-        maxOutputs: 4,
-        pricePerImage: 0.03,
     },
 ]

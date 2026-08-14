@@ -104,6 +104,7 @@ export function PromptComposer() {
                 composer={submission.composer}
                 mode={submission.mode}
                 onModeChange={submission.setMode}
+                references={references.images.length}
             />
         </motion.form>
     )

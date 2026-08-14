@@ -5,16 +5,11 @@ import { GenerationError } from './errors'
 import { generateGoogleImages } from './google'
 import { generateIdeogramImages } from './ideogram'
 import { generateKlingImages, generateKlingVideo } from './kling'
-import { generateLtxVideo } from './lightricks'
-import { generateLumaImages, generateLumaVideo } from './luma'
-import { generateMinimaxImages, generateMinimaxVideo } from './minimax'
 import { generateOpenAiImages } from './openai'
-import { generatePixverseVideo } from './pixverse'
 import { generateRecraftImages } from './recraft'
 import type { EngineRequest } from './request'
 import { generateRunwayImages, generateRunwayVideo } from './runway'
 import { generateOpenAiVideo } from './sora'
-import { generateStabilityImages } from './stability'
 import { generateGoogleVideo } from './veo'
 
 export type { EngineRequest } from './request'
@@ -32,13 +27,10 @@ const IMAGE_GENERATORS: Readonly<Record<string, Generator>> = {
     openai: generateOpenAiImages,
     google: generateGoogleImages,
     blackForestLabs: generateBflImages,
-    stability: generateStabilityImages,
     ideogram: generateIdeogramImages,
     recraft: generateRecraftImages,
     runway: generateRunwayImages,
-    luma: generateLumaImages,
     kuaishou: generateKlingImages,
-    minimax: generateMinimaxImages,
     bytedance: generateBytedanceImages,
     alibaba: generateAlibabaImages,
 }
@@ -47,13 +39,9 @@ const VIDEO_GENERATORS: Readonly<Record<string, Generator>> = {
     openai: generateOpenAiVideo,
     google: generateGoogleVideo,
     runway: generateRunwayVideo,
-    luma: generateLumaVideo,
     kuaishou: generateKlingVideo,
-    minimax: generateMinimaxVideo,
     bytedance: generateBytedanceVideo,
     alibaba: generateAlibabaVideo,
-    pixverse: generatePixverseVideo,
-    lightricks: generateLtxVideo,
 }
 
 export function runGeneration(request: EngineRequest): Promise<Blob[]> {

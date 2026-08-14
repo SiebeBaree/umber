@@ -202,6 +202,8 @@ export interface ComposerToolbarProps {
     readonly blocker: string | null
     /** True while a run is in flight; the button waits it out visibly. */
     readonly busy: boolean
+    /** Some vendors charge a different rate once references are attached. */
+    readonly references: number
 }
 
 export function ComposerToolbar({
@@ -211,8 +213,9 @@ export function ComposerToolbar({
     composer,
     mode,
     onModeChange,
+    references,
 }: ComposerToolbarProps) {
-    const price = formatCost(estimateCost(composer.model, composer.settings))
+    const price = formatCost(estimateCost(composer.model, composer.settings, references))
 
     return (
         <div className="flex items-end gap-2">
