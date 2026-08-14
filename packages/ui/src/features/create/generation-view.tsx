@@ -9,9 +9,9 @@ import { ratioParts } from './catalog'
 import { ResultTile, VideoResultTile } from './result-tile'
 
 /**
- * The stage above the composer while a run exists: skeletons while rendering,
- * the results once they land, a plain account of what went wrong if they
- * don't. One run at a time, front and centre.
+ * One run on the stage above the composer: skeletons while rendering, the
+ * results once they land, a plain account of what went wrong if they don't.
+ * Several of these stack when several runs are going at once.
  */
 
 /** Grid shape by requested count: a single, a pair, or a 2×2. */
@@ -66,6 +66,23 @@ function StatusLine({ job }: { readonly job: GenerationJob }) {
                 <span className="relative size-2 rounded-full bg-accent" />
             </span>
             Rendering with {job.modelName} · {seconds}s
+        </p>
+    )
+}
+
+/**
+ * What a finished run leaves behind. With runs stacking up, an unlabelled grid
+ * of pictures says nothing about which prompt or model made it — so the line
+ * the run rendered under stays, in the past tense.
+ */
+function DoneLine({ job }: { readonly job: GenerationJob }) {
+    if (job.status !== 'done') {
+        return null
+    }
+
+    return (
+        <p className="text-[13px] font-medium text-muted tabular-nums">
+            {job.modelName} · {Math.max(1, Math.round(job.generationMs / 1000))}s
         </p>
     )
 }
@@ -170,7 +187,7 @@ function RunTiles({
 }
 
 export function GenerationView({ job }: { readonly job: GenerationJob }) {
-    const generation = useGeneration()
+    const { dismiss } = useGeneration()
     const gridStyle = useMemo(
         () => ({
             maxWidth: gridMaxWidth(job),
@@ -187,8 +204,12 @@ export function GenerationView({ job }: { readonly job: GenerationJob }) {
 
     const openImage = openIndex === null ? null : detailsOf(job, openIndex)
 
+    const dismissJob = useCallback(() => {
+        dismiss(job.id)
+    }, [dismiss, job.id])
+
     if (job.status === 'failed') {
-        return <FailedCard job={job} onDismiss={generation.reset} />
+        return <FailedCard job={job} onDismiss={dismissJob} />
     }
 
     return (
@@ -197,7 +218,7 @@ export function GenerationView({ job }: { readonly job: GenerationJob }) {
                 <RunTiles job={job} onOpen={setOpenIndex} />
             </div>
 
-            {job.status === 'running' ? <StatusLine job={job} /> : null}
+            {job.status === 'running' ? <StatusLine job={job} /> : <DoneLine job={job} />}
 
             {/* No delete here: these tiles mirror one run, and removing a
                 creation is the gallery's job. */}

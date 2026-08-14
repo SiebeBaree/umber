@@ -2,6 +2,7 @@ import { Link, useRouteContext, useRouterState } from '@tanstack/react-router'
 import { UMBER_LOCKUP } from '@umber/brand'
 import { Images, Settings, WandSparkles, type LucideIcon } from 'lucide-react'
 
+import { ClearStageButton } from '../../features/create/clear-stage'
 import { cn } from '../../lib/cn'
 import { SlidingIndicator } from '../ui/sliding-indicator'
 
@@ -78,17 +79,23 @@ export function AppHeader() {
 
             <PrimaryNav />
 
-            <Link
-                aria-label="Settings"
-                className={cn(
-                    'no-drag glass-control flex size-10 items-center justify-center justify-self-end rounded-full text-muted outline-none select-none',
-                    'hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-                    'data-[status=active]:text-accent',
-                )}
-                to="/settings"
-            >
-                <Settings aria-hidden className="size-[18px]" />
-            </Link>
+            {/* Settings is the anchor and never moves; anything page-specific
+                appears to its left. */}
+            <div className="flex items-center gap-2 justify-self-end">
+                <ClearStageButton />
+
+                <Link
+                    aria-label="Settings"
+                    className={cn(
+                        'no-drag glass-control flex size-10 items-center justify-center rounded-full text-muted outline-none select-none',
+                        'hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+                        'data-[status=active]:text-accent',
+                    )}
+                    to="/settings"
+                >
+                    <Settings aria-hidden className="size-[18px]" />
+                </Link>
+            </div>
         </header>
     )
 }

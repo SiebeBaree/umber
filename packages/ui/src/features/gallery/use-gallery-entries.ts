@@ -161,25 +161,28 @@ export interface GalleryEntries {
 }
 
 /**
- * What the gallery shows, newest first: a run in flight leads the masonry as
- * skeletons — one per expected image, exactly where the results will land —
+ * What the gallery shows, newest first: every run in flight leads the masonry
+ * as skeletons — one per expected image, exactly where the results will land —
  * followed by everything stored.
  */
 export function useGalleryEntries(): GalleryEntries {
     const generation = useGeneration()
     const { images, remove } = useCreationImages(generation.completions)
-    const job = generation.activeJob
+    const { jobs } = generation
 
     const entries = useMemo<readonly GalleryEntry[]>(() => {
-        const pending: readonly GalleryEntry[] =
-            job?.status === 'running'
-                ? Array.from({ length: job.count }, (_, index) => ({
-                      kind: 'pending',
-                      id: `${job.id}-pending-${index + 1}`,
-                      ratio: job.ratio,
-                      providerId: job.providerId,
-                  }))
-                : []
+        const pending = jobs
+            .filter((job) => job.status === 'running')
+            // The store keeps runs oldest first; the masonry runs the other way.
+            .toReversed()
+            .flatMap<GalleryEntry>((job) =>
+                Array.from({ length: job.count }, (_, index) => ({
+                    kind: 'pending',
+                    id: `${job.id}-pending-${index + 1}`,
+                    ratio: job.ratio,
+                    providerId: job.providerId,
+                })),
+            )
 
         return [
             ...pending,
@@ -190,7 +193,7 @@ export function useGalleryEntries(): GalleryEntries {
                 image,
             })),
         ]
-    }, [job, images])
+    }, [jobs, images])
 
     return { loaded: images !== null, entries, remove }
 }

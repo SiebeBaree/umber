@@ -16,12 +16,17 @@ export interface ComposerSubmission {
     readonly composer: ComposerSettingsApi
     /** Why pressing send would do nothing, or null when it would generate. */
     readonly blocker: string | null
-    /** True while a run is in flight; one run at a time. */
-    readonly busy: boolean
     readonly submit: (prompt: string, references: readonly File[]) => void
 }
 
-function blockerFor(ready: boolean, connected: boolean, model: Model) {
+/**
+ * How many runs may be in flight together. Runs are independent, so this is
+ * not a technical limit — it is a backstop against a stuck Enter key, set high
+ * enough that asking for ten at once is a thing you can simply do.
+ */
+const MAX_RUNS_IN_FLIGHT = 10
+
+function blockerFor(ready: boolean, connected: boolean, model: Model, running: number) {
     // Nothing is declared blocked before the vault has answered.
     if (!ready) {
         return null
@@ -29,6 +34,10 @@ function blockerFor(ready: boolean, connected: boolean, model: Model) {
 
     if (!connected) {
         return `Connect your ${PROVIDERS[model.provider].name} key in Settings to use ${model.name}`
+    }
+
+    if (running >= MAX_RUNS_IN_FLIGHT) {
+        return `${MAX_RUNS_IN_FLIGHT} runs are already going. Wait for one to finish.`
     }
 
     return null
@@ -42,9 +51,8 @@ export function useComposerSubmission(): ComposerSubmission {
     const generation = useGeneration()
 
     const { model } = composer
-    const busy = generation.activeJob?.status === 'running'
     const providerConnected = keys.connectedProviders.has(model.provider)
-    const blocker = blockerFor(keys.ready, providerConnected, model)
+    const blocker = blockerFor(keys.ready, providerConnected, model, generation.running)
 
     // If the remembered model is locked but some other model in this mode is
     // usable, quietly move to the newest usable one — a fresh install with one
@@ -65,14 +73,14 @@ export function useComposerSubmission(): ComposerSubmission {
 
     const submit = useCallback(
         (prompt: string, references: readonly File[]) => {
-            if (prompt === '' || blocker !== null || busy) {
+            if (prompt === '' || blocker !== null) {
                 return
             }
 
             generation.start({ prompt, model, settings: composer.settings, references })
         },
-        [blocker, busy, composer.settings, generation, model],
+        [blocker, composer.settings, generation, model],
     )
 
-    return { mode, setMode, composer, blocker, busy: busy === true, submit }
+    return { mode, setMode, composer, blocker, submit }
 }

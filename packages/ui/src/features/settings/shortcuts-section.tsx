@@ -37,6 +37,7 @@ const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
         shortcuts: [
             { label: 'Focus the prompt', keys: ['/'] },
             { label: 'Switch image ↔ video', keys: ['⌘', '⇧', 'M'] },
+            { label: 'Clear finished runs', keys: ['⌘', '⇧', '⌫'] },
         ],
     },
     {

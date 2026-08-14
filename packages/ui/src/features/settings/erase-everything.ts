@@ -36,9 +36,9 @@ export function useEraseEverything(): () => Promise<void> {
 
         clearPersistedState(COMPOSER_SETTINGS_KEY)
 
-        // The create page draws its last run from memory rather than from the
+        // The create page draws its runs from memory rather than from the
         // gallery; those files are gone now, so the stage goes with them.
-        generation.reset()
+        generation.clear()
 
         profile.clear()
     }, [keys, generation, profile])
