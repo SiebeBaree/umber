@@ -4,13 +4,12 @@ import { useCallback, useMemo, useState, type ChangeEvent } from 'react'
 import { DialogDescription, DialogTitle } from '../../components/ui/dialog'
 import { TextInput } from '../../components/ui/text-input'
 import { cn } from '../../lib/cn'
-import { KeyProviderMark } from './key-provider-mark'
+import { ProviderMark } from '../create/catalog'
 import { KEY_PROVIDERS, type KeyProvider, type KeyProviderId } from './key-providers'
 
 /**
  * Step one of adding a provider: a filterable list of everyone Umber can talk
- * to. Aggregators lead, since one of those keys covers the most ground, with the
- * individual vendors underneath.
+ * to, matched on vendor name or on the models a key unlocks.
  */
 
 interface ProviderRowProps {
@@ -35,7 +34,7 @@ function ProviderRow({ connected, onPick, provider }: ProviderRowProps) {
             onClick={pick}
             type="button"
         >
-            <KeyProviderMark className="size-5 shrink-0 text-muted" provider={provider.id} />
+            <ProviderMark className="size-5 shrink-0 text-muted" provider={provider.id} />
             <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium">{provider.name}</span>
                 <span className="block truncate text-xs text-muted">{provider.unlocks}</span>
@@ -55,35 +54,6 @@ function ProviderRow({ connected, onPick, provider }: ProviderRowProps) {
     )
 }
 
-interface ProviderGroupProps {
-    readonly title: string
-    readonly providers: readonly KeyProvider[]
-    readonly connected: ReadonlySet<KeyProviderId>
-    readonly onPick: (id: KeyProviderId) => void
-}
-
-function ProviderGroup({ connected, onPick, providers, title }: ProviderGroupProps) {
-    if (providers.length === 0) {
-        return null
-    }
-
-    return (
-        <>
-            <p className="px-3 pt-3 pb-1 text-[11px] font-semibold tracking-wide text-muted uppercase">
-                {title}
-            </p>
-            {providers.map((provider) => (
-                <ProviderRow
-                    connected={connected.has(provider.id)}
-                    key={provider.id}
-                    onPick={onPick}
-                    provider={provider}
-                />
-            ))}
-        </>
-    )
-}
-
 function useProviderFilter() {
     const [query, setQuery] = useState('')
 
@@ -91,25 +61,19 @@ function useProviderFilter() {
         setQuery(event.target.value)
     }, [])
 
-    const { aggregators, vendors } = useMemo(() => {
+    const matches = useMemo(() => {
         const needle = query.trim().toLowerCase()
 
-        const matches =
-            needle === ''
-                ? KEY_PROVIDERS
-                : KEY_PROVIDERS.filter(
-                      (provider) =>
-                          provider.name.toLowerCase().includes(needle) ||
-                          provider.unlocks.toLowerCase().includes(needle),
-                  )
-
-        return {
-            aggregators: matches.filter((provider) => provider.group === 'aggregator'),
-            vendors: matches.filter((provider) => provider.group === 'vendor'),
-        }
+        return needle === ''
+            ? KEY_PROVIDERS
+            : KEY_PROVIDERS.filter(
+                  (provider) =>
+                      provider.name.toLowerCase().includes(needle) ||
+                      provider.unlocks.toLowerCase().includes(needle),
+              )
     }, [query])
 
-    return { query, handleQueryChange, aggregators, vendors }
+    return { query, handleQueryChange, matches }
 }
 
 export interface PickStepProps {
@@ -118,7 +82,7 @@ export interface PickStepProps {
 }
 
 export function PickStep({ connected, onPick }: PickStepProps) {
-    const { aggregators, handleQueryChange, query, vendors } = useProviderFilter()
+    const { handleQueryChange, matches, query } = useProviderFilter()
 
     return (
         <>
@@ -136,20 +100,16 @@ export function PickStep({ connected, onPick }: PickStepProps) {
                 value={query}
             />
 
-            <div className="-mx-3 mt-3 min-h-0 flex-1 overflow-y-auto px-3 pb-1">
-                <ProviderGroup
-                    connected={connected}
-                    onPick={onPick}
-                    providers={aggregators}
-                    title="One key, many models"
-                />
-                <ProviderGroup
-                    connected={connected}
-                    onPick={onPick}
-                    providers={vendors}
-                    title="Model vendors"
-                />
-                {aggregators.length === 0 && vendors.length === 0 ? (
+            <div className="-mx-3 mt-3 min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-1">
+                {matches.map((provider) => (
+                    <ProviderRow
+                        connected={connected.has(provider.id)}
+                        key={provider.id}
+                        onPick={onPick}
+                        provider={provider}
+                    />
+                ))}
+                {matches.length === 0 ? (
                     <p className="px-3 py-8 text-center text-sm text-muted">
                         No provider matches &ldquo;{query.trim()}&rdquo;.
                     </p>

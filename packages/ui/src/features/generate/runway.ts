@@ -22,11 +22,18 @@ const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'gen-4-turbo': 'gen4_turbo',
 }
 
-/** The 720p-class image ratios, valid only for the shapes Runway renders there. */
+/**
+ * Runway names image shapes by exact pixel pairs from a closed list, not by
+ * ratio. These are the 1K-class members of that list, one per ratio the
+ * catalog offers. A gap here would quietly render at 2K and bill for it.
+ */
 const IMAGE_RATIOS_1K: Readonly<Partial<Record<AspectRatio, string>>> = {
     '16:9': '1280:720',
     '9:16': '720:1280',
-    '1:1': '960:960',
+    '1:1': '720:720',
+    '4:3': '960:720',
+    '3:4': '720:960',
+    '21:9': '1680:720',
 }
 
 const IMAGE_RATIOS_2K: Readonly<Partial<Record<AspectRatio, string>>> = {
@@ -123,7 +130,7 @@ async function awaitTask(
     const finished = await poll({
         intervalMs: 5000,
         timeoutMs,
-        timeoutMessage: 'Runway is still rendering after 15 minutes. Try again.',
+        timeoutMessage: `Runway is still rendering after ${Math.round(timeoutMs / 60_000)} minutes. Try again.`,
         check: async () => {
             const response = await httpFetch(`${API_ROOT}/tasks/${taskId}`, {
                 headers: headersOf(request),
@@ -166,9 +173,11 @@ function imageRatio(ratio: AspectRatio, resolution: string): string {
 /** One image per task, so a multi-image run is parallel tasks. */
 async function generateOneImage(request: EngineRequest): Promise<Blob> {
     const references = await Promise.all(
+        // Tags are validated against `^[a-z][a-z0-9_]+$`, so they must be lower
+        // case or the whole request is rejected.
         request.references.slice(0, 3).map(async (file, index) => ({
             uri: await encodeDataUri(file),
-            tag: `Ref${index + 1}`,
+            tag: `ref${index + 1}`,
         })),
     )
 

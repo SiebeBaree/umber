@@ -1,5 +1,5 @@
 import { httpFetch } from '../../lib/http'
-import { ratioParts, type AspectRatio } from '../create/catalog'
+import { GPT_IMAGE_2_SIZE, pixelSize, type AspectRatio } from '../create/catalog'
 import { GenerationError } from './errors'
 import type { EngineRequest } from './request'
 import { decodeBase64Blob, readJson } from './shared'
@@ -17,18 +17,6 @@ const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'gpt-image-1-5': 'gpt-image-1.5',
 }
 
-/** Approximate pixel budgets behind the composer's resolution tiers. */
-const TIER_PIXELS: Readonly<Record<string, number>> = {
-    '1K': 1024 * 1024,
-    '2K': 2048 * 2048,
-    // The API's hard ceiling (3840 × 2160), reused as the 4K budget.
-    '4K': 8_294_400,
-}
-
-const MAX_EDGE = 3840
-const MAX_PIXELS = 8_294_400
-const GRID = 16
-
 /**
  * The fixed sizes every GPT Image model before 2 accepts, keyed by the
  * composer ratios that map onto them.
@@ -39,43 +27,11 @@ const FIXED_SIZES: Readonly<Partial<Record<AspectRatio, string>>> = {
     '2:3': '1024x1536',
 }
 
-/**
- * A concrete `WxH` for a ratio and tier, honouring gpt-image-2's free-form
- * size rules: multiples of 16 on both edges, no edge past 3840, at most
- * ~8.3MP. Rounded to the grid first, then walked down the long edge until the
- * pixel cap holds — at most a step or two, only ever near the 4K ceiling.
- */
-export function freeFormSize(ratio: AspectRatio, resolution: string): string {
-    const { height, width } = ratioParts(ratio)
-    const budget = TIER_PIXELS[resolution] ?? TIER_PIXELS['1K'] ?? 1_048_576
-
-    const scale = Math.sqrt(budget / (width * height))
-    const snap = (edge: number) => Math.round(edge / GRID) * GRID
-
-    let pixelWidth = snap(width * scale)
-    let pixelHeight = snap(height * scale)
-
-    // The 21:9 tiers can overshoot the edge limit before the pixel cap bites.
-    if (Math.max(pixelWidth, pixelHeight) > MAX_EDGE) {
-        const shrink = MAX_EDGE / Math.max(pixelWidth, pixelHeight)
-        pixelWidth = snap(pixelWidth * shrink)
-        pixelHeight = snap(pixelHeight * shrink)
-    }
-
-    while (pixelWidth * pixelHeight > MAX_PIXELS) {
-        if (pixelWidth >= pixelHeight) {
-            pixelWidth -= GRID
-        } else {
-            pixelHeight -= GRID
-        }
-    }
-
-    return `${pixelWidth}x${pixelHeight}`
-}
-
 function sizeFor(modelId: string, ratio: AspectRatio, resolution: string): string {
     if (modelId === 'gpt-image-2') {
-        return freeFormSize(ratio, resolution)
+        const { height, width } = pixelSize(ratio, resolution, GPT_IMAGE_2_SIZE)
+
+        return `${width}x${height}`
     }
 
     return FIXED_SIZES[ratio] ?? '1024x1024'

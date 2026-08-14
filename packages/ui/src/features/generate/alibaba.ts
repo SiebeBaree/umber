@@ -1,4 +1,5 @@
 import { httpFetch } from '../../lib/http'
+import type { AspectRatio } from '../create/catalog'
 import { GenerationError, offlineError } from './errors'
 import type { EngineRequest } from './request'
 import { encodeDataUri, fetchBinary, nearestSize, poll, readJson } from './shared'
@@ -23,6 +24,34 @@ const QWEN_SIZES: readonly string[] = [
     '1104*1472',
     '928*1664',
 ]
+
+/**
+ * Wan text-to-video takes an exact `width*height`, which carries both the
+ * shape and the tier. Image-to-video takes a `resolution` instead and follows
+ * the shape of the picture it is given, so it reads none of this.
+ */
+const WAN_SIZES: Readonly<Record<string, Readonly<Partial<Record<AspectRatio, string>>>>> = {
+    '720p': {
+        '16:9': '1280*720',
+        '9:16': '720*1280',
+        '1:1': '960*960',
+        '4:3': '1088*832',
+        '3:4': '832*1088',
+    },
+    '1080p': {
+        '16:9': '1920*1080',
+        '9:16': '1080*1920',
+        '1:1': '1440*1440',
+        '4:3': '1632*1248',
+        '3:4': '1248*1632',
+    },
+}
+
+function wanSize(ratio: AspectRatio, resolution: string): string {
+    const tier = WAN_SIZES[resolution] ?? WAN_SIZES['1080p'] ?? {}
+
+    return tier[ratio] ?? '1920*1080'
+}
 
 interface DashScopeError {
     readonly code?: string
@@ -151,7 +180,9 @@ async function createWanTask(request: EngineRequest): Promise<string> {
                             : { img_url: await encodeDataUri(reference) }),
                     },
                     parameters: {
-                        resolution: request.resolution.toUpperCase(),
+                        ...(reference === undefined
+                            ? { size: wanSize(request.ratio, request.resolution) }
+                            : { resolution: request.resolution.toUpperCase() }),
                         duration: request.durationSeconds,
                         watermark: false,
                     },

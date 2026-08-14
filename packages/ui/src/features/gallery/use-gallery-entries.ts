@@ -34,6 +34,7 @@ function toGalleryImage(record: CreationRecord): GalleryImage {
         generationMs: record.generationMs,
         createdAt: record.createdAt,
         url: URL.createObjectURL(record.image),
+        mediaType: record.image.type,
     }
 }
 

@@ -3,10 +3,10 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { cn } from '../../lib/cn'
+import { ProviderMark } from '../create/catalog'
 import { useKeys } from '../keys/keys-context'
 import { AddProviderDialog } from './add-provider-dialog'
 import { ConnectionRow } from './connection-row'
-import { KeyProviderMark } from './key-provider-mark'
 import { KEY_PROVIDERS, type KeyProviderId, type NewConnection } from './key-providers'
 import { RemoveKeyDialog, type RemoveKeyTarget } from './remove-key-dialog'
 
@@ -25,7 +25,7 @@ const FANNED: readonly { readonly id: KeyProviderId; readonly tilt: string }[] =
     { id: 'google', tilt: '-rotate-6 translate-y-0.5' },
     { id: 'blackForestLabs', tilt: 'rotate-0 -translate-y-0.5' },
     { id: 'kuaishou', tilt: 'rotate-6 translate-y-0.5' },
-    { id: 'fal', tilt: 'rotate-12 translate-y-2' },
+    { id: 'runway', tilt: 'rotate-12 translate-y-2' },
 ]
 
 function EmptyState({ onAdd }: { readonly onAdd: () => void }) {
@@ -40,7 +40,7 @@ function EmptyState({ onAdd }: { readonly onAdd: () => void }) {
                         )}
                         key={id}
                     >
-                        <KeyProviderMark className="size-5 text-ink/70" provider={id} />
+                        <ProviderMark className="size-5 text-ink/70" provider={id} />
                     </div>
                 ))}
             </div>

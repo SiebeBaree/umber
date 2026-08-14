@@ -3,6 +3,7 @@ import type { ImageModel, Model, Provider, ProviderId, VideoModel } from './type
 import { VIDEO_MODELS } from './video-models'
 
 export * from './types'
+export * from './output-size'
 export { IMAGE_MODELS } from './image-models'
 export { VIDEO_MODELS } from './video-models'
 export { ProviderMark, type ProviderMarkProps } from './provider-mark'
@@ -13,15 +14,10 @@ export const PROVIDERS: Readonly<Record<ProviderId, Provider>> = {
     blackForestLabs: { id: 'blackForestLabs', name: 'Black Forest Labs' },
     bytedance: { id: 'bytedance', name: 'ByteDance' },
     kuaishou: { id: 'kuaishou', name: 'Kuaishou' },
-    minimax: { id: 'minimax', name: 'MiniMax' },
     alibaba: { id: 'alibaba', name: 'Alibaba' },
     runway: { id: 'runway', name: 'Runway' },
-    luma: { id: 'luma', name: 'Luma' },
-    pixverse: { id: 'pixverse', name: 'PixVerse' },
-    lightricks: { id: 'lightricks', name: 'Lightricks' },
     ideogram: { id: 'ideogram', name: 'Ideogram' },
     recraft: { id: 'recraft', name: 'Recraft' },
-    stability: { id: 'stability', name: 'Stability AI' },
 }
 
 export const MODELS_BY_MODE = {

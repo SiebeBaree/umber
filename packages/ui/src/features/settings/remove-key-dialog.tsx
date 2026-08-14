@@ -2,8 +2,8 @@ import { useCallback, useRef } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../../components/ui/dialog'
+import { ProviderMark } from '../create/catalog'
 import type { VaultConnection } from '../keys/vault'
-import { KeyProviderMark } from './key-provider-mark'
 import type { KeyProvider } from './key-providers'
 
 /**
@@ -31,7 +31,7 @@ function TargetCard({ target }: { readonly target: RemoveKeyTarget }) {
     return (
         <div className="mt-4 flex items-center gap-3 rounded-2xl bg-ink/[0.03] px-4 py-3">
             <div className="glass flex size-9 shrink-0 items-center justify-center rounded-xl">
-                <KeyProviderMark className="size-4 text-ink" provider={target.provider.id} />
+                <ProviderMark className="size-4 text-ink" provider={target.provider.id} />
             </div>
             <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{target.provider.name}</p>

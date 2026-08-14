@@ -101,7 +101,7 @@ function awaitTask(
     return poll({
         intervalMs: 5000,
         timeoutMs,
-        timeoutMessage: 'Kling is still rendering after 15 minutes. Try again.',
+        timeoutMessage: `Kling is still rendering after ${Math.round(timeoutMs / 60_000)} minutes. Try again.`,
         check: async () => {
             const response = await httpFetch(`${API_ROOT}/${pollPath}`, {
                 headers: await headersOf(request),

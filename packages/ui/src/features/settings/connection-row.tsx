@@ -3,8 +3,8 @@ import { useCallback } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { Tooltip } from '../../components/ui/tooltip'
+import { ProviderMark } from '../create/catalog'
 import type { VaultConnection } from '../keys/vault'
-import { KeyProviderMark } from './key-provider-mark'
 import type { KeyProvider } from './key-providers'
 import type { RemoveKeyTarget } from './remove-key-dialog'
 
@@ -31,14 +31,7 @@ function RowDetails({ connection, provider }: RowDetailsProps) {
 
     return (
         <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-                <span className="truncate text-sm font-medium">{provider.name}</span>
-                {provider.group === 'aggregator' ? (
-                    <span className="rounded-full border border-ink/[0.08] px-1.5 py-px text-[10px] font-medium tracking-wide text-muted uppercase">
-                        Aggregator
-                    </span>
-                ) : null}
-            </div>
+            <span className="block truncate text-sm font-medium">{provider.name}</span>
             <p className="mt-0.5 flex items-center gap-2 text-xs text-muted">
                 <span className="font-mono">····{connection.keyTail}</span>
                 {addedOn === null ? null : (
@@ -65,7 +58,7 @@ export function ConnectionRow({ connection, onRemove, provider }: ConnectionRowP
     return (
         <li className="flex items-center gap-4 py-3.5">
             <div className="glass flex size-10 shrink-0 items-center justify-center rounded-xl">
-                <KeyProviderMark className="size-5 text-ink" provider={provider.id} />
+                <ProviderMark className="size-5 text-ink" provider={provider.id} />
             </div>
 
             <RowDetails connection={connection} provider={provider} />

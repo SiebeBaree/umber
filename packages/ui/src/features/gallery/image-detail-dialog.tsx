@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, type MouseEvent, type ReactNode } from 'r
 import { Button } from '../../components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '../../components/ui/dialog'
 import { VideoPlayer } from '../../components/ui/video-player'
+import { mediaExtension } from '../../lib/media'
 import { ProviderMark, ratioToCss, type AspectRatio, type ProviderId } from '../create/catalog'
 import type { DeleteRequest } from './gallery-tile'
 
@@ -20,6 +21,8 @@ export interface ImageDetails {
     readonly kind: 'image' | 'video'
     /** An object URL over the media; owned by whoever opened this. */
     readonly url: string
+    /** The blob's own media type, so a download can be named correctly. */
+    readonly mediaType: string
     readonly prompt: string
     readonly providerId: string
     readonly modelName: string
@@ -150,7 +153,7 @@ function DetailActions({
         <div className="mt-5 flex flex-wrap gap-2">
             <Button asChild size="sm">
                 <a
-                    download={`umber-${image.id.slice(0, 8)}.${image.kind === 'video' ? 'mp4' : 'png'}`}
+                    download={`umber-${image.id.slice(0, 8)}.${mediaExtension(image.mediaType, image.kind)}`}
                     href={image.url}
                 >
                     <Download aria-hidden />
