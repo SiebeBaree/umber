@@ -4,6 +4,7 @@ import { app, BrowserWindow, session, shell } from 'electron'
 
 import { registerNetIpc } from './net'
 import { CONTENT_SECURITY_POLICY, isAllowedExternalUrl } from './security'
+import { registerUpdatesIpc } from './updates'
 import { registerVaultIpc } from './vault'
 import { createWindowOptions } from './window'
 
@@ -25,7 +26,9 @@ function applyContentSecurityPolicy(): void {
 }
 
 function createMainWindow(): BrowserWindow {
-    const window = new BrowserWindow(createWindowOptions(join(__dirname, '../preload/index.js')))
+    const window = new BrowserWindow(
+        createWindowOptions(join(__dirname, '../preload/index.js'), app.getVersion()),
+    )
 
     // Avoid the white flash: reveal the window only once React has painted.
     window.on('ready-to-show', () => {
@@ -60,6 +63,7 @@ async function start(): Promise<void> {
 
     registerVaultIpc()
     registerNetIpc()
+    registerUpdatesIpc()
     createMainWindow()
 
     // macOS: clicking the dock icon with no windows open reopens one.

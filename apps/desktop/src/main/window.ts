@@ -1,5 +1,7 @@
 import type { BrowserWindowConstructorOptions } from 'electron'
 
+import { APP_VERSION_ARGUMENT } from '../shared/bridge'
+
 /**
  * Window sizing and renderer options, kept apart from `index.ts` so they can be
  * asserted in tests without booting Electron. The only Electron import here is a
@@ -15,6 +17,7 @@ export const WINDOW_DEFAULTS = {
 
 export function createWindowOptions(
     preloadPath: string,
+    appVersion: string,
     platform: NodeJS.Platform = process.platform,
 ): BrowserWindowConstructorOptions {
     const macOS = platform === 'darwin'
@@ -31,6 +34,10 @@ export function createWindowOptions(
         ...(macOS ? { trafficLightPosition: { x: 20, y: 32 } } : {}),
         webPreferences: {
             preload: preloadPath,
+            // The sandboxed preload cannot ask Electron what version this build
+            // is, and a synchronous IPC to find out would block the first
+            // paint. The command line carries it instead.
+            additionalArguments: [`${APP_VERSION_ARGUMENT}${appVersion}`],
             // The renderer is treated as untrusted: no Node, isolated context, sandboxed.
             sandbox: true,
             contextIsolation: true,

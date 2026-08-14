@@ -1,6 +1,6 @@
 {
     "name": "@umber/desktop",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "private": true,
     "description": "The Electron shell for Umber. Mounts @umber/ui and nothing else.",
     "license": "MIT",

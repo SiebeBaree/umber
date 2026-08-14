@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../../components/ui/dialog'
@@ -29,6 +29,30 @@ function useNameDraft(open: boolean) {
     return { draft, onDraftChange, trimmed: draft.trim(), save: profile.setName }
 }
 
+/**
+ * Radix highlights the whole value when it focuses the first field itself,
+ * which greets you with your own name selected for deletion. Take the focus
+ * over and drop the caret at the end, the way clicking in would.
+ */
+function useCaretAtEnd() {
+    const ref = useRef<HTMLInputElement>(null)
+
+    const onOpenAutoFocus = useCallback((event: Event) => {
+        event.preventDefault()
+
+        const input = ref.current
+
+        if (input === null) {
+            return
+        }
+
+        input.focus({ preventScroll: true })
+        input.setSelectionRange(input.value.length, input.value.length)
+    }, [])
+
+    return { ref, onOpenAutoFocus }
+}
+
 /** Cancel first in the DOM, so a blank name is the easier way out of here. */
 function EditActions({
     onCancel,
@@ -56,6 +80,7 @@ export interface EditNameDialogProps {
 
 export function EditNameDialog({ onOpenChange, open }: EditNameDialogProps) {
     const { draft, onDraftChange, save, trimmed } = useNameDraft(open)
+    const { ref: field, onOpenAutoFocus } = useCaretAtEnd()
 
     const close = useCallback(() => {
         onOpenChange(false)
@@ -75,7 +100,7 @@ export function EditNameDialog({ onOpenChange, open }: EditNameDialogProps) {
 
     return (
         <Dialog onOpenChange={onOpenChange} open={open}>
-            <DialogContent className="max-w-sm" showClose={false}>
+            <DialogContent className="max-w-sm" onOpenAutoFocus={onOpenAutoFocus} showClose={false}>
                 {/* The field is first in the DOM, so the dialog opens ready to type. */}
                 <form onSubmit={submit}>
                     <DialogTitle className="pe-0">Your name</DialogTitle>
@@ -89,6 +114,7 @@ export function EditNameDialog({ onOpenChange, open }: EditNameDialogProps) {
                         className="mt-4"
                         onChange={onDraftChange}
                         placeholder="Your first name"
+                        ref={field}
                         spellCheck={false}
                         value={draft}
                     />
