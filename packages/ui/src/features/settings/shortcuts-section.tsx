@@ -37,11 +37,16 @@ const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
         shortcuts: [
             { label: 'Focus the prompt', keys: ['/'] },
             { label: 'Switch image ↔ video', keys: ['⌘', '⇧', 'M'] },
+            { label: 'Clear finished runs', keys: ['⌘', '⇧', '⌫'] },
         ],
     },
     {
         title: 'Gallery',
-        shortcuts: [{ label: 'Delete creation', keys: ['⌘', '⌫'] }],
+        shortcuts: [
+            { label: 'Delete creation or selection', keys: ['⌘', '⌫'] },
+            { label: 'Select all', keys: ['⌘', 'A'] },
+            { label: 'Clear selection', keys: ['Esc'] },
+        ],
     },
 ]
 

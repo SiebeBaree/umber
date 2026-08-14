@@ -10,7 +10,7 @@ import {
 } from 'react'
 
 import { useGeneration } from '../generate/generation-context'
-import { deleteCreation, listCreations, type CreationRecord } from './creations-db'
+import { deleteCreations, listCreations, type CreationRecord } from './creations-db'
 import type { GalleryImage } from './gallery-tile'
 import type { MasonryItem } from './masonry'
 
@@ -18,6 +18,13 @@ import type { MasonryItem } from './masonry'
 export type GalleryEntry =
     | (MasonryItem & { readonly kind: 'creation'; readonly image: GalleryImage })
     | (MasonryItem & { readonly kind: 'pending'; readonly providerId: string })
+
+export type CreationEntry = Extract<GalleryEntry, { kind: 'creation' }>
+
+/** The narrowing the page's helpers all need: is this a stored creation? */
+export function isCreation(entry: GalleryEntry): entry is CreationEntry {
+    return entry.kind === 'creation'
+}
 
 function toGalleryImage(record: CreationRecord): GalleryImage {
     return {
@@ -113,26 +120,34 @@ function useCreationImages(completions: number) {
     useReload(completions, setImages, urlsRef)
 
     /**
-     * Drops one creation. The tile goes immediately — waiting on the store
-     * would leave a deleted picture on screen — and the row is erased behind
-     * it; a failed erase leaves the file to reappear on the next load, which
-     * is the honest outcome of a delete that did not happen.
+     * Drops creations — one, or a whole selection. The tiles go immediately —
+     * waiting on the store would leave deleted pictures on screen — and the
+     * rows are erased behind them; a failed erase leaves the files to reappear
+     * on the next load, which is the honest outcome of a delete that did not
+     * happen.
      */
-    const remove = useCallback((id: string) => {
-        setImages((current) => {
-            const removed = current?.find((image) => image.id === id)
+    const remove = useCallback((ids: readonly string[]) => {
+        const doomed = new Set(ids)
 
-            if (removed === undefined) {
+        setImages((current) => {
+            const removed = current?.filter((image) => doomed.has(image.id)) ?? []
+
+            if (removed.length === 0) {
                 return current
             }
 
-            URL.revokeObjectURL(removed.url)
-            urlsRef.current = urlsRef.current.filter((url) => url !== removed.url)
+            const freedUrls = new Set(removed.map((image) => image.url))
 
-            return current?.filter((image) => image.id !== id) ?? null
+            for (const url of freedUrls) {
+                URL.revokeObjectURL(url)
+            }
+
+            urlsRef.current = urlsRef.current.filter((url) => !freedUrls.has(url))
+
+            return current?.filter((image) => !doomed.has(image.id)) ?? null
         })
 
-        void deleteCreation(id)
+        void deleteCreations(ids)
     }, [])
 
     return { images, remove }
@@ -142,29 +157,32 @@ export interface GalleryEntries {
     /** False while the first load is still in flight. */
     readonly loaded: boolean
     readonly entries: readonly GalleryEntry[]
-    readonly remove: (id: string) => void
+    readonly remove: (ids: readonly string[]) => void
 }
 
 /**
- * What the gallery shows, newest first: a run in flight leads the masonry as
- * skeletons — one per expected image, exactly where the results will land —
+ * What the gallery shows, newest first: every run in flight leads the masonry
+ * as skeletons — one per expected image, exactly where the results will land —
  * followed by everything stored.
  */
 export function useGalleryEntries(): GalleryEntries {
     const generation = useGeneration()
     const { images, remove } = useCreationImages(generation.completions)
-    const job = generation.activeJob
+    const { jobs } = generation
 
     const entries = useMemo<readonly GalleryEntry[]>(() => {
-        const pending: readonly GalleryEntry[] =
-            job?.status === 'running'
-                ? Array.from({ length: job.count }, (_, index) => ({
-                      kind: 'pending',
-                      id: `${job.id}-pending-${index + 1}`,
-                      ratio: job.ratio,
-                      providerId: job.providerId,
-                  }))
-                : []
+        const pending = jobs
+            .filter((job) => job.status === 'running')
+            // The store keeps runs oldest first; the masonry runs the other way.
+            .toReversed()
+            .flatMap<GalleryEntry>((job) =>
+                Array.from({ length: job.count }, (_, index) => ({
+                    kind: 'pending',
+                    id: `${job.id}-pending-${index + 1}`,
+                    ratio: job.ratio,
+                    providerId: job.providerId,
+                })),
+            )
 
         return [
             ...pending,
@@ -175,7 +193,7 @@ export function useGalleryEntries(): GalleryEntries {
                 image,
             })),
         ]
-    }, [job, images])
+    }, [jobs, images])
 
     return { loaded: images !== null, entries, remove }
 }

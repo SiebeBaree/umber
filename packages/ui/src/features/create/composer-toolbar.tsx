@@ -1,4 +1,4 @@
-import { ArrowUp, Clapperboard, Image, LoaderCircle } from 'lucide-react'
+import { ArrowUp, Clapperboard, Image } from 'lucide-react'
 import { motion, type Transition } from 'motion/react'
 import { useCallback } from 'react'
 
@@ -145,7 +145,6 @@ function SettingsControls({ composer, mode }: SettingsControlsProps) {
 interface SubmitClusterProps {
     readonly price: string
     readonly blocker: string | null
-    readonly busy: boolean
     readonly canSubmit: boolean
 }
 
@@ -159,15 +158,17 @@ interface SubmitClusterProps {
  * it anyway made it drift a pixel or two every time a control to its left
  * changed width.
  */
-function SubmitCluster({ blocker, busy, canSubmit, price }: SubmitClusterProps) {
+function SubmitCluster({ blocker, canSubmit, price }: SubmitClusterProps) {
+    // Never a spinner: a run in flight does not hold the button, and dressing
+    // it as busy would say the opposite of what it does.
     const submit = (
         <Button
-            aria-label={busy ? 'Generating' : `Generate — estimated ${price}`}
-            disabled={!canSubmit || blocker !== null || busy}
+            aria-label={`Generate — estimated ${price}`}
+            disabled={!canSubmit || blocker !== null}
             size="icon"
             type="submit"
         >
-            {busy ? <LoaderCircle aria-hidden className="animate-spin" /> : <ArrowUp aria-hidden />}
+            <ArrowUp aria-hidden />
         </Button>
     )
 
@@ -200,15 +201,12 @@ export interface ComposerToolbarProps {
     readonly canSubmit: boolean
     /** Why the send button is disabled even with a prompt, if it is. */
     readonly blocker: string | null
-    /** True while a run is in flight; the button waits it out visibly. */
-    readonly busy: boolean
     /** Some vendors charge a different rate once references are attached. */
     readonly references: number
 }
 
 export function ComposerToolbar({
     blocker,
-    busy,
     canSubmit,
     composer,
     mode,
@@ -232,7 +230,7 @@ export function ComposerToolbar({
                 <SettingsControls composer={composer} mode={mode} />
             </div>
 
-            <SubmitCluster blocker={blocker} busy={busy} canSubmit={canSubmit} price={price} />
+            <SubmitCluster blocker={blocker} canSubmit={canSubmit} price={price} />
         </div>
     )
 }

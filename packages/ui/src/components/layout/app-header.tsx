@@ -2,6 +2,7 @@ import { Link, useRouteContext, useRouterState } from '@tanstack/react-router'
 import { UMBER_LOCKUP } from '@umber/brand'
 import { Images, Settings, WandSparkles, type LucideIcon } from 'lucide-react'
 
+import { ClearStageButton } from '../../features/create/clear-stage'
 import { useUpdates } from '../../features/updates/updates-context'
 import { cn } from '../../lib/cn'
 import { SlidingIndicator } from '../ui/sliding-indicator'
@@ -45,19 +46,6 @@ function PrimaryNav() {
 }
 
 /**
- * The app header: wordmark on the left, the Create/Gallery switcher floating in
- * the centre, settings on the right. It doubles as the window's drag handle,
- * which is why every control inside it opts out of the drag region.
- *
- * Where the OS paints its own window controls over the app — macOS — the
- * wordmark shares their row and steps aside for them, rather than the header
- * reserving a strip above itself. Reserving that strip would push every page
- * down by its full height for the sake of three buttons.
- *
- * The inset sits on the wordmark, not on the header, so the grid's two `1fr`
- * columns stay equal and the nav stays centred in the window.
- */
-/**
  * The settings button, wearing an accent ring and a dot while an update is
  * waiting. Both, rather than one: the ring is what catches the eye across the
  * window, and the dot is what survives being seen out of the corner of it.
@@ -67,7 +55,7 @@ function SettingsButton({ updateWaiting }: { readonly updateWaiting: boolean }) 
         <Link
             aria-label={updateWaiting ? 'Settings, update available' : 'Settings'}
             className={cn(
-                'no-drag glass-control relative flex size-10 items-center justify-center justify-self-end rounded-full text-muted outline-none select-none',
+                'no-drag glass-control relative flex size-10 items-center justify-center rounded-full text-muted outline-none select-none',
                 'hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
                 'data-[status=active]:text-accent',
                 // A ring rather than a border: `glass-control` owns the border,
@@ -89,6 +77,19 @@ function SettingsButton({ updateWaiting }: { readonly updateWaiting: boolean }) 
     )
 }
 
+/**
+ * The app header: wordmark on the left, the Create/Gallery switcher floating in
+ * the centre, settings on the right. It doubles as the window's drag handle,
+ * which is why every control inside it opts out of the drag region.
+ *
+ * Where the OS paints its own window controls over the app — macOS — the
+ * wordmark shares their row and steps aside for them, rather than the header
+ * reserving a strip above itself. Reserving that strip would push every page
+ * down by its full height for the sake of three buttons.
+ *
+ * The inset sits on the wordmark, not on the header, so the grid's two `1fr`
+ * columns stay equal and the nav stays centred in the window.
+ */
 export function AppHeader() {
     const { overlaidWindowControls } = useRouteContext({ from: '__root__' })
     const updates = useUpdates()
@@ -112,7 +113,13 @@ export function AppHeader() {
 
             <PrimaryNav />
 
-            <SettingsButton updateWaiting={updates.available} />
+            {/* Settings is the anchor and never moves; anything page-specific
+                appears to its left. */}
+            <div className="flex items-center gap-2 justify-self-end">
+                <ClearStageButton />
+
+                <SettingsButton updateWaiting={updates.available} />
+            </div>
         </header>
     )
 }

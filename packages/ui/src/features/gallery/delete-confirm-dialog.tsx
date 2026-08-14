@@ -4,6 +4,15 @@ import { Button } from '../../components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../../components/ui/dialog'
 
 /**
+ * What the dialog is being asked about: one creation, named by its prompt, or
+ * a selection of several, named only by their number — a list of prompts would
+ * scroll, and the person sweeping a selection just made it by eye.
+ */
+export type DeleteSubject =
+    | { readonly kind: 'one'; readonly prompt: string }
+    | { readonly kind: 'many'; readonly count: number }
+
+/**
  * The way out and the way through, with the modifier that skips the question
  * next time noted beside them. Cancel comes first in the DOM so the dialog
  * opens with focus on the harmless one.
@@ -36,22 +45,40 @@ function ConfirmActions({
     )
 }
 
+/** The question and its stakes, worded for one creation or for several. */
+function SubjectWords({ shown }: { readonly shown: DeleteSubject }) {
+    return (
+        <>
+            <DialogTitle className="pe-0">
+                {shown.kind === 'many'
+                    ? `Delete ${shown.count} creations?`
+                    : 'Delete this creation?'}
+            </DialogTitle>
+            <DialogDescription>
+                {shown.kind === 'many'
+                    ? 'They only exist on this device, so this cannot be undone.'
+                    : 'It only exists on this device, so this cannot be undone.'}
+            </DialogDescription>
+        </>
+    )
+}
+
 export interface DeleteConfirmDialogProps {
-    /** The prompt of the creation awaiting confirmation, or null when none is. */
-    readonly prompt: string | null
+    /** What is awaiting confirmation, or null when nothing is. */
+    readonly subject: DeleteSubject | null
     readonly onConfirm: () => void
     readonly onCancel: () => void
 }
 
 /**
- * The question asked before a creation is erased. A deleted picture is gone:
+ * The question asked before creations are erased. A deleted picture is gone:
  * it exists nowhere but this device, and the gallery's other controls all lead
  * somewhere reversible, so this one stops and asks first.
  *
  * No ✕ in the corner. A dialog this small already offers Cancel, and a second
  * way out of it only crowds the panel.
  */
-export function DeleteConfirmDialog({ onCancel, onConfirm, prompt }: DeleteConfirmDialogProps) {
+export function DeleteConfirmDialog({ onCancel, onConfirm, subject }: DeleteConfirmDialogProps) {
     const handleOpenChange = useCallback(
         (open: boolean) => {
             if (!open) {
@@ -62,30 +89,31 @@ export function DeleteConfirmDialog({ onCancel, onConfirm, prompt }: DeleteConfi
     )
 
     /*
-     * The panel names the creation it is about right through its exit
-     * animation: dropping the line the moment the dialog closes would resize
-     * the panel mid-flight. Written during render, which is safe because the
-     * same input always produces the same value.
+     * The panel names what it is about right through its exit animation:
+     * dropping the words the moment the dialog closes would resize the panel
+     * mid-flight. Written during render, which is safe because the same input
+     * always produces the same value.
      */
-    const lastShown = useRef<string>('')
+    const lastShown = useRef<DeleteSubject>({ kind: 'one', prompt: '' })
 
-    if (prompt !== null) {
-        lastShown.current = prompt
+    if (subject !== null) {
+        lastShown.current = subject
     }
 
+    const shown = lastShown.current
+
     return (
-        <Dialog onOpenChange={handleOpenChange} open={prompt !== null}>
+        <Dialog onOpenChange={handleOpenChange} open={subject !== null}>
             <DialogContent className="max-w-sm" showClose={false}>
-                <DialogTitle className="pe-0">Delete this creation?</DialogTitle>
-                <DialogDescription>
-                    It only exists on this device, so this cannot be undone.
-                </DialogDescription>
+                <SubjectWords shown={shown} />
 
                 {/* Which picture, in its own words. Clamped: a long prompt has
                     said enough by the third line to be recognised. */}
-                <p className="mt-4 line-clamp-3 rounded-2xl bg-ink/[0.03] px-4 py-3 text-[13px] leading-relaxed">
-                    {lastShown.current}
-                </p>
+                {shown.kind === 'one' ? (
+                    <p className="mt-4 line-clamp-3 rounded-2xl bg-ink/[0.03] px-4 py-3 text-[13px] leading-relaxed">
+                        {shown.prompt}
+                    </p>
+                ) : null}
 
                 <ConfirmActions onCancel={onCancel} onConfirm={onConfirm} />
             </DialogContent>

@@ -2,267 +2,161 @@ import {
     createContext,
     useCallback,
     useContext,
+    useEffect,
     useMemo,
     useRef,
     useState,
     type ReactNode,
 } from 'react'
 
-import { isImageModel, type AspectRatio, type Model } from '../create/catalog'
-import type { ModeSettings } from '../create/settings/schema'
-import { saveCreations, type CreationRecord } from '../gallery/creations-db'
 import { useKeys } from '../keys/keys-context'
-import { runGeneration } from './engine'
-import { GenerationError } from './errors'
+import { newJob, pruned, type GenerationJob, type StartInput } from './job'
+import { launchRun } from './run'
 
 /**
- * The one in-flight generation and its outcome, shared app-wide: the create
- * page renders it front and centre, the gallery mirrors it as pending tiles,
- * and the composer locks its send button while it runs.
+ * Every generation of this session and its outcome, shared app-wide: the
+ * create page stacks them oldest to newest above the composer, and the gallery
+ * mirrors the ones still working as pending tiles. Runs are independent —
+ * sending a prompt never waits on the run before it.
  */
 
-export interface GeneratedOutput {
-    readonly id: string
-    /** An object URL over the stored blob; owned and revoked by this store. */
-    readonly url: string
-    /** The blob's own media type, so a download can be named correctly. */
-    readonly mediaType: string
-}
-
-interface JobBase {
-    readonly id: string
-    /** What the run makes; decides how its tiles render and store. */
-    readonly kind: 'image' | 'video'
-    readonly prompt: string
-    readonly providerId: string
-    readonly modelId: string
-    readonly modelName: string
-    readonly ratio: AspectRatio
-    readonly resolution: string
-    readonly quality: string
-    /** How many outputs the run was asked for; sizes the skeleton grid. */
-    readonly count: number
-    /** Clip length in seconds; zero for image runs. */
-    readonly durationSeconds: number
-    readonly startedAt: number
-}
-
-export type GenerationJob =
-    | (JobBase & { readonly status: 'running' })
-    | (JobBase & {
-          readonly status: 'done'
-          readonly outputs: readonly GeneratedOutput[]
-          /** How long the run took, in milliseconds. */
-          readonly generationMs: number
-      })
-    | (JobBase & { readonly status: 'failed'; readonly error: string })
-
-export interface StartInput {
-    readonly prompt: string
-    readonly model: Model
-    readonly settings: ModeSettings
-    readonly references: readonly File[]
-}
+export type { GeneratedOutput, GenerationJob, StartInput } from './job'
 
 export interface GenerationApi {
-    /** The latest job, in whatever state it is in; null before the first run. */
-    readonly activeJob: GenerationJob | null
+    /** Every run of this session still on the stage, oldest first. */
+    readonly jobs: readonly GenerationJob[]
+    /** How many runs are in flight right now. */
+    readonly running: number
     /** Bumped when a run lands in the gallery, so galleries can re-query. */
     readonly completions: number
     readonly start: (input: StartInput) => void
-    /** Clears a finished or failed job off the stage. */
-    readonly reset: () => void
+    /** Takes one finished or failed run off the stage. */
+    readonly dismiss: (jobId: string) => void
+    /** Clears every run that has landed, leaving the ones still working. */
+    readonly clearFinished: () => void
+    /** Clears the whole stage, in flight or not. */
+    readonly clear: () => void
 }
 
 const GenerationContext = createContext<GenerationApi | null>(null)
 
-function newJob(input: StartInput): GenerationJob {
-    const image = isImageModel(input.model)
+type HeldUrls = Map<string, readonly string[]>
 
-    return {
-        id: crypto.randomUUID(),
-        kind: input.model.kind,
-        prompt: input.prompt,
-        providerId: input.model.provider,
-        modelId: input.model.id,
-        modelName: input.model.name,
-        ratio: input.settings.aspectRatio as AspectRatio,
-        resolution: input.settings.resolution,
-        // Only models with tiers price by quality; for the rest the remembered
-        // tier is dormant and saying so would be inventing a setting.
-        quality: image && input.model.quality !== undefined ? input.settings.quality : '',
-        // Video runs render one clip; the count stepper is an image control.
-        count: image ? input.settings.outputCount : 1,
-        durationSeconds: image ? 0 : input.settings.durationSeconds,
-        startedAt: Date.now(),
-        status: 'running',
+/** Releases the files of every run that is no longer on the stage. */
+function releaseGone(held: HeldUrls, kept: ReadonlySet<string>) {
+    for (const [jobId, urls] of held) {
+        if (kept.has(jobId)) {
+            continue
+        }
+
+        for (const url of urls) {
+            URL.revokeObjectURL(url)
+        }
+
+        held.delete(jobId)
     }
 }
 
-type CredentialsOf = (providerId: string) => Promise<Readonly<Record<string, string>> | null>
-
-interface RunResult {
-    readonly outcome: GenerationJob
-    /** False when the render finished but could not be written to the gallery. */
-    readonly persisted: boolean
+/** Leaving the app is the one moment every run is over at once. */
+function useReleaseOnUnmount(held: HeldUrls) {
+    useEffect(
+        () => () => {
+            releaseGone(held, new Set())
+        },
+        [held],
+    )
 }
 
 /**
- * One finished output as the gallery stores it. Everything but the file comes
- * from the job, so the record says exactly how the piece was made.
+ * The stage, and the object URLs its runs hold.
+ *
+ * The list lives in a ref as well as in state, because runs land out of order
+ * and each has to see what the others have already done — and because a run's
+ * files are released the moment it leaves the stage, which is a decision only
+ * the up-to-date list can make.
  */
-function toRecord(job: GenerationJob, media: Blob, generationMs: number): CreationRecord {
-    return {
-        id: crypto.randomUUID(),
-        kind: job.kind,
-        prompt: job.prompt,
-        providerId: job.providerId,
-        modelId: job.modelId,
-        modelName: job.modelName,
-        ratio: job.ratio,
-        resolution: job.resolution,
-        quality: job.quality,
-        ...(job.kind === 'video' ? { durationSeconds: job.durationSeconds } : {}),
-        generationMs,
-        createdAt: Date.now(),
-        image: media,
-    }
-}
+function useJobs() {
+    const [jobs, setJobs] = useState<readonly GenerationJob[]>([])
+    const jobsRef = useRef<readonly GenerationJob[]>([])
+    const urlsRef = useRef<HeldUrls>(new Map())
 
-/** The whole run, from credentials to stored blobs, with no component state. */
-async function performRun(
-    job: GenerationJob,
-    input: StartInput,
-    credentialsOf: CredentialsOf,
-): Promise<RunResult> {
-    const credentials = await credentialsOf(input.model.provider)
-
-    if (credentials === null) {
-        throw new GenerationError('No key is connected for this provider. Add one in Settings.')
-    }
-
-    const blobs = await runGeneration({
-        mode: job.kind,
-        providerId: input.model.provider,
-        credentials,
-        modelId: input.model.id,
-        prompt: input.prompt,
-        count: job.count,
-        ratio: job.ratio,
-        resolution: input.settings.resolution,
-        quality: input.settings.quality,
-        durationSeconds: job.durationSeconds,
-        references: input.references,
-    })
-
-    // Measured once, the moment the files are in hand, so every output of a
-    // run reports the same figure — which is the truth: they rendered together.
-    const generationMs = Date.now() - job.startedAt
-    const records = blobs.map((blob) => toRecord(job, blob, generationMs))
-
-    // Persistence failing must not eat a finished render; the results still
-    // show, they just won't survive a restart.
-    let persisted = true
-    try {
-        await saveCreations(records)
-    } catch {
-        persisted = false
-    }
-
-    const outputs = records.map((record) => ({
-        id: record.id,
-        url: URL.createObjectURL(record.image),
-        mediaType: record.image.type,
-    }))
-
-    return { outcome: { ...job, status: 'done', outputs, generationMs }, persisted }
-}
-
-function failureOf(job: GenerationJob, error: unknown): GenerationJob {
-    return {
-        ...job,
-        status: 'failed',
-        error:
-            error instanceof GenerationError
-                ? error.message
-                : 'Something went wrong while generating. Try again.',
-    }
-}
-
-interface RunEffects {
-    readonly settle: (outcome: GenerationJob) => void
-    readonly replaceUrls: (urls: readonly string[]) => void
-    readonly onPersisted: () => void
-}
-
-/** Runs the job and routes its outcome back into whatever state owns it. */
-async function launchRun(
-    job: GenerationJob,
-    input: StartInput,
-    credentialsOf: CredentialsOf,
-    effects: RunEffects,
-): Promise<void> {
-    try {
-        const { outcome, persisted } = await performRun(job, input, credentialsOf)
-
-        if (persisted) {
-            effects.onPersisted()
-        }
-
-        effects.replaceUrls(
-            outcome.status === 'done' ? outcome.outputs.map((output) => output.url) : [],
-        )
-        effects.settle(outcome)
-    } catch (error: unknown) {
-        effects.settle(failureOf(job, error))
-    }
-}
-
-export function GenerationProvider({ children }: { readonly children: ReactNode }) {
-    const keys = useKeys()
-    const [activeJob, setActiveJob] = useState<GenerationJob | null>(null)
-    const [completions, setCompletions] = useState(0)
-
-    // The URLs of the job currently on stage, revoked when it leaves.
-    const urlsRef = useRef<readonly string[]>([])
-
-    const replaceUrls = useCallback((urls: readonly string[]) => {
-        for (const url of urlsRef.current) {
-            URL.revokeObjectURL(url)
-        }
-        urlsRef.current = urls
+    const commit = useCallback((next: readonly GenerationJob[]) => {
+        releaseGone(urlsRef.current, new Set(next.map((job) => job.id)))
+        jobsRef.current = next
+        setJobs(next)
     }, [])
+
+    const adopt = useCallback((jobId: string, urls: readonly string[]) => {
+        urlsRef.current.set(jobId, urls)
+
+        // The run was cleared while it worked; nothing will ever show these.
+        releaseGone(urlsRef.current, new Set(jobsRef.current.map((job) => job.id)))
+    }, [])
+
+    useReleaseOnUnmount(urlsRef.current)
+
+    return { jobs, jobsRef, commit, adopt }
+}
+
+/** Putting a run in flight, and the tally of runs that reached the gallery. */
+function useStart({ adopt, commit, jobsRef }: Omit<ReturnType<typeof useJobs>, 'jobs'>) {
+    const keys = useKeys()
+    const [completions, setCompletions] = useState(0)
 
     const start = useCallback(
         (input: StartInput) => {
             const job = newJob(input)
 
-            replaceUrls([])
-            setActiveJob(job)
+            commit(pruned([...jobsRef.current, job]))
 
             void launchRun(job, input, keys.credentials, {
-                // A newer run may already own the stage; a stale result must
-                // not overwrite it.
+                adopt,
+                // The run may have been dismissed or cleared while it worked;
+                // a result with no place on the stage is simply dropped.
                 settle: (outcome) => {
-                    setActiveJob((current) => (current?.id === job.id ? outcome : current))
+                    commit(
+                        jobsRef.current.map((current) =>
+                            current.id === outcome.id ? outcome : current,
+                        ),
+                    )
                 },
-                replaceUrls,
                 onPersisted: () => {
                     setCompletions((current) => current + 1)
                 },
             })
         },
-        [keys, replaceUrls],
+        [adopt, commit, jobsRef, keys],
     )
 
-    const reset = useCallback(() => {
-        replaceUrls([])
-        setActiveJob(null)
-    }, [replaceUrls])
+    return { start, completions }
+}
+
+export function GenerationProvider({ children }: { readonly children: ReactNode }) {
+    const { adopt, commit, jobs, jobsRef } = useJobs()
+    const { completions, start } = useStart({ adopt, commit, jobsRef })
+
+    const dismiss = useCallback(
+        (jobId: string) => {
+            commit(jobsRef.current.filter((job) => job.id !== jobId))
+        },
+        [commit, jobsRef],
+    )
+
+    // A run still working keeps its place: its skeletons are the only sign it
+    // is happening, and clearing the clutter should not take that with it.
+    const clearFinished = useCallback(() => {
+        commit(jobsRef.current.filter((job) => job.status === 'running'))
+    }, [commit, jobsRef])
+
+    const clear = useCallback(() => {
+        commit([])
+    }, [commit])
+
+    const running = jobs.filter((job) => job.status === 'running').length
 
     const value = useMemo<GenerationApi>(
-        () => ({ activeJob, completions, start, reset }),
-        [activeJob, completions, start, reset],
+        () => ({ jobs, running, completions, start, dismiss, clearFinished, clear }),
+        [jobs, running, completions, start, dismiss, clearFinished, clear],
     )
 
     return <GenerationContext.Provider value={value}>{children}</GenerationContext.Provider>
