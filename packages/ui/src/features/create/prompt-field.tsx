@@ -1,7 +1,14 @@
 import { type ChangeEvent, type KeyboardEvent, useCallback, useLayoutEffect, useRef } from 'react'
 
+import { useShortcut, type Shortcut } from '../../lib/use-shortcut'
 import type { PromptSuggestions } from './prompt-suggestions'
 import { useTypedPlaceholder } from './use-typed-placeholder'
+
+/**
+ * Bare `/`, so it only fires when the field does not already have focus —
+ * otherwise it would be impossible to type a slash into a prompt.
+ */
+const FOCUS_PROMPT: Shortcut = { key: '/' }
 
 export interface PromptFieldProps {
     readonly value: string
@@ -44,6 +51,12 @@ function useAutoGrow(value: string) {
 
 export function PromptField({ onChange, onKeyDown, suggestions, value }: PromptFieldProps) {
     const fieldRef = useAutoGrow(value)
+
+    // The field owns its own shortcut: it is the thing being focused, and the
+    // ref is already here.
+    useShortcut(FOCUS_PROMPT, () => {
+        fieldRef.current?.focus()
+    })
 
     const placeholder = useTypedPlaceholder({
         prefix: suggestions.prefix,

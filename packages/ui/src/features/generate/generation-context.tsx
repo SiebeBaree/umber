@@ -47,7 +47,12 @@ interface JobBase {
 
 export type GenerationJob =
     | (JobBase & { readonly status: 'running' })
-    | (JobBase & { readonly status: 'done'; readonly outputs: readonly GeneratedOutput[] })
+    | (JobBase & {
+          readonly status: 'done'
+          readonly outputs: readonly GeneratedOutput[]
+          /** How long the run took, in milliseconds. */
+          readonly generationMs: number
+      })
     | (JobBase & { readonly status: 'failed'; readonly error: string })
 
 export interface StartInput {
@@ -104,7 +109,7 @@ interface RunResult {
  * One finished output as the gallery stores it. Everything but the file comes
  * from the job, so the record says exactly how the piece was made.
  */
-function toRecord(job: GenerationJob, media: Blob): CreationRecord {
+function toRecord(job: GenerationJob, media: Blob, generationMs: number): CreationRecord {
     return {
         id: crypto.randomUUID(),
         kind: job.kind,
@@ -116,6 +121,7 @@ function toRecord(job: GenerationJob, media: Blob): CreationRecord {
         resolution: job.resolution,
         quality: job.quality,
         ...(job.kind === 'video' ? { durationSeconds: job.durationSeconds } : {}),
+        generationMs,
         createdAt: Date.now(),
         image: media,
     }
@@ -147,7 +153,10 @@ async function performRun(
         references: input.references,
     })
 
-    const records = blobs.map((blob) => toRecord(job, blob))
+    // Measured once, the moment the files are in hand, so every output of a
+    // run reports the same figure — which is the truth: they rendered together.
+    const generationMs = Date.now() - job.startedAt
+    const records = blobs.map((blob) => toRecord(job, blob, generationMs))
 
     // Persistence failing must not eat a finished render; the results still
     // show, they just won't survive a restart.
@@ -163,7 +172,7 @@ async function performRun(
         url: URL.createObjectURL(record.image),
     }))
 
-    return { outcome: { ...job, status: 'done', outputs }, persisted }
+    return { outcome: { ...job, status: 'done', outputs, generationMs }, persisted }
 }
 
 function failureOf(job: GenerationJob, error: unknown): GenerationJob {

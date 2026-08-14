@@ -1,6 +1,7 @@
 import { motion, type Transition } from 'motion/react'
 import { type FormEvent, type KeyboardEvent, useCallback, useState } from 'react'
 
+import { useShortcut, type Shortcut } from '../../lib/use-shortcut'
 import { ComposerToolbar } from './composer-toolbar'
 import { PromptField } from './prompt-field'
 import { PROMPT_SUGGESTIONS } from './prompt-suggestions'
@@ -11,6 +12,9 @@ import { useReferenceImages } from './use-reference-images'
 
 /** Shared with the toolbar's own reflow, so the whole panel moves as one. */
 const PANEL_MOTION: Transition = { type: 'spring', stiffness: 620, damping: 42, mass: 0.7 }
+
+/** Toggles the mode. Fires mid-prompt, which is where the wish usually lands. */
+const SWITCH_MODE: Shortcut = { key: 'm', meta: true, shift: true, whileTyping: true }
 
 /**
  * The prompt bar at the heart of the create page: what to make, with which
@@ -60,6 +64,10 @@ export function PromptComposer() {
     const submission = useComposerSubmission()
     const { handleKeyDown, handlePromptChange, handleSubmit, prompt, references } =
         usePromptText(submission)
+
+    useShortcut(SWITCH_MODE, () => {
+        submission.setMode(submission.mode === 'image' ? 'video' : 'image')
+    })
 
     return (
         // The panel is layout-animated on the same spring as the controls

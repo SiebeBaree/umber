@@ -209,7 +209,11 @@ function FailedCard({
  * everything but the file.
  */
 function detailsOf(job: GenerationJob, index: number): ImageDetails | null {
-    const output = job.status === 'done' ? job.outputs[index] : undefined
+    if (job.status !== 'done') {
+        return null
+    }
+
+    const output = job.outputs[index]
 
     if (output === undefined) {
         return null
@@ -226,6 +230,7 @@ function detailsOf(job: GenerationJob, index: number): ImageDetails | null {
         resolution: job.resolution,
         quality: job.quality,
         ...(job.kind === 'video' ? { durationSeconds: job.durationSeconds } : {}),
+        generationMs: job.generationMs,
         // The run's own clock: what the gallery stores is a few milliseconds
         // later, and neither is worth telling apart at minute resolution.
         createdAt: job.startedAt,

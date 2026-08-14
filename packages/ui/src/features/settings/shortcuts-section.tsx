@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '../../compone
  * The keyboard shortcuts section: a button that opens the full reference in a
  * dialog.
  *
- * The bindings listed are aspirational (none are wired up yet), but they are
- * written as the real set so the reference reads true once they are.
+ * Every binding listed here is wired up, and each one lives with the state it
+ * drives — navigation in the app shell, the composer's in the composer, the
+ * gallery's in the gallery. Nothing goes on this list that does not work.
  */
 
 interface Shortcut {
@@ -34,19 +35,13 @@ const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
     {
         title: 'Composer',
         shortcuts: [
-            { label: 'Generate', keys: ['⌘', '↵'] },
             { label: 'Focus the prompt', keys: ['/'] },
             { label: 'Switch image ↔ video', keys: ['⌘', '⇧', 'M'] },
-            { label: 'Paste reference image', keys: ['⌘', 'V'] },
-            { label: 'Clear the prompt', keys: ['⌘', '⌫'] },
         ],
     },
     {
         title: 'Gallery',
-        shortcuts: [
-            { label: 'Preview selection', keys: ['Space'] },
-            { label: 'Delete creation', keys: ['⌘', '⌫'] },
-        ],
+        shortcuts: [{ label: 'Delete creation', keys: ['⌘', '⌫'] }],
     },
 ]
 
