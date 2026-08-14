@@ -95,6 +95,15 @@
             }
         },
         {
+            "files": ["packages/ui/src/features/gallery/zip.ts"],
+            "rules": {
+                // The archive reads one file at a time on purpose: a CRC wants
+                // the bytes, and holding a whole selection of them at once is
+                // exactly what reading them in turn avoids.
+                "eslint/no-await-in-loop": "off"
+            }
+        },
+        {
             "files": [
                 "packages/ui/src/components/ui/video-player.tsx",
                 "packages/ui/src/features/gallery/tile-media.tsx"

@@ -2,6 +2,7 @@ import { AnimatePresence, motion, type Transition } from 'motion/react'
 import { useEffect, useRef } from 'react'
 
 import { cn } from '../../lib/cn'
+import { scrollParentOf } from '../../lib/scroll-parent'
 import { useGeneration, type GenerationJob } from '../generate/generation-context'
 import { GenerationView } from './generation-view'
 import { PromptComposer } from './prompt-composer'
@@ -23,17 +24,6 @@ const FADE_TRANSITION: Transition = { duration: 0.3, ease: [0.22, 1, 0.36, 1] }
  * top, the newest right above the composer, each with its own skeletons and
  * results. Sending again never waits on what is already rendering.
  */
-
-/** Whatever actually scrolls above this node — the shell's `main`, in practice. */
-function scrollParentOf(node: HTMLElement | null): HTMLElement | null {
-    for (let parent = node?.parentElement ?? null; parent !== null; parent = parent.parentElement) {
-        if (/auto|scroll/u.test(getComputedStyle(parent).overflowY)) {
-            return parent
-        }
-    }
-
-    return null
-}
 
 /**
  * Brings a new run into view by scrolling the page to its very bottom, rather

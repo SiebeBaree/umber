@@ -1,7 +1,9 @@
 import { expect, test } from 'vitest'
 
-// Reached by path rather than through `@umber/ui`: the selection arithmetic is
-// an internal of the gallery, not part of the package's public surface.
+// Reached by path rather than through `@umber/ui`: the selection arithmetic
+// and the marquee are internals of the gallery, not part of the package's
+// public surface.
+import { edgeScrollSpeed } from '../packages/ui/src/features/gallery/marquee-drag'
 import {
     EMPTY_SELECTION,
     extendSelection,
@@ -97,4 +99,24 @@ test('a prune that changes nothing returns the state untouched', () => {
     const state = toggleSelection(EMPTY_SELECTION, 'c')
 
     expect(pruneSelection(state, WALL)).toBe(state)
+})
+
+const VIEWPORT = { top: 100, bottom: 700 }
+
+test('a sweep held in the middle of the page does not pull it', () => {
+    expect(edgeScrollSpeed(VIEWPORT, 400)).toBe(0)
+})
+
+test('a sweep held at the bottom pulls the wall down, at the top up', () => {
+    expect(edgeScrollSpeed(VIEWPORT, 690)).toBeGreaterThan(0)
+    expect(edgeScrollSpeed(VIEWPORT, 110)).toBeLessThan(0)
+})
+
+test('the pull ramps up towards the edge and stops growing past it', () => {
+    const lip = edgeScrollSpeed(VIEWPORT, 660)
+    const edge = edgeScrollSpeed(VIEWPORT, 700)
+
+    expect(lip).toBeGreaterThan(0)
+    expect(edge).toBeGreaterThan(lip)
+    expect(edgeScrollSpeed(VIEWPORT, 900)).toBe(edge)
 })
