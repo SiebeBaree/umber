@@ -1,9 +1,11 @@
 import { RouterProvider } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { GenerationProvider } from './features/generate/generation-context'
 import { KeysProvider } from './features/keys/keys-context'
 import type { KeyVault } from './features/keys/vault'
+import { OnboardingFlow } from './features/onboarding/onboarding-flow'
+import { ProfileProvider, useProfile } from './features/profile/profile-context'
 import { setHttpTransport, type HttpTransport } from './lib/http'
 import { createUmberRouter } from './router'
 
@@ -33,6 +35,46 @@ export interface AppProps {
     readonly transport?: HttpTransport | undefined
 }
 
+type UmberRouter = ReturnType<typeof createUmberRouter>
+
+/**
+ * The router plus the first-run gate. The app itself stays mounted underneath
+ * onboarding — made `inert` so nothing beneath the overlay can be focused or
+ * clicked — which lets the exit animation reveal a create page that is already
+ * painted and greeting the new name.
+ */
+function AppContent({ router }: { readonly router: UmberRouter }) {
+    const profile = useProfile()
+    const [onboarding, setOnboarding] = useState(() => profile.name === null)
+
+    // The name vanishing after mount means the settings page erased it; the
+    // flow comes back exactly as it would on a fresh install.
+    useEffect(() => {
+        if (profile.name === null) {
+            setOnboarding(true)
+        }
+    }, [profile.name])
+
+    // As onboarding starts leaving, put Create beneath it: the flow may have
+    // been re-entered from an erase, with the settings page still showing.
+    const leave = useCallback(() => {
+        void router.navigate({ to: '/' })
+    }, [router])
+
+    const done = useCallback(() => {
+        setOnboarding(false)
+    }, [])
+
+    return (
+        <>
+            <div className="h-full" inert={onboarding}>
+                <RouterProvider router={router} />
+            </div>
+            {onboarding ? <OnboardingFlow onDone={done} onLeaving={leave} /> : null}
+        </>
+    )
+}
+
 /**
  * The entire Umber application. `@umber/desktop` mounts this component and
  * nothing else, which keeps every product decision inside this package.
@@ -54,9 +96,11 @@ export function App({ overlaidWindowControls = false, runtime, transport, vault 
 
     return (
         <KeysProvider vault={vault}>
-            <GenerationProvider>
-                <RouterProvider router={router} />
-            </GenerationProvider>
+            <ProfileProvider>
+                <GenerationProvider>
+                    <AppContent router={router} />
+                </GenerationProvider>
+            </ProfileProvider>
         </KeysProvider>
     )
 }

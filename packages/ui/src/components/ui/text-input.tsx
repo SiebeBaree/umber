@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from 'react'
+import type { ComponentProps } from 'react'
 
 import { cn } from '../../lib/cn'
 
@@ -6,8 +6,11 @@ import { cn } from '../../lib/cn'
  * A recessed single-line field, the input counterpart of the segmented
  * control's groove, so forms sit *into* a glass surface rather than stacking
  * more glass on top of it.
+ *
+ * `ComponentProps` rather than `InputHTMLAttributes`, so a `ref` passes
+ * through to the element — onboarding focuses its name field imperatively.
  */
-export function TextInput({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+export function TextInput({ className, ...rest }: ComponentProps<'input'>) {
     return (
         <input
             className={cn(

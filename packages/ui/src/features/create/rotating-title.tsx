@@ -1,10 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion, type Transition } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-// Hard-coded until there is a profile to read it from.
-const USER_NAME = 'Siebe'
-
-const TITLES = [`Welcome back, ${USER_NAME}`, 'What will you create today?'] as const
+import { useProfile } from '../profile/profile-context'
 
 /** How long each line holds before the next one takes its place. */
 const HOLD = 4600
@@ -42,21 +39,32 @@ const EXIT = { y: -TRAVEL, opacity: 0, filter: 'blur(10px)', transition: TRANSIT
  */
 export function RotatingTitle() {
     const reducedMotion = useReducedMotion()
+    const profile = useProfile()
     const [index, setIndex] = useState(0)
 
+    // The greeting needs the onboarding name; while it is briefly absent —
+    // the create page renders under the flow itself — the question stands alone.
+    const titles = useMemo(
+        () =>
+            profile.name === null
+                ? ['What will you create today?']
+                : [`Welcome back, ${profile.name}`, 'What will you create today?'],
+        [profile.name],
+    )
+
     useEffect(() => {
-        if (reducedMotion) {
+        if (reducedMotion || titles.length < 2) {
             return
         }
 
         const timer = setInterval(() => {
-            setIndex((current) => (current + 1) % TITLES.length)
+            setIndex((current) => (current + 1) % titles.length)
         }, HOLD)
 
         return () => {
             clearInterval(timer)
         }
-    }, [reducedMotion])
+    }, [reducedMotion, titles.length])
 
     return (
         <div className="relative flex h-16 w-full items-center justify-center">
@@ -66,9 +74,9 @@ export function RotatingTitle() {
                     className="px-4 text-center text-4xl font-semibold tracking-tight text-balance"
                     exit={EXIT}
                     initial={ENTER}
-                    key={index}
+                    key={index % titles.length}
                 >
-                    {TITLES[index]}
+                    {titles[index % titles.length]}
                 </motion.h1>
             </AnimatePresence>
         </div>

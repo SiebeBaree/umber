@@ -9,11 +9,11 @@ import {
 import { useCallback, useState, type FormEvent } from 'react'
 
 import { Button } from '../../components/ui/button'
-import { DialogDescription, DialogTitle } from '../../components/ui/dialog'
 import { cn } from '../../lib/cn'
 import { ProviderMark } from '../create/catalog'
 import { CredentialFieldControl } from './credential-fields'
 import type { KeyProvider, NewConnection, SetupStep } from './key-providers'
+import { StepDescription, StepTitle, type StepPresentation } from './step-heading'
 import { useConnectCheck, type CheckState } from './use-connect-check'
 
 /**
@@ -25,10 +25,12 @@ import { useConnectCheck, type CheckState } from './use-connect-check'
 
 function ConfigureHeader({
     onBack,
+    presentation,
     provider,
 }: {
     readonly provider: KeyProvider
     readonly onBack: () => void
+    readonly presentation: StepPresentation
 }) {
     // "The FLUX image family" reads as mid-sentence here: "Unlocks the FLUX…".
     // Only a leading article is folded; everything else is a proper noun.
@@ -50,10 +52,12 @@ function ConfigureHeader({
                 <ProviderMark className="size-5 text-ink" provider={provider.id} />
             </div>
             <div className="min-w-0">
-                <DialogTitle className="pe-0 text-base">Connect {provider.name}</DialogTitle>
-                <DialogDescription className="mt-0 truncate text-xs">
+                <StepTitle className="pe-0 text-base" presentation={presentation}>
+                    Connect {provider.name}
+                </StepTitle>
+                <StepDescription className="mt-0 truncate text-xs" presentation={presentation}>
                     Unlocks {unlocks}
-                </DialogDescription>
+                </StepDescription>
             </div>
         </div>
     )
@@ -220,18 +224,31 @@ export interface ConfigureStepProps {
     readonly provider: KeyProvider
     readonly onBack: () => void
     readonly onConnect: (connection: NewConnection) => Promise<void>
+    /** Which host the step is rendering in; headings differ, nothing else does. */
+    readonly presentation?: StepPresentation
 }
 
-export function ConfigureStep({ onBack, onConnect, provider }: ConfigureStepProps) {
-    // Text and secret fields start empty; a choice field starts on its first
-    // option, because "no region picked" is not a state the form offers.
+/**
+ * Text and secret fields start empty; a choice field starts on its first
+ * option, because "no region picked" is not a state the form offers.
+ */
+function initialValues(provider: KeyProvider): Readonly<Record<string, string>> {
+    return Object.fromEntries(
+        provider.fields.map((field) => [
+            field.id,
+            field.kind === 'choice' ? field.options[0].value : '',
+        ]),
+    )
+}
+
+export function ConfigureStep({
+    onBack,
+    onConnect,
+    presentation = 'dialog',
+    provider,
+}: ConfigureStepProps) {
     const [values, setValues] = useState<Readonly<Record<string, string>>>(() =>
-        Object.fromEntries(
-            provider.fields.map((field) => [
-                field.id,
-                field.kind === 'choice' ? field.options[0].value : '',
-            ]),
-        ),
+        initialValues(provider),
     )
     const { check, connect, invalidate } = useConnectCheck(provider, onConnect)
 
@@ -263,7 +280,7 @@ export function ConfigureStep({ onBack, onConnect, provider }: ConfigureStepProp
 
     return (
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
-            <ConfigureHeader onBack={onBack} provider={provider} />
+            <ConfigureHeader onBack={onBack} presentation={presentation} provider={provider} />
             <CredentialForm onValueChange={setValue} provider={provider} values={values} />
             <ConnectFooter check={check} disabled={!complete} provider={provider} />
         </form>

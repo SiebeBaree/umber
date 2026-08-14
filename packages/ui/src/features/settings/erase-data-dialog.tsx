@@ -41,6 +41,7 @@ function Counts({ creations, keys }: CountsProps) {
             <CountRow label="Creations">{creations === null ? '…' : String(creations)}</CountRow>
             <CountRow label="Provider keys">{String(keys)}</CountRow>
             <CountRow label="Composer settings">Reset</CountRow>
+            <CountRow label="Your name">Cleared</CountRow>
         </ul>
     )
 }

@@ -1,11 +1,11 @@
 import { Check, ChevronRight } from 'lucide-react'
 import { useCallback, useMemo, useState, type ChangeEvent } from 'react'
 
-import { DialogDescription, DialogTitle } from '../../components/ui/dialog'
 import { TextInput } from '../../components/ui/text-input'
 import { cn } from '../../lib/cn'
 import { ProviderMark } from '../create/catalog'
 import { KEY_PROVIDERS, type KeyProvider, type KeyProviderId } from './key-providers'
+import { StepDescription, StepTitle, type StepPresentation } from './step-heading'
 
 /**
  * Step one of adding a provider: a filterable list of everyone Umber can talk
@@ -79,18 +79,20 @@ function useProviderFilter() {
 export interface PickStepProps {
     readonly connected: ReadonlySet<KeyProviderId>
     readonly onPick: (id: KeyProviderId) => void
+    /** Which host the step is rendering in; headings differ, nothing else does. */
+    readonly presentation?: StepPresentation
 }
 
-export function PickStep({ connected, onPick }: PickStepProps) {
+export function PickStep({ connected, onPick, presentation = 'dialog' }: PickStepProps) {
     const { handleQueryChange, matches, query } = useProviderFilter()
 
     return (
         <>
-            <DialogTitle>Add a provider</DialogTitle>
-            <DialogDescription>
+            <StepTitle presentation={presentation}>Add a provider</StepTitle>
+            <StepDescription presentation={presentation}>
                 Pick a service you have an account with. You&rsquo;ll paste an API key from its
                 console next.
-            </DialogDescription>
+            </StepDescription>
 
             <TextInput
                 aria-label="Filter providers"

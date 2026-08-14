@@ -5,18 +5,23 @@ import { COMPOSER_SETTINGS_KEY } from '../create/settings/schema'
 import { clearCreations } from '../gallery/creations-db'
 import { useGeneration } from '../generate/generation-context'
 import { useKeys } from '../keys/keys-context'
+import { useProfile } from '../profile/profile-context'
 
 /**
  * Everything Umber keeps on this device, erased in one go: the gallery, the
- * provider keys, and the composer's remembered choices. Nothing is sent
- * anywhere and nothing is kept elsewhere, so this really is the whole of it.
+ * provider keys, the composer's remembered choices, and the name from
+ * onboarding. Nothing is sent anywhere and nothing is kept elsewhere, so this
+ * really is the whole of it.
  *
  * The order runs from the heaviest to the lightest, so a failure part-way
- * leaves the smallest possible mess behind.
+ * leaves the smallest possible mess behind. The profile goes last: its absence
+ * is what drops the app back into onboarding, so by the time the flow appears
+ * the erase is already complete.
  */
 export function useEraseEverything(): () => Promise<void> {
     const keys = useKeys()
     const generation = useGeneration()
+    const profile = useProfile()
 
     return useCallback(async () => {
         await clearCreations()
@@ -34,5 +39,7 @@ export function useEraseEverything(): () => Promise<void> {
         // The create page draws its last run from memory rather than from the
         // gallery; those files are gone now, so the stage goes with them.
         generation.reset()
-    }, [keys, generation])
+
+        profile.clear()
+    }, [keys, generation, profile])
 }
