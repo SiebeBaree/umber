@@ -36,6 +36,18 @@ function write(key: string, value: unknown): void {
 }
 
 /**
+ * Forgets a stored value, so the next read falls back to its default. Only the
+ * settings page's erase reaches for this; everything else writes.
+ */
+export function clearPersistedState(key: string): void {
+    try {
+        globalThis.localStorage?.removeItem(key)
+    } catch {
+        // Nothing was persisted in the first place, so nothing to forget.
+    }
+}
+
+/**
  * `useState`, except the value is restored on the next launch and validated on
  * the way in. Writes are synchronous, which is fine at this size — the composer
  * stores one small object.

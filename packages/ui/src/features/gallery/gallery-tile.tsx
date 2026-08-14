@@ -23,6 +23,8 @@ export interface GalleryImage {
     readonly quality?: string | undefined
     /** Clip length in seconds; only videos carry one. */
     readonly durationSeconds?: number | undefined
+    /** How long the run took, in milliseconds. Absent on older rows. */
+    readonly generationMs?: number | undefined
     /** Epoch milliseconds. */
     readonly createdAt: number
     /** An object URL over the stored blob, owned by the page that loaded it. */
@@ -138,7 +140,9 @@ export function GalleryTile({ image, onDelete, onOpen }: GalleryTileProps) {
     }, [image.id, onOpen])
 
     return (
-        <div className="group relative">
+        // The id is on the element so a key press can find the creation the
+        // keyboard is currently inside, which is what ⌘⌫ deletes.
+        <div className="group relative" data-creation-id={image.id}>
             {/* A button rather than a click handler on the media: opening the
                 piece is an action, and this way it is reachable by keyboard
                 and announced as one. */}

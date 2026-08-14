@@ -30,6 +30,8 @@ export interface ImageDetails {
     readonly quality?: string | undefined
     /** Clip length in seconds; only videos carry one. */
     readonly durationSeconds?: number | undefined
+    /** How long the run took, in milliseconds. Absent on older creations. */
+    readonly generationMs?: number | undefined
     /** Epoch milliseconds. */
     readonly createdAt: number
 }
@@ -54,6 +56,22 @@ function formatCreatedAt(createdAt: number): string {
     const time = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 
     return `${day}, ${time}`
+}
+
+/**
+ * "8.4s", or "2m 13s" once a run passes the minute. Under a minute keeps its
+ * decimal, which is the resolution at which two models actually differ.
+ */
+function formatGenerationTime(generationMs: number): string {
+    const seconds = Math.round(Math.max(0, generationMs) / 100) / 10
+
+    if (seconds < 60) {
+        return `${seconds.toFixed(1)}s`
+    }
+
+    const whole = Math.round(seconds)
+
+    return `${Math.floor(whole / 60)}m ${whole % 60}s`
 }
 
 /** The tiers arrive lower-cased from the API vocabulary; the UI says them. */
@@ -82,6 +100,11 @@ function DetailRows({ image }: { readonly image: ImageDetails }) {
                 <span className="truncate">{image.modelName}</span>
             </DetailRow>
             <DetailRow label="Created">{formatCreatedAt(image.createdAt)}</DetailRow>
+            {image.generationMs === undefined ? null : (
+                <DetailRow label="Generation time">
+                    <span className="tabular-nums">{formatGenerationTime(image.generationMs)}</span>
+                </DetailRow>
+            )}
             <DetailRow label="Aspect ratio">{image.ratio}</DetailRow>
             {image.resolution === undefined ? null : (
                 <DetailRow label="Resolution">{image.resolution}</DetailRow>

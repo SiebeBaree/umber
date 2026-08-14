@@ -1,77 +1,12 @@
-import { motion, useReducedMotion, type Transition } from 'motion/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
-import { RenderingTile } from '../generate/rendering-tile'
+import { useShortcut, type Shortcut } from '../../lib/use-shortcut'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { GalleryEmptyState } from './gallery-empty-state'
-import { GalleryTile, type DeleteRequest } from './gallery-tile'
+import type { DeleteRequest } from './gallery-tile'
 import { ImageDetailDialog } from './image-detail-dialog'
-import { splitIntoColumns } from './masonry'
-import { useColumnCount } from './use-column-count'
+import { Masonry } from './masonry-grid'
 import { useGalleryEntries, type GalleryEntry } from './use-gallery-entries'
-
-const ENTER = { opacity: 0, scale: 0.98, y: 14 }
-const SETTLED = { opacity: 1, scale: 1, y: 0 }
-
-const ENTER_TRANSITION: Transition = { duration: 0.45, ease: [0.22, 1, 0.36, 1] }
-
-/**
- * Each tile trails the one made just after it, so the grid pours in newest
- * first. The delay is capped: past the first screenful the stagger has made
- * its point, and everything further down arrives together.
- */
-const STAGGER_STEP = 0.03
-const STAGGER_LIMIT = 0.45
-
-interface StaggeredTileProps {
-    readonly entry: GalleryEntry
-    /** Position in the newest-first list, which sets this tile's delay. */
-    readonly index: number
-    /** Ids whose entrance has already played during this visit. */
-    readonly seenIds: Set<string>
-    readonly reducedMotion: boolean
-    readonly onDelete: DeleteRequest
-    readonly onOpen: (id: string) => void
-}
-
-function StaggeredTile({
-    entry,
-    index,
-    onDelete,
-    onOpen,
-    reducedMotion,
-    seenIds,
-}: StaggeredTileProps) {
-    // Decided once, at mount, via the lazy initialiser (the sanctioned way to
-    // consult a mutable registry during render): a tile that already entered
-    // this visit — remounted because a resize dealt it into another column —
-    // appears in place, while a genuinely new tile plays its entrance.
-    const [initial] = useState(() => (reducedMotion || seenIds.has(entry.id) ? false : ENTER))
-
-    // Registered after paint, so this mount's own entrance still plays.
-    useEffect(() => {
-        seenIds.add(entry.id)
-    }, [entry.id, seenIds])
-
-    const transition = useMemo(
-        () => ({ ...ENTER_TRANSITION, delay: Math.min(index * STAGGER_STEP, STAGGER_LIMIT) }),
-        [index],
-    )
-
-    // No exit animation: deleting re-deals every column, so a tile that moves
-    // column unmounts and remounts, and an exit would ghost it in its old
-    // place while it is already drawn in its new one. The removal is instant,
-    // which is also the clearest confirmation that the click landed.
-    return (
-        <motion.div animate={SETTLED} initial={initial} transition={transition}>
-            {entry.kind === 'creation' ? (
-                <GalleryTile image={entry.image} onDelete={onDelete} onOpen={onOpen} />
-            ) : (
-                <RenderingTile providerId={entry.providerId} ratio={entry.ratio} />
-            )}
-        </motion.div>
-    )
-}
 
 /**
  * Which creation the detail view is showing, held by id rather than by value
@@ -99,7 +34,25 @@ function useOpenImage(entries: readonly GalleryEntry[], remove: (id: string) => 
         [remove],
     )
 
-    return { image, open: setOpenId, close, deleteImage }
+    return { image, openId, open: setOpenId, close, deleteImage }
+}
+
+/** ⌘⌫, the system gesture for "throw this away". */
+const DELETE_CREATION: Shortcut = { key: 'Backspace', meta: true }
+
+/**
+ * Which creation the keyboard is on: the tile holding focus, found by walking
+ * up from wherever focus actually sits — the tile's own open button, or one of
+ * the controls over the picture.
+ */
+function focusedCreationId(): string | null {
+    const active = document.activeElement
+
+    if (!(active instanceof HTMLElement)) {
+        return null
+    }
+
+    return active.closest<HTMLElement>('[data-creation-id]')?.dataset.creationId ?? null
 }
 
 /**
@@ -149,59 +102,21 @@ function useDeleteFlow(entries: readonly GalleryEntry[], remove: (id: string) =>
     return { request, confirm, cancel, prompt }
 }
 
-interface MasonryProps {
-    readonly entries: readonly GalleryEntry[]
-    readonly onDelete: DeleteRequest
-    readonly onOpen: (id: string) => void
-}
-
-/**
- * The wall itself. Columns are plain flex children; the masonry lives in how
- * items are dealt into them, not in CSS.
- */
-function Masonry({ entries, onDelete, onOpen }: MasonryProps) {
-    const [gridRef, columnCount] = useColumnCount()
-    const reducedMotion = useReducedMotion() === true
-
-    // No columns until the grid has been measured — the count arrives before
-    // paint, and mounting tiles into a guessed layout would remount them a
-    // frame later, marking them "seen" before their entrance ever played.
-    const columns = useMemo(
-        () => (columnCount === null ? [] : splitIntoColumns(entries, columnCount)),
-        [entries, columnCount],
-    )
-
-    // One registry per visit: which tiles have already made their entrance.
-    // Per item rather than a page-wide latch so a breakpoint resize does not
-    // replay the stagger, while a genuinely new item still animates in.
-    const [seenIds] = useState(() => new Set<string>())
-
-    return (
-        <div className="flex items-start gap-4" ref={gridRef}>
-            {columns.map((column) => (
-                <div className="flex min-w-0 flex-1 flex-col gap-4" key={column.key}>
-                    {column.items.map(({ index, item }) => (
-                        <StaggeredTile
-                            entry={item}
-                            index={index}
-                            key={item.id}
-                            onDelete={onDelete}
-                            onOpen={onOpen}
-                            reducedMotion={reducedMotion}
-                            seenIds={seenIds}
-                        />
-                    ))}
-                </div>
-            ))}
-        </div>
-    )
-}
-
 /** The gallery: every creation in a masonry of the shapes they were made in. */
 export function GalleryPage() {
     const { entries, loaded, remove } = useGalleryEntries()
     const detail = useOpenImage(entries, remove)
     const deletion = useDeleteFlow(entries, detail.deleteImage)
+
+    // The creation on screen comes first: with the detail view open it is
+    // plainly the one being looked at, and focus is trapped inside the dialog.
+    useShortcut(DELETE_CREATION, () => {
+        const target = detail.openId ?? focusedCreationId()
+
+        if (target !== null) {
+            deletion.request(target, false)
+        }
+    })
 
     if (loaded && entries.length === 0) {
         return <GalleryEmptyState />

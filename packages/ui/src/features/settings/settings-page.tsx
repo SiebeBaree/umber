@@ -1,9 +1,13 @@
 import { useRouteContext } from '@tanstack/react-router'
 
 import { ApiKeysSection } from './api-keys-section'
+import { EraseDataSection } from './erase-data-section'
 import { ShortcutsSection } from './shortcuts-section'
 
-/** The settings page: the provider keys you generate with, and the shortcuts. */
+/**
+ * The settings page: the provider keys you generate with, the shortcuts, and
+ * the way to erase the lot.
+ */
 export function SettingsPage() {
     const { runtime } = useRouteContext({ from: '__root__' })
 
@@ -14,6 +18,7 @@ export function SettingsPage() {
             <div className="mt-6 flex flex-col gap-4">
                 <ApiKeysSection />
                 <ShortcutsSection />
+                <EraseDataSection />
             </div>
 
             {runtime === undefined ? null : (

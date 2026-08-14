@@ -31,6 +31,7 @@ function toGalleryImage(record: CreationRecord): GalleryImage {
         resolution: record.resolution,
         quality: record.quality,
         durationSeconds: record.durationSeconds,
+        generationMs: record.generationMs,
         createdAt: record.createdAt,
         url: URL.createObjectURL(record.image),
     }

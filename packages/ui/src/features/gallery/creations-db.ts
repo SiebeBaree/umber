@@ -28,6 +28,11 @@ export interface CreationRecord {
     readonly quality?: string
     /** Clip length in seconds; only video rows carry one. */
     readonly durationSeconds?: number
+    /**
+     * How long the run took, in milliseconds, from pressing send to the file
+     * arriving. Absent on rows stored before it was recorded.
+     */
+    readonly generationMs?: number
     /** Epoch milliseconds; the gallery sorts newest first on this. */
     readonly createdAt: number
     /** The file itself. Named for the store's image-only beginnings; video
@@ -133,4 +138,24 @@ export async function deleteCreation(id: string): Promise<void> {
     }
 
     await withStore('readwrite', (store) => store.delete(id))
+}
+
+/** How many creations are stored, without reading a single blob back out. */
+export async function countCreations(): Promise<number> {
+    if (typeof indexedDB === 'undefined') {
+        return memoryStore().size
+    }
+
+    return (await withStore<number>('readonly', (store) => store.count())) ?? 0
+}
+
+/** Empties the store. Only the settings page's erase reaches for this. */
+export async function clearCreations(): Promise<void> {
+    if (typeof indexedDB === 'undefined') {
+        memoryStore().clear()
+
+        return
+    }
+
+    await withStore('readwrite', (store) => store.clear())
 }
