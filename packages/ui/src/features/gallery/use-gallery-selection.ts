@@ -57,8 +57,9 @@ export function useGallerySelection(
         [entries, selection.selectedIds],
     )
 
+    // Packing an archive takes a moment; the dock does not wait on it.
     const downloadSelection = useCallback(() => {
-        downloadImages(selectedImages)
+        void downloadImages(selectedImages)
     }, [selectedImages])
 
     const deleteSelection = useCallback(
