@@ -1,0 +1,13 @@
+{
+    "permissions": {
+        "allow": [
+            "mcp__Claude_Browser__preview_start",
+            "mcp__Claude_Browser__preview_stop",
+            "mcp__Claude_Browser__preview_list",
+            "mcp__Claude_Browser__preview_logs",
+            "Bash(pnpm --dir apps/desktop exec vite:*)",
+            "Bash(pnpm --dir apps/desktop dev:*)",
+            "Bash(pnpm dev:*)"
+        ]
+    }
+}

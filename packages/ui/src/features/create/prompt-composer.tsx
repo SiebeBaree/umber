@@ -99,7 +99,6 @@ export function PromptComposer() {
 
             <ComposerToolbar
                 blocker={submission.blocker}
-                busy={submission.busy}
                 canSubmit={prompt.trim() !== ''}
                 composer={submission.composer}
                 mode={submission.mode}
