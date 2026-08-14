@@ -6,10 +6,16 @@ import { KeysProvider } from './features/keys/keys-context'
 import type { KeyVault } from './features/keys/vault'
 import { OnboardingFlow } from './features/onboarding/onboarding-flow'
 import { ProfileProvider, useProfile } from './features/profile/profile-context'
+import { UpdatesProvider, type UpdateChecker } from './features/updates/updates-context'
 import { setHttpTransport, type HttpTransport } from './lib/http'
 import { createUmberRouter } from './router'
 
 export interface AppProps {
+    /**
+     * The running build's version, shown at the foot of the settings page. The
+     * shell knows it; the UI package has no way to find it out on its own.
+     */
+    readonly version?: string | undefined
     /**
      * A short line describing the host runtime, shown on the settings page. The
      * shell fills this in with whatever it knows about itself.
@@ -33,6 +39,12 @@ export interface AppProps {
      * one, plain `fetch` keeps the browser preview and tests working.
      */
     readonly transport?: HttpTransport | undefined
+    /**
+     * How the app finds out a newer version has been published. Without one it
+     * never reports an update, which is right for a browser preview: there is
+     * nothing there to install.
+     */
+    readonly updates?: UpdateChecker | undefined
 }
 
 type UmberRouter = ReturnType<typeof createUmberRouter>
@@ -82,8 +94,15 @@ function AppContent({ router }: { readonly router: UmberRouter }) {
  * All props are read once, when the component first mounts: they describe the
  * host shell, which cannot change while the app is running.
  */
-export function App({ overlaidWindowControls = false, runtime, transport, vault }: AppProps) {
-    const [router] = useState(() => createUmberRouter({ overlaidWindowControls, runtime }))
+export function App({
+    overlaidWindowControls = false,
+    runtime,
+    transport,
+    updates,
+    vault,
+    version,
+}: AppProps) {
+    const [router] = useState(() => createUmberRouter({ overlaidWindowControls, runtime, version }))
 
     // Installed before anything renders, so the first generation already goes
     // through the shell's network path. A singleton rather than context: the
@@ -98,7 +117,9 @@ export function App({ overlaidWindowControls = false, runtime, transport, vault 
         <KeysProvider vault={vault}>
             <ProfileProvider>
                 <GenerationProvider>
-                    <AppContent router={router} />
+                    <UpdatesProvider checker={updates}>
+                        <AppContent router={router} />
+                    </UpdatesProvider>
                 </GenerationProvider>
             </ProfileProvider>
         </KeysProvider>

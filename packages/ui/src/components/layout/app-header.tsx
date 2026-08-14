@@ -3,6 +3,7 @@ import { UMBER_LOCKUP } from '@umber/brand'
 import { Images, Settings, WandSparkles, type LucideIcon } from 'lucide-react'
 
 import { ClearStageButton } from '../../features/create/clear-stage'
+import { useUpdates } from '../../features/updates/updates-context'
 import { cn } from '../../lib/cn'
 import { SlidingIndicator } from '../ui/sliding-indicator'
 
@@ -45,6 +46,38 @@ function PrimaryNav() {
 }
 
 /**
+ * The settings button, wearing an accent ring and a dot while an update is
+ * waiting. Both, rather than one: the ring is what catches the eye across the
+ * window, and the dot is what survives being seen out of the corner of it.
+ */
+function SettingsButton({ updateWaiting }: { readonly updateWaiting: boolean }) {
+    return (
+        <Link
+            aria-label={updateWaiting ? 'Settings, update available' : 'Settings'}
+            className={cn(
+                'no-drag glass-control relative flex size-10 items-center justify-center rounded-full text-muted outline-none select-none',
+                'hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+                'data-[status=active]:text-accent',
+                // A ring rather than a border: `glass-control` owns the border,
+                // and recolouring it would take the glass edge with it.
+                updateWaiting && 'text-accent ring-2 ring-accent',
+            )}
+            to="/settings"
+        >
+            <Settings aria-hidden className="size-[18px]" />
+            {updateWaiting ? (
+                // Ringed in the header's own colour so it reads as sitting on
+                // top of the button rather than punched out of its edge.
+                <span
+                    aria-hidden
+                    className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-accent ring-2 ring-canvas"
+                />
+            ) : null}
+        </Link>
+    )
+}
+
+/**
  * The app header: wordmark on the left, the Create/Gallery switcher floating in
  * the centre, settings on the right. It doubles as the window's drag handle,
  * which is why every control inside it opts out of the drag region.
@@ -59,6 +92,7 @@ function PrimaryNav() {
  */
 export function AppHeader() {
     const { overlaidWindowControls } = useRouteContext({ from: '__root__' })
+    const updates = useUpdates()
 
     return (
         <header className="drag-region grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-6 py-4">
@@ -84,17 +118,7 @@ export function AppHeader() {
             <div className="flex items-center gap-2 justify-self-end">
                 <ClearStageButton />
 
-                <Link
-                    aria-label="Settings"
-                    className={cn(
-                        'no-drag glass-control flex size-10 items-center justify-center rounded-full text-muted outline-none select-none',
-                        'hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-                        'data-[status=active]:text-accent',
-                    )}
-                    to="/settings"
-                >
-                    <Settings aria-hidden className="size-[18px]" />
-                </Link>
+                <SettingsButton updateWaiting={updates.available} />
             </div>
         </header>
     )

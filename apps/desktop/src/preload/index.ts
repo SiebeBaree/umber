@@ -3,7 +3,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 import {
     BRIDGE_KEY,
     NET_CHANNEL,
+    readAppVersionArgument,
     toOperatingSystem,
+    UPDATE_CHANNELS,
     VAULT_CHANNELS,
     type NetRequestDto,
     type UmberBridge,
@@ -18,6 +20,9 @@ import {
 const bridge: UmberBridge = {
     os: toOperatingSystem(process.platform),
     versions: {
+        // Absent only if the window was created without the switch, which no
+        // code path does; the fallback keeps the footer from reading "undefined".
+        app: readAppVersionArgument(process.argv) ?? 'unknown',
         electron: process.versions.electron,
         chrome: process.versions.chrome,
         node: process.versions.node,
@@ -31,6 +36,10 @@ const bridge: UmberBridge = {
     },
     net: {
         fetch: (request: NetRequestDto) => ipcRenderer.invoke(NET_CHANNEL, request),
+    },
+    updates: {
+        check: () => ipcRenderer.invoke(UPDATE_CHANNELS.check),
+        download: () => ipcRenderer.invoke(UPDATE_CHANNELS.download),
     },
 }
 

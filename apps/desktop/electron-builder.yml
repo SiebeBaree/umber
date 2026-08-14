@@ -14,9 +14,26 @@ files:
 
 asar: true
 
+# The architecture is part of every filename, so the in-app update check can
+# tell an arm64 build from an x64 one and send each machine to the right
+# installer. Changing this shape means changing `pickInstaller` with it.
+artifactName: ${productName}-${version}-${arch}.${ext}
+
+# Releases are published to the public repo, which is where the app's update
+# check looks. `--publish always` in the release workflow uploads the
+# installers and the `latest*.yml` manifests alongside them.
+publish:
+    provider: github
+    owner: SiebeBaree
+    repo: umber
+
 mac:
     target: dmg
     category: public.app-category.productivity
+    # A `zip` target belongs here the day Umber gains a signing identity:
+    # Squirrel.Mac updates from a zip, not a dmg, and it refuses an update
+    # whose signature it cannot verify. Until then the app links people to the
+    # dmg and there is nothing for a second artifact to feed.
 
 win:
     target: nsis

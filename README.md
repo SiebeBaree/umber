@@ -64,11 +64,21 @@ Tests live in the root `tests/` directory and run with `pnpm test` (Vitest, jsdo
 
 ## Releasing the desktop app
 
-`pnpm --filter @umber/desktop release` builds installers with electron-builder (`electron-builder.yml`). Before shipping a real release you still need to:
+Umber is distributed as GitHub releases. `apps/desktop/package.json`'s `version` is the single source of truth: electron-builder stamps it into the build, and `app.getVersion()` reports it back to the settings page.
+
+To cut a release: bump that version, commit it, then push a matching tag.
+
+```sh
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+`.github/workflows/release.yml` builds macOS (x64 and arm64), Windows and Linux on their own runners and uploads every installer into one **draft** release. Check the assets, then publish the release by hand — the running app only ever sees published, non-prerelease tags.
+
+Each copy of the app polls `/releases/latest` on launch and every six hours (`apps/desktop/src/main/updates.ts`). When it finds a newer tag the settings button grows a dot and the settings page leads with the notice, whose button opens the installer for that machine in the browser.
 
 - The app icon lives at `apps/desktop/build/icon.png` and is committed. It is generated from `packages/brand/assets/icon.svg` with `pnpm --filter @umber/brand icons` (macOS only — it uses `sips`), and electron-builder derives the macOS `.icns` and Windows `.ico` from it. Re-run it only when the mark changes.
-- **TODO:** configure macOS code signing + notarization (hardened runtime, entitlements)
-- **TODO:** add a `publish` config if you want auto-updates
+- **TODO:** configure macOS code signing + notarization (hardened runtime, entitlements). Nothing is signed today, so macOS shows the unidentified-developer warning and Windows shows a SmartScreen prompt on first run.
+- **TODO:** once signing is in place, swap the check-and-notify updater for `electron-updater`. That means adding a `zip` target to the `mac` block and rewriting `download()` in `apps/desktop/src/main/updates.ts` — the renderer only learns _whether_ there is an update, so no UI changes with it.
 
 ## Known trade-offs
 

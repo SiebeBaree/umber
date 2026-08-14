@@ -1,4 +1,4 @@
-import { App, type HttpTransport, type KeyVault } from '@umber/ui'
+import { App, type HttpTransport, type KeyVault, type UpdateChecker } from '@umber/ui'
 import { StrictMode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
@@ -26,6 +26,14 @@ function toTransport(bridge: UmberBridge): HttpTransport {
     return (request) => bridge.net.fetch(request)
 }
 
+/** The release check, which the main process performs off its own network stack. */
+function toUpdateChecker(bridge: UmberBridge): UpdateChecker {
+    return {
+        check: () => bridge.updates.check(),
+        download: () => bridge.updates.download(),
+    }
+}
+
 /**
  * Mounts the shared UI into `container`. Kept separate from `main.tsx` so the
  * wiring can be exercised in tests without an Electron window.
@@ -39,7 +47,9 @@ export function mount(container: HTMLElement): Root {
                 overlaidWindowControls={window.umber?.os === 'macos'}
                 runtime={describeRuntime(window.umber)}
                 transport={window.umber === undefined ? undefined : toTransport(window.umber)}
+                updates={window.umber === undefined ? undefined : toUpdateChecker(window.umber)}
                 vault={window.umber === undefined ? undefined : toKeyVault(window.umber)}
+                version={window.umber?.versions.app}
             />
         </StrictMode>,
     )

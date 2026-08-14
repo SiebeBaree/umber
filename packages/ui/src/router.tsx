@@ -17,6 +17,8 @@ import { SettingsPage } from './features/settings/settings-page'
  * via `useRouteContext`.
  */
 export interface UmberRouterContext {
+    /** The running build's own version, shown at the foot of settings. */
+    readonly version: string | undefined
     readonly runtime: string | undefined
     readonly overlaidWindowControls: boolean
 }

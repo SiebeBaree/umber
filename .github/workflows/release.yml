@@ -1,0 +1,63 @@
+name: Release
+
+# Umber ships as GitHub releases: the installers and the `latest*.yml` update
+# manifests are the release assets, and the running app checks that feed to
+# find out it has fallen behind.
+#
+# To cut a release: set `version` in apps/desktop/package.json, commit it, then
+# push a matching `v` tag. Each runner builds its own platform and uploads into
+# one draft release, which stays a draft until it is published by hand — so a
+# half-finished matrix is never offered to anyone as an update.
+
+on:
+    push:
+        tags: ['v*']
+    workflow_dispatch:
+
+permissions:
+    contents: write
+
+concurrency:
+    group: release-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    build:
+        strategy:
+            # One platform failing should not throw away the others' artifacts.
+            fail-fast: false
+            matrix:
+                include:
+                    # macos runners are arm64, so the Intel build has to be
+                    # asked for by name or Intel Macs get nothing.
+                    - os: macos-latest
+                      args: --mac --x64 --arm64
+                    - os: windows-latest
+                      args: --win
+                    - os: ubuntu-latest
+                      args: --linux
+
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 30
+
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: pnpm/action-setup@v4
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version-file: .nvmrc
+                  cache: pnpm
+
+            - run: pnpm install --frozen-lockfile
+
+            - name: Build and publish
+              run: pnpm --filter @umber/desktop run release -- ${{ matrix.args }} --publish always
+              env:
+                  # electron-builder creates the draft release and uploads to it.
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  # Nothing is signed yet: no Apple identity, no Windows
+                  # certificate. Saying so keeps electron-builder from hunting
+                  # for one and failing the build over its absence.
+                  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
