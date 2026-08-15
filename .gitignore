@@ -30,3 +30,14 @@ Thumbs.db
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Signing material. None of this ever belongs in the repo: a .p12 carries the
+# private key that proves a build is ours, and a .p8 is an App Store Connect
+# API key. Both live in the keychain locally and in Actions secrets for CI.
+*.p12
+*.pfx
+*.p8
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile

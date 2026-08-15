@@ -30,10 +30,20 @@ publish:
 mac:
     target: dmg
     category: public.app-category.productivity
-    # A `zip` target belongs here the day Umber gains a signing identity:
-    # Squirrel.Mac updates from a zip, not a dmg, and it refuses an update
-    # whose signature it cannot verify. Until then the app links people to the
-    # dmg and there is nothing for a second artifact to feed.
+    # Signed with the Developer ID Application certificate the release workflow
+    # feeds in through CSC_LINK, then sent to Apple to be notarized. Both halves
+    # are needed: a signed build that was never notarized is still stopped on
+    # first launch. Notarization adds a few minutes per architecture.
+    #
+    # Nothing else is configured because the defaults are already right:
+    # hardenedRuntime is on, and electron-builder's stock entitlements carry the
+    # three keys Electron needs (allow-jit, allow-unsigned-executable-memory,
+    # disable-library-validation). A build/entitlements.mac.plist would override
+    # them wholesale, so it is deliberately absent.
+    notarize: true
+    # A `zip` target belongs here the day Umber moves to electron-updater:
+    # Squirrel.Mac updates from a zip, not a dmg. The app links people to the
+    # dmg today, so there is nothing for a second artifact to feed.
 
 win:
     target: nsis

@@ -6,7 +6,7 @@ name: Release
 #
 # To cut a release: set `version` in apps/desktop/package.json, commit it, then
 # push a matching `v` tag. Each runner builds its own platform and uploads into
-# one draft release, which stays a draft until it is published by hand — so a
+# one draft release, which stays a draft until it is published by hand, so a
 # half-finished matrix is never offered to anyone as an update.
 
 on:
@@ -29,9 +29,13 @@ jobs:
             matrix:
                 include:
                     # macos runners are arm64, so the Intel build has to be
-                    # asked for by name or Intel Macs get nothing.
+                    # asked for by name or Intel Macs get nothing. `sign` marks
+                    # the only job holding a certificate; the steps below key
+                    # off it rather than off the runner, so the day Windows
+                    # gains one it is a single flag here.
                     - os: macos-latest
                       args: --mac --x64 --arm64
+                      sign: true
                     - os: windows-latest
                       args: --win
                     - os: ubuntu-latest
@@ -52,12 +56,40 @@ jobs:
 
             - run: pnpm install --frozen-lockfile
 
+            # The App Store Connect key that authorises notarization. It is a
+            # PEM text file, so the secret holds it verbatim; electron-builder
+            # wants a path rather than the contents, hence writing it out. Kept
+            # under RUNNER_TEMP so it never sits in the working tree.
+            - name: Write the notarization key
+              if: matrix.sign
+              env:
+                  APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+              run: |
+                  key="$RUNNER_TEMP/apple-api-key.p8"
+                  printf '%s' "$APPLE_API_KEY_P8" > "$key"
+                  echo "APPLE_API_KEY=$key" >> "$GITHUB_ENV"
+
             - name: Build and publish
-              run: pnpm --filter @umber/desktop run release -- ${{ matrix.args }} --publish always
+              # No `--` in front of the flags. pnpm 11 forwards it to the script
+              # verbatim instead of stripping it, and electron-builder's parser
+              # reads a bare `--` as the end of the options, so every flag after
+              # it is collected as a positional and silently ignored: no target,
+              # no architectures, no publishing. Arguments reach the script fine
+              # without it.
+              run: pnpm --filter @umber/desktop run release ${{ matrix.args }} --publish always
               env:
                   # electron-builder creates the draft release and uploads to it.
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  # Nothing is signed yet: no Apple identity, no Windows
-                  # certificate. Saying so keeps electron-builder from hunting
-                  # for one and failing the build over its absence.
-                  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+                  # Signing material, macOS only. CSC_LINK is not platform
+                  # specific to electron-builder, so leaking it into the Windows
+                  # job would make that runner try to sign an installer with an
+                  # Apple certificate and fail. Windows and Linux get empty
+                  # values plus auto-discovery off, which is what keeps
+                  # electron-builder from hunting for an identity that is not
+                  # there and failing the build over its absence.
+                  CSC_IDENTITY_AUTO_DISCOVERY: ${{ matrix.sign && 'true' || 'false' }}
+                  CSC_LINK: ${{ matrix.sign && secrets.CSC_LINK || '' }}
+                  CSC_KEY_PASSWORD: ${{ matrix.sign && secrets.CSC_KEY_PASSWORD || '' }}
+                  APPLE_API_KEY_ID: ${{ matrix.sign && secrets.APPLE_API_KEY_ID || '' }}
+                  APPLE_API_ISSUER: ${{ matrix.sign && secrets.APPLE_API_ISSUER || '' }}
