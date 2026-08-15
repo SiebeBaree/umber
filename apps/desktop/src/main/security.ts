@@ -60,6 +60,9 @@ export const PROVIDER_API_HOSTS: ReadonlySet<string> = new Set([
     'ark.ap-southeast.bytepluses.com',
     'dashscope-intl.aliyuncs.com',
     'dashscope.aliyuncs.com',
+    'api.minimax.io',
+    'api.x.ai',
+    'api.reve.com',
 ])
 
 /**

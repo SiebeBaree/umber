@@ -1,5 +1,21 @@
-import { fluxTwoPrice, gptImagePrice } from './price-rules'
-import type { ImageModel } from './types'
+import {
+    fluxTwoFlexPrice,
+    fluxTwoMaxPrice,
+    fluxTwoPrice,
+    gptImagePrice,
+    qwenImageThreeProPrice,
+    seedreamFiveProPrice,
+} from './price-rules'
+import type { ImageModel, ImageReferenceRule } from './types'
+
+/** What nearly every vendor documents: JPEG, PNG and WebP. */
+const COMMON_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+
+/** Gemini also takes Apple's HEIC/HEIF straight off an iPhone camera roll. */
+const GOOGLE_IMAGE_TYPES = [...COMMON_IMAGE_TYPES, 'image/heic', 'image/heif'] as const
+
+/** For models whose generation endpoint takes no image input at all. */
+const NO_REFERENCES: ImageReferenceRule = { max: 0, types: [] }
 
 /**
  * The image models Umber can drive.
@@ -21,6 +37,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K', '2K', '4K'],
         maxOutputs: 4,
+        references: { max: 14, types: GOOGLE_IMAGE_TYPES },
         pricePerImage: { '1K': 0.067, '2K': 0.101, '4K': 0.151 },
     },
     {
@@ -32,7 +49,21 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K', '2K', '4K'],
         maxOutputs: 4,
+        references: { max: 14, types: GOOGLE_IMAGE_TYPES },
         pricePerImage: { '1K': 0.134, '2K': 0.134, '4K': 0.24 },
+    },
+    {
+        id: 'nano-banana-2-lite',
+        name: 'Nano Banana 2 Lite',
+        provider: 'google',
+        kind: 'image',
+        releasedOn: '2026-05-28',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        // The Lite tier renders 1K only; the sized tiers stay on the full model.
+        resolutions: ['1K'],
+        maxOutputs: 4,
+        references: { max: 14, types: GOOGLE_IMAGE_TYPES },
+        pricePerImage: 0.0336,
     },
     {
         id: 'nano-banana',
@@ -43,6 +74,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K'],
         maxOutputs: 4,
+        references: { max: 3, types: GOOGLE_IMAGE_TYPES },
         pricePerImage: 0.039,
     },
     // The GPT Image family: OpenAI bills these by output tokens, which fall out
@@ -60,6 +92,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K', '2K', '4K'],
         maxOutputs: 4,
+        references: { max: 16, types: COMMON_IMAGE_TYPES },
         pricePerImage: gptImagePrice('gpt-image-2', 'low'),
         quality: {
             options: ['low', 'medium', 'high'],
@@ -79,6 +112,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3'],
         resolutions: ['1K'],
         maxOutputs: 4,
+        references: { max: 16, types: COMMON_IMAGE_TYPES },
         pricePerImage: gptImagePrice('gpt-image-1-5', 'low'),
         quality: {
             options: ['low', 'medium', 'high'],
@@ -98,6 +132,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3'],
         resolutions: ['1K'],
         maxOutputs: 4,
+        references: { max: 16, types: COMMON_IMAGE_TYPES },
         pricePerImage: gptImagePrice('gpt-image-1-mini', 'low'),
         quality: {
             options: ['low', 'medium', 'high'],
@@ -117,6 +152,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3'],
         resolutions: ['1K'],
         maxOutputs: 4,
+        references: { max: 16, types: COMMON_IMAGE_TYPES },
         pricePerImage: gptImagePrice('gpt-image-1', 'low'),
         quality: {
             options: ['low', 'medium', 'high'],
@@ -128,6 +164,18 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         },
     },
     {
+        id: 'flux-2-max',
+        name: 'FLUX.2 [max]',
+        provider: 'blackForestLabs',
+        kind: 'image',
+        releasedOn: '2025-12-16',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        resolutions: ['1K', '2K'],
+        maxOutputs: 4,
+        references: { max: 8, types: COMMON_IMAGE_TYPES },
+        pricePerImage: fluxTwoMaxPrice,
+    },
+    {
         id: 'flux-2-pro',
         name: 'FLUX.2 [pro]',
         provider: 'blackForestLabs',
@@ -136,7 +184,20 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K', '2K'],
         maxOutputs: 4,
+        references: { max: 8, types: COMMON_IMAGE_TYPES },
         pricePerImage: fluxTwoPrice,
+    },
+    {
+        id: 'flux-2-flex',
+        name: 'FLUX.2 [flex]',
+        provider: 'blackForestLabs',
+        kind: 'image',
+        releasedOn: '2025-11-25',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        resolutions: ['1K', '2K'],
+        maxOutputs: 4,
+        references: { max: 8, types: COMMON_IMAGE_TYPES },
+        pricePerImage: fluxTwoFlexPrice,
     },
     {
         id: 'flux-1-kontext-pro',
@@ -147,6 +208,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K'],
         maxOutputs: 4,
+        references: { max: 4, types: COMMON_IMAGE_TYPES },
         pricePerImage: 0.04,
     },
     {
@@ -158,7 +220,35 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K'],
         maxOutputs: 4,
+        references: { max: 1, types: COMMON_IMAGE_TYPES },
         pricePerImage: 0.04,
+    },
+    {
+        id: 'seedream-5-pro',
+        name: 'Seedream 5.0 Pro',
+        provider: 'bytedance',
+        kind: 'image',
+        releasedOn: '2026-07-08',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        // Pro renders 1K to 2K; the 4K tiers stay on Seedream 5.0 Lite.
+        resolutions: ['1K', '2K'],
+        maxOutputs: 4,
+        references: { max: 10, types: COMMON_IMAGE_TYPES },
+        pricePerImage: seedreamFiveProPrice,
+    },
+    {
+        id: 'seedream-5-lite',
+        name: 'Seedream 5.0 Lite',
+        provider: 'bytedance',
+        kind: 'image',
+        releasedOn: '2026-01-28',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        // Lite has a pixel floor above the whole 1K tier, like Seedream 4.5.
+        resolutions: ['2K', '4K'],
+        maxOutputs: 4,
+        // ModelArk caps references plus outputs at 15 per request.
+        references: { max: 14, types: COMMON_IMAGE_TYPES },
+        pricePerImage: 0.035,
     },
     {
         id: 'seedream-4-5',
@@ -170,6 +260,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         // 4.5 has a pixel floor above the whole 1K tier, which 4.0 still has.
         resolutions: ['2K', '4K'],
         maxOutputs: 4,
+        references: { max: 10, types: COMMON_IMAGE_TYPES },
         pricePerImage: 0.04,
     },
     {
@@ -181,7 +272,21 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16'],
         resolutions: ['1K', '2K', '4K'],
         maxOutputs: 4,
+        references: { max: 10, types: COMMON_IMAGE_TYPES },
         pricePerImage: 0.03,
+    },
+    {
+        id: 'qwen-image-3-pro',
+        name: 'Qwen Image 3.0 Pro',
+        provider: 'alibaba',
+        kind: 'image',
+        releasedOn: '2026-07-21',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        resolutions: ['1K', '2K'],
+        maxOutputs: 4,
+        // The editing path takes one to three input images.
+        references: { max: 3, types: ['image/jpeg', 'image/png', 'image/webp', 'image/bmp'] },
+        pricePerImage: qwenImageThreeProPrice,
     },
     {
         id: 'qwen-image',
@@ -194,6 +299,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '4:3', '3:4', '16:9', '9:16'],
         resolutions: ['1K'],
         maxOutputs: 4,
+        references: NO_REFERENCES,
         pricePerImage: 0.03,
     },
     {
@@ -205,6 +311,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K', '2K'],
         maxOutputs: 4,
+        references: { max: 1, types: ['image/jpeg', 'image/png'] },
         pricePerImage: 0.014,
         pricePerImageFromImage: 0.028,
     },
@@ -217,6 +324,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '4:3', '3:4', '16:9', '9:16', '21:9'],
         resolutions: ['1K', '2K'],
         maxOutputs: 4,
+        references: { max: 3, types: COMMON_IMAGE_TYPES },
         pricePerImage: { '1K': 0.05, '2K': 0.08 },
     },
     // Ideogram prices by rendering speed, which is what its quality tiers are.
@@ -229,6 +337,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16'],
         resolutions: ['1K'],
         maxOutputs: 4,
+        references: NO_REFERENCES,
         pricePerImage: 0.03,
         quality: {
             options: ['low', 'medium', 'high'],
@@ -244,6 +353,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16'],
         resolutions: ['1K'],
         maxOutputs: 4,
+        references: { max: 3, types: COMMON_IMAGE_TYPES },
         pricePerImage: 0.03,
         quality: {
             options: ['low', 'medium', 'high'],
@@ -259,6 +369,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16'],
         resolutions: ['1K'],
         maxOutputs: 4,
+        references: NO_REFERENCES,
         pricePerImage: 0.035,
     },
     {
@@ -270,6 +381,34 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16'],
         resolutions: ['1K'],
         maxOutputs: 4,
+        references: NO_REFERENCES,
         pricePerImage: 0.04,
+    },
+    {
+        id: 'grok-imagine-image-2',
+        name: 'Grok Imagine Image 2.0',
+        provider: 'xai',
+        kind: 'image',
+        releasedOn: '2026-08-07',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16'],
+        resolutions: ['1K', '2K'],
+        maxOutputs: 4,
+        // References go through the edits endpoint, which takes up to three.
+        references: { max: 3, types: COMMON_IMAGE_TYPES },
+        pricePerImage: 0.04,
+    },
+    // Reve's v2 endpoint has no model picker: `latest` currently resolves to
+    // Reve 2.1, and the version alias is dated the day it shipped.
+    {
+        id: 'reve-2-1',
+        name: 'Reve 2.1',
+        provider: 'reve',
+        kind: 'image',
+        releasedOn: '2026-06-01',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        resolutions: ['1K'],
+        maxOutputs: 4,
+        references: { max: 8, types: COMMON_IMAGE_TYPES },
+        pricePerImage: 0.2,
     },
 ]

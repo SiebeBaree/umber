@@ -48,6 +48,10 @@ export interface StartInput {
     readonly model: Model
     readonly settings: ModeSettings
     readonly references: readonly File[]
+    /** The still a video run starts from, where one was attached. */
+    readonly firstFrame?: File
+    /** The still a video run renders towards; only models that declare it. */
+    readonly lastFrame?: File
 }
 
 export function newJob(input: StartInput): GenerationJob {

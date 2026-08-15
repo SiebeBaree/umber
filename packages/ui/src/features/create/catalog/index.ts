@@ -13,11 +13,18 @@ export const PROVIDERS: Readonly<Record<ProviderId, Provider>> = {
     openai: { id: 'openai', name: 'OpenAI' },
     blackForestLabs: { id: 'blackForestLabs', name: 'Black Forest Labs' },
     bytedance: { id: 'bytedance', name: 'ByteDance' },
-    kuaishou: { id: 'kuaishou', name: 'Kuaishou' },
+    // Kuaishou owns Kling, but nobody buys a key from Kuaishou — the console,
+    // the docs and the models all say Kling, so that is the name shown. The id
+    // stays as it is: it keys the vault, and renaming it would strand any key
+    // already stored under it.
+    kuaishou: { id: 'kuaishou', name: 'Kling' },
     alibaba: { id: 'alibaba', name: 'Alibaba' },
     runway: { id: 'runway', name: 'Runway' },
     ideogram: { id: 'ideogram', name: 'Ideogram' },
     recraft: { id: 'recraft', name: 'Recraft' },
+    minimax: { id: 'minimax', name: 'MiniMax' },
+    xai: { id: 'xai', name: 'xAI' },
+    reve: { id: 'reve', name: 'Reve' },
 }
 
 export const MODELS_BY_MODE = {

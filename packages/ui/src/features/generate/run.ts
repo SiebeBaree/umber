@@ -62,6 +62,8 @@ async function performRun(
         quality: input.settings.quality,
         durationSeconds: job.durationSeconds,
         references: input.references,
+        ...(input.firstFrame === undefined ? {} : { firstFrame: input.firstFrame }),
+        ...(input.lastFrame === undefined ? {} : { lastFrame: input.lastFrame }),
     })
 
     // Measured once, the moment the files are in hand, so every output of a

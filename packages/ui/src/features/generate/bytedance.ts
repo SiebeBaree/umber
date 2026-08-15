@@ -1,7 +1,7 @@
 import { httpFetch } from '../../lib/http'
-import type { AspectRatio } from '../create/catalog'
 import { GenerationError, offlineError } from './errors'
 import type { EngineRequest } from './request'
+import { seedreamSize } from './seedream-sizes'
 import { decodeBase64Blob, encodeDataUri, fetchBinary, poll, readJson } from './shared'
 
 /**
@@ -17,52 +17,13 @@ const API_ROOT = 'https://ark.ap-southeast.bytepluses.com/api/v3'
  * `dreamina-` prefix is real and belongs to the Seedance 2.x line only.
  */
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
+    'seedream-5-pro': 'dola-seedream-5-0-pro-260628',
+    'seedream-5-lite': 'seedream-5-0-lite-260128',
     'seedream-4-5': 'seedream-4-5-251128',
     'seedream-4': 'seedream-4-0-250828',
+    'seedance-2-5': 'dreamina-seedance-2-5-260628',
     'seedance-2-0': 'dreamina-seedance-2-0-260128',
     'seedance-1-pro': 'seedance-1-0-pro-250528',
-}
-
-/**
- * The image endpoint has no ratio parameter: a bare `2K` lets the model pick a
- * shape from the prompt, which lands square unless the prompt happens to say
- * otherwise. Sending exact pixels is the only way to honour the composer, so
- * these are ByteDance's own published dimensions per tier and ratio.
- */
-const SEEDREAM_SIZES: Readonly<Record<string, Readonly<Partial<Record<AspectRatio, string>>>>> = {
-    '1K': {
-        '1:1': '1024x1024',
-        '3:2': '1248x832',
-        '2:3': '832x1248',
-        '4:3': '1152x864',
-        '3:4': '864x1152',
-        '16:9': '1280x720',
-        '9:16': '720x1280',
-    },
-    '2K': {
-        '1:1': '2048x2048',
-        '3:2': '2496x1664',
-        '2:3': '1664x2496',
-        '4:3': '2304x1728',
-        '3:4': '1728x2304',
-        '16:9': '2848x1600',
-        '9:16': '1600x2848',
-    },
-    '4K': {
-        '1:1': '4096x4096',
-        '3:2': '4992x3328',
-        '2:3': '3328x4992',
-        '4:3': '4704x3520',
-        '3:4': '3520x4704',
-        '16:9': '5504x3040',
-        '9:16': '3040x5504',
-    },
-}
-
-function seedreamSize(ratio: AspectRatio, resolution: string): string {
-    const tier = SEEDREAM_SIZES[resolution] ?? SEEDREAM_SIZES['2K'] ?? {}
-
-    return tier[ratio] ?? '2048x2048'
 }
 
 interface ArkError {
@@ -101,8 +62,10 @@ interface SeedreamResponse {
 
 /** One image per call, so a multi-image run is parallel calls. */
 async function generateOneImage(request: EngineRequest): Promise<Blob> {
+    // Lite caps references plus outputs at 15; everything else stops at 10.
+    const referenceCap = request.modelId === 'seedream-5-lite' ? 14 : 10
     const references = await Promise.all(
-        request.references.slice(0, 14).map((file) => encodeDataUri(file)),
+        request.references.slice(0, referenceCap).map((file) => encodeDataUri(file)),
     )
 
     let response: Response
@@ -113,7 +76,7 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
             json: {
                 model: WIRE_MODEL_IDS[request.modelId] ?? request.modelId,
                 prompt: request.prompt,
-                size: seedreamSize(request.ratio, request.resolution),
+                size: seedreamSize(request.modelId, request.ratio, request.resolution),
                 response_format: 'b64_json',
                 watermark: false,
                 sequential_image_generation: 'disabled',
@@ -154,18 +117,40 @@ interface SeedanceTask {
     readonly error?: { readonly message?: string }
 }
 
-/** Starts the Seedance content-generation task and returns its id. */
-async function createSeedanceTask(request: EngineRequest): Promise<string> {
-    const reference = request.references[0]
+/**
+ * The Seedance content list: the prompt, then every still through the same
+ * entry shape, told apart by role — the frames by name, everything else as
+ * reference images (which only Seedance 2.0 declares).
+ */
+async function seedanceContent(request: EngineRequest): Promise<Record<string, unknown>[]> {
     const content: Record<string, unknown>[] = [{ type: 'text', text: request.prompt }]
 
-    if (reference !== undefined) {
-        content.push({
-            type: 'image_url',
-            image_url: { url: await encodeDataUri(reference) },
-            role: 'first_frame',
-        })
+    // Seedance 2.5 raised the reference-image ceiling from 9 to 30.
+    const referenceCap = request.modelId === 'seedance-2-5' ? 30 : 9
+    const stills: readonly (readonly [File | undefined, string])[] = [
+        [request.firstFrame, 'first_frame'],
+        [request.lastFrame, 'last_frame'],
+        ...request.references
+            .slice(0, referenceCap)
+            .map((file) => [file, 'reference_image'] as const),
+    ]
+
+    for (const [file, role] of stills) {
+        if (file !== undefined) {
+            content.push({
+                type: 'image_url',
+                image_url: { url: await encodeDataUri(file) },
+                role,
+            })
+        }
     }
+
+    return content
+}
+
+/** Starts the Seedance content-generation task and returns its id. */
+async function createSeedanceTask(request: EngineRequest): Promise<string> {
+    const content = await seedanceContent(request)
 
     let created: Response
 
@@ -177,10 +162,15 @@ async function createSeedanceTask(request: EngineRequest): Promise<string> {
                 content,
                 resolution: request.resolution.toLowerCase(),
                 // Animating a still only accepts `adaptive`, which is also the
-                // one value that will not centre-crop the given frame.
-                ratio: reference === undefined ? request.ratio : 'adaptive',
+                // one value that will not centre-crop the given frames.
+                ratio:
+                    request.firstFrame === undefined && request.lastFrame === undefined
+                        ? request.ratio
+                        : 'adaptive',
                 duration: request.durationSeconds,
                 watermark: false,
+                // 2.5 renders native audio; saying so keeps the bill honest.
+                ...(request.modelId === 'seedance-2-5' ? { generate_audio: true } : {}),
             },
         })
     } catch {

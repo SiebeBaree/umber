@@ -15,14 +15,15 @@ const API_ROOT = 'https://generativelanguage.googleapis.com/v1beta'
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'nano-banana-pro': 'gemini-3-pro-image',
     'nano-banana-2': 'gemini-3.1-flash-image',
+    'nano-banana-2-lite': 'gemini-3.1-flash-lite-image',
     'nano-banana': 'gemini-2.5-flash-image',
     'veo-3-1': 'veo-3.1-generate-preview',
     'veo-3-1-fast': 'veo-3.1-fast-generate-preview',
 }
 
-/** Models still on the original Nano Banana, which renders 1K only and
- * rejects an `imageSize`. */
-const FIXED_SIZE_MODELS = new Set(['nano-banana'])
+/** Models that render one fixed 1K size, so an `imageSize` has nothing to
+ * pick and is best left unsent. */
+const FIXED_SIZE_MODELS = new Set(['nano-banana', 'nano-banana-2-lite'])
 
 function apiKeyOf(request: EngineRequest): string {
     return request.credentials['apiKey'] ?? ''

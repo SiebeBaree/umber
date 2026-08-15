@@ -3,6 +3,7 @@ import { verifyGoogleKey } from '../generate/google'
 import { verifyOpenAiKey, type KeyVerification } from '../generate/openai'
 import { verifyRecraftKey } from '../generate/recraft'
 import { verifyRunwayKey } from '../generate/runway'
+import { verifyXaiKey } from '../generate/xai'
 import type { KeyProvider } from './key-providers'
 
 /**
@@ -20,6 +21,7 @@ const VERIFIERS: Readonly<Record<string, Verifier>> = {
     blackForestLabs: verifyBflKey,
     recraft: verifyRecraftKey,
     runway: verifyRunwayKey,
+    xai: verifyXaiKey,
 }
 
 export function verifyConnection(

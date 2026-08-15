@@ -4,12 +4,15 @@ import type { EngineRequest } from './request'
 import { encodeBase64, fetchBinary, poll, readJson } from './shared'
 
 /**
- * The Kling open platform (international endpoint). Kling signs every request
- * with a short-lived JWT built from the access/secret key pair, and answers in
- * a `{code, message, data}` envelope with polled tasks behind it.
+ * The Kling open platform (international endpoint), spanning two API
+ * generations. Legacy models live under `/v1` and answer to either a console
+ * API key or a short-lived JWT built from the old access/secret key pair;
+ * Kling 3.0 lives on the API 2.0 endpoints, which take the API key only.
+ * Everything answers in the same `{code, message, data}` envelope.
  */
 
-const API_ROOT = 'https://api-singapore.klingai.com/v1'
+const DOMAIN = 'https://api-singapore.klingai.com'
+const API_ROOT = `${DOMAIN}/v1`
 
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'kling-2-6': 'kling-v2-6',
@@ -51,6 +54,14 @@ async function klingToken(accessKey: string, secretKey: string): Promise<string>
 }
 
 async function headersOf(request: EngineRequest): Promise<Readonly<Record<string, string>>> {
+    // New connections store a console API key, which every model accepts;
+    // key pairs from before API 2.0 still sign a JWT for the legacy models.
+    const apiKey = request.credentials['apiKey'] ?? ''
+
+    if (apiKey !== '') {
+        return { Authorization: `Bearer ${apiKey}` }
+    }
+
     const token = await klingToken(
         request.credentials['accessKey'] ?? '',
         request.credentials['secretKey'] ?? '',
@@ -125,20 +136,24 @@ function awaitTask(
     })
 }
 
-export async function generateKlingVideo(request: EngineRequest): Promise<Blob[]> {
-    const reference = request.references[0]
-    const endpoint = reference === undefined ? 'videos/text2video' : 'videos/image2video'
+/** Legacy `/v1` video generation; the API 2.0 module wraps this with the
+ * model dispatch, mirroring how Veo fronts the Google module. */
+export async function generateKlingLegacyVideo(request: EngineRequest): Promise<Blob[]> {
+    const { firstFrame, lastFrame } = request
+    const grounded = firstFrame !== undefined || lastFrame !== undefined
+    const endpoint = grounded ? 'videos/image2video' : 'videos/text2video'
 
     // Kling still frames output tiers as modes (pro is its 1080p tier), and
-    // wants reference images as raw base64, without the data: prefix.
+    // wants frames as raw base64, without the data: prefix. `image` is the
+    // opening frame, `image_tail` the closing one; either alone is valid.
     const payload = {
         model_name: WIRE_MODEL_IDS[request.modelId] ?? request.modelId,
         prompt: request.prompt,
         mode: request.resolution === '1080p' ? 'pro' : 'std',
         duration: String(request.durationSeconds),
-        ...(reference === undefined
-            ? { aspect_ratio: request.ratio }
-            : { image: await encodeBase64(reference) }),
+        ...(grounded ? {} : { aspect_ratio: request.ratio }),
+        ...(firstFrame === undefined ? {} : { image: await encodeBase64(firstFrame) }),
+        ...(lastFrame === undefined ? {} : { image_tail: await encodeBase64(lastFrame) }),
     }
 
     let created: Response
@@ -208,3 +223,6 @@ export async function generateKlingImages(request: EngineRequest): Promise<Blob[
 
     return Promise.all(urls.map((url) => fetchBinary('Kling', url, 'image/png')))
 }
+
+/** Shared with the Kling 3.0 module, which speaks API 2.0 with the same key. */
+export { DOMAIN as KLING_DOMAIN, headersOf as klingHeadersOf, unwrap as unwrapKling }

@@ -197,22 +197,40 @@ export function generateRunwayImages(request: EngineRequest): Promise<Blob[]> {
     return Promise.all(Array.from({ length: request.count }, () => generateOneImage(request)))
 }
 
+/** The frames as Runway wants them: explicitly positioned keyframe entries. */
+async function framedPromptImages(
+    firstFrame: File | undefined,
+    lastFrame: File | undefined,
+): Promise<readonly { readonly uri: string; readonly position: string }[]> {
+    const entries: { uri: string; position: string }[] = []
+
+    if (firstFrame !== undefined) {
+        entries.push({ uri: await encodeDataUri(firstFrame), position: 'first' })
+    }
+
+    if (lastFrame !== undefined) {
+        entries.push({ uri: await encodeDataUri(lastFrame), position: 'last' })
+    }
+
+    return entries
+}
+
 export async function generateRunwayVideo(request: EngineRequest): Promise<Blob[]> {
     const model = WIRE_MODEL_IDS[request.modelId] ?? request.modelId
-    const reference = request.references[0]
+    const { firstFrame, lastFrame } = request
 
     let taskId: string
 
-    if (reference === undefined) {
+    if (firstFrame === undefined && lastFrame === undefined) {
         if (model === 'gen4_turbo') {
             throw new GenerationError(
-                'Gen-4 Turbo animates a picture. Add a reference image, or switch to Gen-4.5.',
+                'Gen-4 Turbo animates a picture. Add a start frame, or switch to Gen-4.5.',
             )
         }
 
         if (request.ratio !== '16:9' && request.ratio !== '9:16') {
             throw new GenerationError(
-                `Runway renders text-to-video in 16:9 or 9:16 only. Add a reference image for ${request.ratio}.`,
+                `Runway renders text-to-video in 16:9 or 9:16 only. Add a start frame for ${request.ratio}.`,
             )
         }
 
@@ -225,7 +243,7 @@ export async function generateRunwayVideo(request: EngineRequest): Promise<Blob[
     } else {
         taskId = await createTask(request, 'image_to_video', {
             model,
-            promptImage: await encodeDataUri(reference),
+            promptImage: await framedPromptImages(firstFrame, lastFrame),
             promptText: request.prompt,
             ratio: VIDEO_RATIOS[request.ratio] ?? '1280:720',
             duration: request.durationSeconds,

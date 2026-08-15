@@ -81,7 +81,7 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
     {
         id: 'google',
         name: PROVIDERS.google.name,
-        unlocks: 'Nano Banana and Veo',
+        unlocks: 'Nano Banana, Veo and Omni Flash',
         console: { label: 'Google AI Studio', url: 'https://aistudio.google.com/apikey' },
         setup: [
             {
@@ -125,7 +125,7 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
     {
         id: 'blackForestLabs',
         name: PROVIDERS.blackForestLabs.name,
-        unlocks: 'The FLUX image family',
+        unlocks: 'FLUX images and FLUX.3 Video',
         console: { label: 'BFL dashboard', url: 'https://dashboard.bfl.ai' },
         setup: [
             {
@@ -189,12 +189,12 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
     {
         id: 'kuaishou',
         name: PROVIDERS.kuaishou.name,
-        unlocks: 'Kling video and images',
+        unlocks: 'Kling video and Kling Image',
         console: { label: 'Kling developer console', url: 'https://kling.ai/dev' },
         setup: [
             {
-                title: 'Create a key pair',
-                detail: 'The developer console issues an access key and a secret key together.',
+                title: 'Create an API key',
+                detail: 'Kling API 2.0 uses a single API key, shown only once when created.',
                 url: 'https://kling.ai/dev/api-key',
             },
             {
@@ -203,26 +203,16 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
                 url: 'https://kling.ai/dev',
             },
         ],
-        fields: [
-            {
-                kind: 'secret',
-                id: 'accessKey',
-                label: 'Access key',
-                placeholder: 'Your access key',
-            },
-            {
-                kind: 'secret',
-                id: 'secretKey',
-                label: 'Secret key',
-                placeholder: 'Your secret key',
-            },
-        ],
-        note: 'Kling signs every request with a key pair, so both parts are needed.',
+        fields: [apiKeyField('Your Kling API key')],
+        // Connections made before API 2.0 stored an access/secret key pair;
+        // those keep working for the older models, but Kling 3.0 needs a key.
+        note: 'Kling 3.0 only answers to an API key, not the older access/secret key pair.',
     },
     {
         id: 'bytedance',
         name: PROVIDERS.bytedance.name,
         unlocks: 'Seedream images and Seedance video',
+
         console: { label: 'BytePlus ModelArk', url: 'https://console.byteplus.com/ark' },
         setup: [
             {
@@ -237,7 +227,7 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
             },
         ],
         fields: [apiKeyField('Your ModelArk API key')],
-        note: 'Seedance 2.0 also needs a balance over $30 or a Seedance resource pack.',
+        note: 'Seedance 2.x also needs a balance over $30 or a Seedance resource pack.',
     },
     {
         id: 'alibaba',
@@ -272,6 +262,67 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
                 hint: 'Model Studio keys are region-locked, so pick where yours was created.',
             },
         ],
+    },
+    {
+        id: 'minimax',
+        name: PROVIDERS.minimax.name,
+        unlocks: 'Hailuo 3 video',
+        console: {
+            label: 'MiniMax platform',
+            url: 'https://platform.minimax.io/user-center/basic-information/interface-key',
+        },
+        setup: [
+            {
+                title: 'Create an API key',
+                detail: 'Keys live under Account Management in the MiniMax platform.',
+                url: 'https://platform.minimax.io/user-center/basic-information/interface-key',
+            },
+            {
+                title: 'Top up your balance',
+                detail: 'API usage is prepaid and separate from the Hailuo consumer apps.',
+                url: 'https://platform.minimax.io',
+            },
+        ],
+        fields: [apiKeyField('Your MiniMax API key')],
+    },
+    {
+        id: 'xai',
+        name: PROVIDERS.xai.name,
+        unlocks: 'Grok Imagine images and video',
+        console: { label: 'xAI console', url: 'https://console.x.ai' },
+        setup: [
+            {
+                title: 'Create an API key',
+                detail: 'Keys are made in the xAI console, separate from a Grok subscription.',
+                url: 'https://console.x.ai',
+            },
+            {
+                title: 'Add billing credit',
+                detail: 'API usage is prepaid. A few dollars covers plenty of runs.',
+                url: 'https://console.x.ai',
+            },
+        ],
+        fields: [apiKeyField('xai-…')],
+        note: 'Umber checks the key with xAI when you connect.',
+    },
+    {
+        id: 'reve',
+        name: PROVIDERS.reve.name,
+        unlocks: 'Reve 2.1 images',
+        console: { label: 'Reve API console', url: 'https://api.reve.com/console' },
+        setup: [
+            {
+                title: 'Create an API key',
+                detail: 'Keys live in the Reve API console, separate from the Reve app.',
+                url: 'https://api.reve.com/console',
+            },
+            {
+                title: 'Buy credits',
+                detail: 'API usage is prepaid in credits; a v2 image costs 150 of them.',
+                url: 'https://api.reve.com/console',
+            },
+        ],
+        fields: [apiKeyField('Your Reve API key')],
     },
 ]
 

@@ -42,7 +42,7 @@ async function createSoraJob(request: EngineRequest): Promise<Response> {
     const model = OPENAI_WIRE_MODEL_IDS[request.modelId] ?? request.modelId
     const size = soraSize(request.ratio, request.resolution)
     const seconds = String(request.durationSeconds)
-    const reference = request.references[0]
+    const reference = request.firstFrame
 
     if (reference === undefined) {
         return httpFetch(`${OPENAI_API_ROOT}/videos`, {

@@ -16,6 +16,9 @@ export const PROVIDER_IDS = [
     'runway',
     'ideogram',
     'recraft',
+    'minimax',
+    'xai',
+    'reve',
 ] as const
 
 export type ProviderId = (typeof PROVIDER_IDS)[number]
@@ -57,7 +60,9 @@ export function ratioToCss(ratio: AspectRatio): string {
 }
 
 export type ImageResolution = '1K' | '2K' | '4K'
-export type VideoResolution = '480p' | '720p' | '1080p' | '4K'
+// MiniMax renders a 768-line tier and a 2K tier that no one else names, so
+// both sit in the union alongside the common broadcast tiers.
+export type VideoResolution = '480p' | '720p' | '768p' | '1080p' | '2K' | '4K'
 
 /**
  * The render-effort tiers some models expose. Quality is priced per tier, so a
@@ -126,6 +131,33 @@ export function durationOptions(rule: DurationRule): readonly number[] {
     return options
 }
 
+/**
+ * What an image model accepts alongside the prompt. Declared per model for the
+ * same reason as every other capability here: the picker must not offer an
+ * upload the API would reject, and the reconciler needs the numbers to trim an
+ * attachment set when the user switches to a stricter model.
+ */
+export interface ImageReferenceRule {
+    /** Most reference images the API takes in one request. Zero means none. */
+    readonly max: number
+    /** MIME types the API accepts. Empty when `max` is zero. */
+    readonly types: readonly string[]
+}
+
+/**
+ * The stills a video model can be handed. Every model in the catalog animates
+ * a supplied first frame, so only what varies is declared: the closing frame,
+ * and reference images that guide style or subject without being a frame.
+ */
+export interface VideoAssetRule {
+    /** Whether the API takes an end frame to render towards. */
+    readonly lastFrame: boolean
+    /** Most style/subject reference images accepted beyond the frames. */
+    readonly referenceImages: number
+    /** MIME types the API accepts for any of these inputs. */
+    readonly types: readonly string[]
+}
+
 interface ModelBase {
     readonly id: string
     readonly name: string
@@ -143,6 +175,8 @@ export interface ImageModel extends ModelBase {
     readonly resolutions: readonly [ImageResolution, ...ImageResolution[]]
     /** Most images this model will return in one request; the stepper caps at 4. */
     readonly maxOutputs: number
+    /** What the model accepts as reference images. */
+    readonly references: ImageReferenceRule
     /** USD for one image. Ignored when the model prices by quality tier. */
     readonly pricePerImage: Price
     /** Present only when the model trades render quality against price. */
@@ -155,6 +189,8 @@ export interface VideoModel extends ModelBase {
     readonly kind: 'video'
     readonly resolutions: readonly [VideoResolution, ...VideoResolution[]]
     readonly durations: DurationRule
+    /** The stills the model can be handed alongside the prompt. */
+    readonly assets: VideoAssetRule
     /** USD for one second of finished clip. */
     readonly pricePerSecond: Price
     /** Only where animating a still is billed differently from text alone. */
@@ -164,3 +200,36 @@ export interface VideoModel extends ModelBase {
 }
 
 export type Model = ImageModel | VideoModel
+
+/**
+ * A model's attachment rules flattened into one shape, so the composer never
+ * branches on the model kind to know what the picker may offer.
+ */
+export interface AssetCapabilities {
+    /** Whether start and end frame slots exist at all — video models only. */
+    readonly frames: boolean
+    /** Whether the end frame slot exists. Never true without `frames`. */
+    readonly lastFrame: boolean
+    /** Most plain reference images the model takes. */
+    readonly maxReferences: number
+    /** Accepted MIME types, ready for an `<input accept>`. */
+    readonly types: readonly string[]
+}
+
+export function assetCapabilitiesOf(model: Model): AssetCapabilities {
+    if (model.kind === 'image') {
+        return {
+            frames: false,
+            lastFrame: false,
+            maxReferences: model.references.max,
+            types: model.references.types,
+        }
+    }
+
+    return {
+        frames: true,
+        lastFrame: model.assets.lastFrame,
+        maxReferences: model.assets.referenceImages,
+        types: model.assets.types,
+    }
+}

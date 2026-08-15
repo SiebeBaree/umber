@@ -7,6 +7,7 @@ import {
     googleKeyOf,
     toGoogleError,
 } from './google'
+import { generateOmniVideo } from './omni'
 import type { EngineRequest } from './request'
 import { encodeBase64, fetchBinary, poll, readJson } from './shared'
 
@@ -29,21 +30,43 @@ interface VeoOperation {
     }
 }
 
-/** The instance payload: the prompt, plus a first frame when one grounds it. */
+/** One still in the shape the Veo endpoints document. */
+async function veoImage(file: File): Promise<Record<string, unknown>> {
+    return {
+        bytesBase64Encoded: await encodeBase64(file),
+        mimeType: file.type === '' ? 'image/png' : file.type,
+    }
+}
+
+/**
+ * The instance payload: the prompt, the frames when attached, and up to the
+ * three reference images Veo 3.1 takes as `asset` references.
+ */
 async function veoInstance(request: EngineRequest): Promise<Record<string, unknown>> {
-    const reference = request.references[0]
+    const { firstFrame, lastFrame } = request
+
+    // The API's own rule: an end frame is only accepted alongside a start.
+    if (lastFrame !== undefined && firstFrame === undefined) {
+        throw new GenerationError(
+            'Veo renders towards an end frame only from a start frame. Add one, or remove the end frame.',
+        )
+    }
+
+    const references = request.references.slice(0, 3)
 
     return {
         prompt: request.prompt,
-        ...(reference === undefined
+        ...(firstFrame === undefined ? {} : { image: await veoImage(firstFrame) }),
+        ...(lastFrame === undefined ? {} : { lastFrame: await veoImage(lastFrame) }),
+        ...(references.length === 0
             ? {}
             : {
-                  image: {
-                      inlineData: {
-                          mimeType: reference.type === '' ? 'image/png' : reference.type,
-                          data: await encodeBase64(reference),
-                      },
-                  },
+                  referenceImages: await Promise.all(
+                      references.map(async (file) => ({
+                          image: await veoImage(file),
+                          referenceType: 'asset',
+                      })),
+                  ),
               }),
     }
 }
@@ -91,7 +114,15 @@ async function startVeoOperation(request: EngineRequest): Promise<string> {
     return operation.name
 }
 
-export async function generateGoogleVideo(request: EngineRequest): Promise<Blob[]> {
+/** One Google entry point for the engine: Omni Flash and Veo speak the same
+ * key but entirely different APIs, so the split happens here. */
+export function generateGoogleVideo(request: EngineRequest): Promise<Blob[]> {
+    return request.modelId === 'gemini-omni-flash'
+        ? generateOmniVideo(request)
+        : generateVeoVideo(request)
+}
+
+async function generateVeoVideo(request: EngineRequest): Promise<Blob[]> {
     const operationName = await startVeoOperation(request)
 
     const finished = await poll({

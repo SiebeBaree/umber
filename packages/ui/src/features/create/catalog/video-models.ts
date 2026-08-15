@@ -1,4 +1,21 @@
-import type { VideoModel } from './types'
+import type { VideoAssetRule, VideoModel } from './types'
+
+/** What nearly every vendor documents: JPEG, PNG and WebP. */
+const COMMON_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+
+/** A first frame and nothing else, which several vendors stop at. */
+const FIRST_FRAME_ONLY: VideoAssetRule = {
+    lastFrame: false,
+    referenceImages: 0,
+    types: COMMON_IMAGE_TYPES,
+}
+
+/** First and last frame, no reference images beyond them. */
+const BOTH_FRAMES: VideoAssetRule = {
+    lastFrame: true,
+    referenceImages: 0,
+    types: COMMON_IMAGE_TYPES,
+}
 
 /**
  * The video models Umber can drive. Same rules as the image catalog: clip
@@ -7,6 +24,21 @@ import type { VideoModel } from './types'
  * which for video it almost always does.
  */
 export const VIDEO_MODELS: readonly VideoModel[] = [
+    // Google's frontier video model is not marketed as one: it answers on the
+    // Gemini interactions API, renders 720p only, and picks its own clip
+    // length — the one duration below is the typical clip, priced per second.
+    {
+        id: 'gemini-omni-flash',
+        name: 'Gemini Omni Flash',
+        provider: 'google',
+        kind: 'video',
+        releasedOn: '2026-06-30',
+        aspectRatios: ['16:9', '9:16'],
+        resolutions: ['720p'],
+        durations: { kind: 'list', seconds: [8] },
+        assets: { lastFrame: false, referenceImages: 6, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: 0.1,
+    },
     {
         id: 'veo-3-1',
         name: 'Veo 3.1',
@@ -16,6 +48,7 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16'],
         resolutions: ['720p', '1080p', '4K'],
         durations: { kind: 'list', seconds: [4, 6, 8] },
+        assets: { lastFrame: true, referenceImages: 3, types: COMMON_IMAGE_TYPES },
         pricePerSecond: { '720p': 0.4, '1080p': 0.4, '4K': 0.6 },
     },
     {
@@ -27,6 +60,7 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16'],
         resolutions: ['720p', '1080p', '4K'],
         durations: { kind: 'list', seconds: [4, 6, 8] },
+        assets: { lastFrame: true, referenceImages: 3, types: COMMON_IMAGE_TYPES },
         pricePerSecond: { '720p': 0.1, '1080p': 0.12, '4K': 0.3 },
     },
     {
@@ -38,6 +72,7 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16'],
         resolutions: ['720p', '1080p'],
         durations: { kind: 'list', seconds: [4, 8, 12] },
+        assets: FIRST_FRAME_ONLY,
         pricePerSecond: { '720p': 0.3, '1080p': 0.7 },
     },
     {
@@ -49,7 +84,36 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16'],
         resolutions: ['720p'],
         durations: { kind: 'list', seconds: [4, 8, 12] },
+        assets: FIRST_FRAME_ONLY,
         pricePerSecond: 0.1,
+    },
+    // BFL bands FLUX.3 output by pixels per frame: HD tops out at 1MP and FHD
+    // at 2MP, which are the 720p and 1080p tiers by any other name.
+    {
+        id: 'flux-3-video',
+        name: 'FLUX.3 Video',
+        provider: 'blackForestLabs',
+        kind: 'video',
+        releasedOn: '2026-08-11',
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
+        resolutions: ['720p', '1080p'],
+        durations: { kind: 'range', min: 5, max: 20, step: 1 },
+        assets: { lastFrame: true, referenceImages: 0, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: { '720p': 0.17, '1080p': 0.29 },
+    },
+    {
+        id: 'kling-3-0',
+        name: 'Kling 3.0',
+        provider: 'kuaishou',
+        kind: 'video',
+        releasedOn: '2026-02-05',
+        aspectRatios: ['16:9', '9:16', '1:1'],
+        resolutions: ['720p', '1080p', '4K'],
+        durations: { kind: 'range', min: 3, max: 15, step: 1 },
+        assets: { lastFrame: true, referenceImages: 0, types: ['image/jpeg', 'image/png'] },
+        // Kling's own credit sheet without audio, at the package rate the
+        // existing Kling entries are priced from.
+        pricePerSecond: { '720p': 0.084, '1080p': 0.112, '4K': 0.42 },
     },
     {
         id: 'kling-2-6',
@@ -60,6 +124,7 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16', '1:1'],
         resolutions: ['720p', '1080p'],
         durations: { kind: 'list', seconds: [5, 10] },
+        assets: { lastFrame: true, referenceImages: 0, types: ['image/jpeg', 'image/png'] },
         pricePerSecond: { '720p': 0.042, '1080p': 0.07 },
     },
     {
@@ -71,7 +136,23 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16', '1:1'],
         resolutions: ['720p', '1080p'],
         durations: { kind: 'list', seconds: [5, 10] },
+        assets: { lastFrame: true, referenceImages: 0, types: ['image/jpeg', 'image/png'] },
         pricePerSecond: { '720p': 0.042, '1080p': 0.07 },
+    },
+    // Seedance 2.5 trades the 1080p and 4K tiers of 2.0 for 30-second clips
+    // and a far bigger reference budget; ByteDance bills it by output tokens,
+    // and these are the 16:9 figures its own formula produces.
+    {
+        id: 'seedance-2-5',
+        name: 'Seedance 2.5',
+        provider: 'bytedance',
+        kind: 'video',
+        releasedOn: '2026-07-31',
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
+        resolutions: ['480p', '720p'],
+        durations: { kind: 'range', min: 4, max: 30, step: 1 },
+        assets: { lastFrame: true, referenceImages: 30, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: { '480p': 0.1, '720p': 0.23 },
     },
     {
         id: 'seedance-2-0',
@@ -82,6 +163,7 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
         resolutions: ['480p', '720p', '1080p', '4K'],
         durations: { kind: 'range', min: 4, max: 15, step: 1 },
+        assets: { lastFrame: true, referenceImages: 9, types: COMMON_IMAGE_TYPES },
         pricePerSecond: { '480p': 0.07, '720p': 0.15, '1080p': 0.37, '4K': 0.78 },
     },
     {
@@ -93,7 +175,24 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
         resolutions: ['480p', '720p', '1080p'],
         durations: { kind: 'range', min: 2, max: 12, step: 1 },
+        assets: BOTH_FRAMES,
         pricePerSecond: { '480p': 0.024, '720p': 0.052, '1080p': 0.122 },
+    },
+    {
+        id: 'wan-2-7',
+        name: 'Wan 2.7',
+        provider: 'alibaba',
+        kind: 'video',
+        releasedOn: '2026-06-12',
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+        resolutions: ['720p', '1080p'],
+        durations: { kind: 'range', min: 2, max: 15, step: 1 },
+        assets: {
+            lastFrame: true,
+            referenceImages: 0,
+            types: ['image/jpeg', 'image/png', 'image/bmp', 'image/webp'],
+        },
+        pricePerSecond: { '720p': 0.1, '1080p': 0.15 },
     },
     {
         id: 'wan-2-6',
@@ -105,6 +204,11 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         // Wan 2.6 renders the 720p and 1080p tiers only; 480p belonged to 2.5.
         resolutions: ['720p', '1080p'],
         durations: { kind: 'list', seconds: [5, 10] },
+        assets: {
+            lastFrame: false,
+            referenceImages: 0,
+            types: ['image/jpeg', 'image/png', 'image/bmp', 'image/webp'],
+        },
         pricePerSecond: { '720p': 0.1, '1080p': 0.15 },
     },
     {
@@ -116,6 +220,7 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
         resolutions: ['720p'],
         durations: { kind: 'list', seconds: [5, 8, 10] },
+        assets: BOTH_FRAMES,
         pricePerSecond: 0.12,
     },
     {
@@ -127,6 +232,33 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
         resolutions: ['720p'],
         durations: { kind: 'list', seconds: [5, 10] },
+        assets: BOTH_FRAMES,
         pricePerSecond: 0.05,
+    },
+    // MiniMax's API refuses frames and reference images in the same request,
+    // which the integration reports; the catalog declares the superset.
+    {
+        id: 'minimax-h3',
+        name: 'Hailuo 3',
+        provider: 'minimax',
+        kind: 'video',
+        releasedOn: '2026-07-31',
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
+        resolutions: ['768p', '2K'],
+        durations: { kind: 'range', min: 4, max: 15, step: 1 },
+        assets: { lastFrame: true, referenceImages: 9, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: { '768p': 0.09, '2K': 0.13 },
+    },
+    {
+        id: 'grok-imagine-video-1-5',
+        name: 'Grok Imagine Video 1.5',
+        provider: 'xai',
+        kind: 'video',
+        releasedOn: '2026-05-31',
+        aspectRatios: ['16:9', '9:16', '1:1', '3:2', '2:3', '4:3', '3:4'],
+        resolutions: ['480p', '720p', '1080p'],
+        durations: { kind: 'range', min: 1, max: 15, step: 1 },
+        assets: { lastFrame: false, referenceImages: 3, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: 0.08,
     },
 ]

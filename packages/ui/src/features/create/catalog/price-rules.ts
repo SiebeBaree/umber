@@ -88,3 +88,43 @@ export function fluxTwoPrice(context: PriceContext): number {
 
     return 0.03 + 0.015 * (output - 1) + 0.015 * context.references
 }
+
+/**
+ * FLUX.2 [max]: $0.07 for the first output megapixel, $0.03 for each one
+ * after, and $0.03 per reference image — BFL's own calculator figures.
+ */
+export function fluxTwoMaxPrice(context: PriceContext): number {
+    const { height, width } = pixelSize(context.ratio, context.resolution, FLUX_2_SIZE)
+    const output = billedMegapixels(width * height)
+
+    return 0.07 + 0.03 * (output - 1) + 0.03 * context.references
+}
+
+/** FLUX.2 [flex]: a flat $0.05 per megapixel, output and references alike. */
+export function fluxTwoFlexPrice(context: PriceContext): number {
+    const { height, width } = pixelSize(context.ratio, context.resolution, FLUX_2_SIZE)
+    const output = billedMegapixels(width * height)
+
+    return 0.05 * (output + context.references)
+}
+
+/**
+ * Seedream 5.0 Pro: $0.045 per image at 1.5K and below, $0.09 above, with the
+ * first reference image free and each further one $0.003 — ModelArk's own
+ * price list, which draws its line at 2.61 megapixels rather than at a tier.
+ */
+export function seedreamFiveProPrice(context: PriceContext): number {
+    const base = context.resolution === '2K' ? 0.09 : 0.045
+
+    return base + 0.003 * Math.max(0, context.references - 1)
+}
+
+/**
+ * Qwen-Image-3.0-Pro: per image by output tier, plus a small charge per input
+ * image, both straight off Model Studio's Singapore price list.
+ */
+export function qwenImageThreeProPrice(context: PriceContext): number {
+    const base = context.resolution === '2K' ? 0.079 : 0.042
+
+    return base + 0.0031 * context.references
+}

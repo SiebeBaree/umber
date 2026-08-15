@@ -76,6 +76,23 @@ const ITEM_CLASSES = cn(
     'data-[highlighted]:bg-[var(--umber-hover-tint)]',
 )
 
+/** A plain action item, for menus that do things rather than pick values. */
+export function DropdownMenuItem({
+    className,
+    ...rest
+}: ComponentProps<typeof DropdownMenuPrimitive.Item>) {
+    return (
+        <DropdownMenuPrimitive.Item
+            className={cn(
+                ITEM_CLASSES,
+                'data-[disabled]:pointer-events-none data-[disabled]:opacity-45',
+                className,
+            )}
+            {...rest}
+        />
+    )
+}
+
 export function DropdownMenuRadioItem({
     children,
     className,

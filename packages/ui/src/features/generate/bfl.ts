@@ -3,12 +3,13 @@ import { FLUX_1_1_SIZE, FLUX_2_SIZE, pixelSize } from '../create/catalog'
 import { GenerationError, offlineError } from './errors'
 import type { KeyVerification } from './openai'
 import type { EngineRequest } from './request'
-import { encodeBase64, fetchBinary, poll, readJson } from './shared'
+import { encodeBase64, encodeDataUri, fetchBinary, poll, readJson } from './shared'
 
 /**
  * The Black Forest Labs API. Every model is async: POST returns a polling
  * URL, `Ready` carries a signed delivery URL that lives ten minutes, so the
- * image is fetched the moment it appears.
+ * result is fetched the moment it appears. FLUX.3 Video rides the same task
+ * flow as the image models, just slower.
  */
 
 const API_ROOT = 'https://api.bfl.ai/v1'
@@ -106,11 +107,12 @@ async function payloadFor(request: EngineRequest): Promise<Record<string, unknow
 async function awaitSample(
     headers: Readonly<Record<string, string>>,
     pollingUrl: string,
+    timeoutMinutes = 5,
 ): Promise<string> {
     const finished = await poll({
         intervalMs: 1500,
-        timeoutMs: 5 * 60_000,
-        timeoutMessage: 'Black Forest Labs is still rendering after 5 minutes. Try again.',
+        timeoutMs: timeoutMinutes * 60_000,
+        timeoutMessage: `Black Forest Labs is still rendering after ${timeoutMinutes} minutes. Try again.`,
         check: async () => {
             const response = await httpFetch(pollingUrl, { headers })
 
@@ -131,7 +133,7 @@ async function awaitSample(
             }
 
             if (state?.status === 'Error' || state?.status === 'Task not found') {
-                throw new GenerationError('Black Forest Labs could not finish this image.')
+                throw new GenerationError('Black Forest Labs could not finish this run.')
             }
 
             // Pending, Reasoning and Generating all mean "keep waiting".
@@ -189,6 +191,81 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
 
 export function generateBflImages(request: EngineRequest): Promise<Blob[]> {
     return Promise.all(Array.from({ length: request.count }, () => generateOneImage(request)))
+}
+
+/** FLUX.3 speaks lowercase bands; the catalog's tiers name the same pixels. */
+const FLUX_3_RESOLUTIONS: Readonly<Record<string, string>> = {
+    '720p': 'hd',
+    '1080p': 'fhd',
+}
+
+/**
+ * The keyframes field: a bare still is the opening frame, and a closing frame
+ * is pinned to the clip's last second with a timestamped pair.
+ */
+async function fluxVideoKeyframes(request: EngineRequest): Promise<unknown> {
+    const { firstFrame, lastFrame } = request
+
+    if (lastFrame !== undefined && firstFrame === undefined) {
+        throw new GenerationError(
+            'FLUX.3 renders towards an end frame only from a start frame. Add one, or remove the end frame.',
+        )
+    }
+
+    if (firstFrame === undefined) {
+        return undefined
+    }
+
+    const first = await encodeDataUri(firstFrame)
+
+    if (lastFrame === undefined) {
+        return first
+    }
+
+    return [
+        [0, first],
+        [request.durationSeconds, await encodeDataUri(lastFrame)],
+    ]
+}
+
+export async function generateBflVideo(request: EngineRequest): Promise<Blob[]> {
+    const headers = { 'x-key': request.credentials['apiKey'] ?? '' }
+    const keyframes = await fluxVideoKeyframes(request)
+
+    let created: Response
+
+    try {
+        created = await httpFetch(`${API_ROOT}/flux-3-video`, {
+            headers,
+            json: {
+                prompt: request.prompt,
+                mode: keyframes === undefined ? 't2v' : 'i2v',
+                duration: request.durationSeconds,
+                resolution: FLUX_3_RESOLUTIONS[request.resolution] ?? 'hd',
+                aspect_ratio: request.ratio,
+                generate_audio: true,
+                ...(keyframes === undefined ? {} : { keyframes }),
+            },
+        })
+    } catch {
+        throw offlineError('Black Forest Labs')
+    }
+
+    if (!created.ok) {
+        throw await toGenerationError(created)
+    }
+
+    const task = (await readJson(created)) as BflTask | null
+
+    if (typeof task?.polling_url !== 'string' || task.polling_url === '') {
+        throw new GenerationError(
+            'Black Forest Labs accepted the run but returned no job to follow.',
+        )
+    }
+
+    const sample = await awaitSample(headers, task.polling_url, 15)
+
+    return [await fetchBinary('Black Forest Labs', sample, 'video/mp4')]
 }
 
 /** A free authenticated call: the account's credit balance. */

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { useGeneration } from '../generate/generation-context'
+import { useShortcut, type Shortcut } from '../../lib/use-shortcut'
+import { useGeneration, type StartInput } from '../generate/generation-context'
 import { useKeys } from '../keys/keys-context'
 import { MODELS_BY_MODE, PROVIDERS, type GenerationMode, type Model } from './catalog'
+import type { ModeSettings } from './settings/schema'
 import { useComposerSettings, type ComposerSettingsApi } from './settings/use-composer-settings'
+import type { ComposerAsset } from './use-composer-assets'
 
 /**
  * Everything behind the composer's send button: which mode is active, whether
@@ -16,7 +19,7 @@ export interface ComposerSubmission {
     readonly composer: ComposerSettingsApi
     /** Why pressing send would do nothing, or null when it would generate. */
     readonly blocker: string | null
-    readonly submit: (prompt: string, references: readonly File[]) => void
+    readonly submit: (prompt: string, assets: readonly ComposerAsset[]) => void
 }
 
 /**
@@ -25,6 +28,9 @@ export interface ComposerSubmission {
  * enough that asking for ten at once is a thing you can simply do.
  */
 const MAX_RUNS_IN_FLIGHT = 10
+
+/** Toggles the mode. Fires mid-prompt, which is where the wish usually lands. */
+const SWITCH_MODE: Shortcut = { key: 'm', meta: true, shift: true, whileTyping: true }
 
 function blockerFor(ready: boolean, connected: boolean, model: Model, running: number) {
     // Nothing is declared blocked before the vault has answered.
@@ -43,8 +49,36 @@ function blockerFor(ready: boolean, connected: boolean, model: Model, running: n
     return null
 }
 
+/**
+ * The slots dissolve here into what the engine speaks: frames by name,
+ * everything else as the reference list.
+ */
+function toStartInput(
+    prompt: string,
+    model: Model,
+    settings: ModeSettings,
+    assets: readonly ComposerAsset[],
+): StartInput {
+    const firstFrame = assets.find((asset) => asset.slot === 'start')?.file
+    const lastFrame = assets.find((asset) => asset.slot === 'end')?.file
+
+    return {
+        prompt,
+        model,
+        settings,
+        references: assets.filter((asset) => asset.slot === 'reference').map((asset) => asset.file),
+        ...(firstFrame === undefined ? {} : { firstFrame }),
+        ...(lastFrame === undefined ? {} : { lastFrame }),
+    }
+}
+
 export function useComposerSubmission(): ComposerSubmission {
     const [mode, setMode] = useState<GenerationMode>('image')
+
+    // Cmd+Shift+M flips image and video, exactly like the toolbar control.
+    useShortcut(SWITCH_MODE, () => {
+        setMode((current) => (current === 'image' ? 'video' : 'image'))
+    })
 
     const composer = useComposerSettings(mode)
     const keys = useKeys()
@@ -72,12 +106,10 @@ export function useComposerSubmission(): ComposerSubmission {
     }, [keys.ready, keys.connectedProviders, providerConnected, mode, composer])
 
     const submit = useCallback(
-        (prompt: string, references: readonly File[]) => {
-            if (prompt === '' || blocker !== null) {
-                return
+        (prompt: string, assets: readonly ComposerAsset[]) => {
+            if (prompt !== '' && blocker === null) {
+                generation.start(toStartInput(prompt, model, composer.settings, assets))
             }
-
-            generation.start({ prompt, model, settings: composer.settings, references })
         },
         [blocker, composer.settings, generation, model],
     )

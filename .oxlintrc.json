@@ -84,12 +84,14 @@
         {
             "files": [
                 "packages/ui/src/features/create/catalog/*-models.ts",
+                "packages/ui/src/features/create/catalog/logos/index.ts",
                 "packages/ui/src/features/settings/key-providers.ts",
                 "packages/ui/src/features/generate/engine.ts"
             ],
             "rules": {
-                // Catalog files are tables: one entry per model or provider,
-                // and the dispatch table imports every integration it routes.
+                // Catalog files are tables: one entry per model, provider or
+                // logo, and the dispatch table imports every integration it
+                // routes.
                 "eslint/max-lines": "off",
                 "import/max-dependencies": "off"
             }

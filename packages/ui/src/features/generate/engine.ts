@@ -1,16 +1,21 @@
-import { generateAlibabaImages, generateAlibabaVideo } from './alibaba'
-import { generateBflImages } from './bfl'
+import { generateAlibabaImages } from './alibaba'
+import { generateBflImages, generateBflVideo } from './bfl'
 import { generateBytedanceImages, generateBytedanceVideo } from './bytedance'
 import { GenerationError } from './errors'
 import { generateGoogleImages } from './google'
 import { generateIdeogramImages } from './ideogram'
-import { generateKlingImages, generateKlingVideo } from './kling'
+import { generateKlingImages } from './kling'
+import { generateKlingVideo } from './kling-three'
+import { generateMinimaxVideo } from './minimax'
 import { generateOpenAiImages } from './openai'
 import { generateRecraftImages } from './recraft'
 import type { EngineRequest } from './request'
+import { generateReveImages } from './reve'
 import { generateRunwayImages, generateRunwayVideo } from './runway'
 import { generateOpenAiVideo } from './sora'
 import { generateGoogleVideo } from './veo'
+import { generateAlibabaVideo } from './wan'
+import { generateXaiImages, generateXaiVideo } from './xai'
 
 export type { EngineRequest } from './request'
 
@@ -33,6 +38,8 @@ const IMAGE_GENERATORS: Readonly<Record<string, Generator>> = {
     kuaishou: generateKlingImages,
     bytedance: generateBytedanceImages,
     alibaba: generateAlibabaImages,
+    xai: generateXaiImages,
+    reve: generateReveImages,
 }
 
 const VIDEO_GENERATORS: Readonly<Record<string, Generator>> = {
@@ -42,6 +49,9 @@ const VIDEO_GENERATORS: Readonly<Record<string, Generator>> = {
     kuaishou: generateKlingVideo,
     bytedance: generateBytedanceVideo,
     alibaba: generateAlibabaVideo,
+    blackForestLabs: generateBflVideo,
+    minimax: generateMinimaxVideo,
+    xai: generateXaiVideo,
 }
 
 export function runGeneration(request: EngineRequest): Promise<Blob[]> {

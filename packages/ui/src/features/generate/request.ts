@@ -18,6 +18,10 @@ export interface EngineRequest {
     readonly resolution: string
     readonly quality: string
     readonly durationSeconds: number
-    /** Reference images grounding the run, where the model accepts them. */
+    /** Reference images guiding the run, where the model accepts them. */
     readonly references: readonly File[]
+    /** The still a video run starts from, where one was attached. */
+    readonly firstFrame?: File
+    /** The still a video run renders towards; only models that declare it. */
+    readonly lastFrame?: File
 }
