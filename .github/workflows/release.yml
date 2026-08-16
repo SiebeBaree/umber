@@ -5,9 +5,18 @@ name: Release
 # find out it has fallen behind.
 #
 # To cut a release: set `version` in apps/desktop/package.json, commit it, then
-# push a matching `v` tag. The `draft` job claims one release, then each runner
-# builds its own platform and uploads into it. It stays a draft until it is
-# published by hand, so a half-finished matrix is never offered as an update.
+# push a matching `v` tag. That is the whole procedure. The `draft` job claims
+# one release, each runner builds its own platform and uploads into it, and the
+# `publish` job flips it live once every platform is in — so a half-finished
+# matrix is never offered as an update, and nothing has to be clicked.
+#
+# Do not create a release by hand for a tag this workflow is building. A draft
+# does not own its tag until it is published, so a second release made from the
+# releases page takes the tag instead, and with immutable releases turned on it
+# takes it permanently: the finished draft can never be published, and the tag
+# cannot be reused even after deleting the release that stole it. That is how
+# v0.1.1 was lost. `publish` exists so there is never a finished draft sitting
+# on that page inviting the click.
 
 on:
     push:
@@ -42,6 +51,16 @@ jobs:
               run: |
                   version=$(node -p "require('./apps/desktop/package.json').version")
                   tag="v$version"
+
+                  # Everything downstream — the release, the asset names, the
+                  # update manifests — comes off package.json, while the tag is
+                  # only what started the run. A tag that disagrees with it
+                  # would build a release under a name nobody asked for, so it
+                  # stops here instead.
+                  if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
+                    echo "::error::tag $GITHUB_REF_NAME does not match package.json version $version"
+                    exit 1
+                  fi
 
                   # Re-runs and manual rehearsals are expected to find their own
                   # draft still sitting there, so an existing one is reused
@@ -134,3 +153,29 @@ jobs:
                   CSC_KEY_PASSWORD: ${{ matrix.sign && secrets.CSC_KEY_PASSWORD || '' }}
                   APPLE_API_KEY_ID: ${{ matrix.sign && secrets.APPLE_API_KEY_ID || '' }}
                   APPLE_API_ISSUER: ${{ matrix.sign && secrets.APPLE_API_ISSUER || '' }}
+
+    # Flips the finished draft live.
+    #
+    # `needs: build` is what makes this safe: the matrix does not fail fast, so
+    # every platform gets its turn, but the job as a whole only succeeds when
+    # all three uploaded. A release therefore either carries every installer or
+    # is never published at all — the guarantee the manual step used to give,
+    # without leaving a draft lying around for someone to publish the wrong way.
+    #
+    # Rehearsals are the exception: a `workflow_dispatch` run has no tag to
+    # publish against, so it stops at the draft.
+    publish:
+        needs: build
+        if: github.ref_type == 'tag'
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - uses: actions/checkout@v5
+
+            - name: Publish the release
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  version=$(node -p "require('./apps/desktop/package.json').version")
+
+                  gh release edit "v$version" --draft=false --latest
