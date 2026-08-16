@@ -51,3 +51,9 @@ win:
 linux:
     target: AppImage
     category: Utility
+    # Required, not cosmetic. Without it electron-builder derives the binary
+    # name from package.json's `name`, which here is the scoped `@umber/desktop`
+    # and sanitizes to `@umberdesktop`. AppImage rejects the `@` as unsafe in a
+    # file path and the build fails. macOS and Windows never hit this because
+    # they name the binary after `productName` instead.
+    executableName: umber

@@ -28,13 +28,15 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    # macos runners are arm64, so the Intel build has to be
-                    # asked for by name or Intel Macs get nothing. `sign` marks
-                    # the only job holding a certificate; the steps below key
-                    # off it rather than off the runner, so the day Windows
-                    # gains one it is a single flag here.
+                    # Apple Silicon only. Intel Macs are not supported, and
+                    # asking for --x64 as well doubles the job: two packaging
+                    # passes and two notarization round trips.
+                    #
+                    # `sign` marks the only job holding a certificate; the steps
+                    # below key off it rather than off the runner, so the day
+                    # Windows gains one it is a single flag here.
                     - os: macos-latest
-                      args: --mac --x64 --arm64
+                      args: --mac --arm64
                       sign: true
                     - os: windows-latest
                       args: --win
@@ -42,7 +44,11 @@ jobs:
                       args: --linux
 
         runs-on: ${{ matrix.os }}
-        timeout-minutes: 30
+        # Generous because the macOS job waits on Apple's notarization service,
+        # whose queue is not predictable. The old 30 was enough to package but
+        # not to package twice and wait twice, which is how the first signed run
+        # died mid-build with nothing to show for it.
+        timeout-minutes: 45
 
         steps:
             - uses: actions/checkout@v5
