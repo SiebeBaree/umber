@@ -19,6 +19,30 @@ export function isAllowedExternalUrl(url: string): boolean {
 }
 
 /**
+ * Whether a navigation target is the app's own document.
+ *
+ * Everything Umber shows lives at one URL — the packaged `index.html`, or the
+ * dev server's root — and the router moves between routes in the hash, so a
+ * navigation that changes anything but the hash is leaving the app. That has to
+ * be refused: Electron re-runs the preload for every document a `webContents`
+ * loads, so a page that talked the window into navigating would be handed
+ * `window.umber`, vault and all.
+ *
+ * `origin` is not used because a packaged build loads over `file:`, where every
+ * URL's origin is `null` and so compares equal to every other.
+ */
+export function isRendererUrl(target: string, rendererUrl: string): boolean {
+    try {
+        const to = new URL(target)
+        const own = new URL(rendererUrl)
+
+        return to.protocol === own.protocol && to.host === own.host && to.pathname === own.pathname
+    } catch {
+        return false
+    }
+}
+
+/**
  * Applied as a response header to packaged builds only. The dev server serves
  * inline scripts for HMR, so attaching this during `electron-vite dev` would
  * break hot reload without making anything meaningfully safer.

@@ -3,6 +3,7 @@ import { AnimatePresence, motion, type Transition } from 'motion/react'
 import { useEffect, useRef, useState, type MutableRefObject } from 'react'
 import { createPortal } from 'react-dom'
 
+import { carriesFiles } from '../../lib/drag-drop'
 import { intakeSlot } from './asset-fit'
 import type { AssetCapabilities } from './catalog'
 import type { AssetSlot } from './use-composer-assets'
@@ -47,12 +48,11 @@ function usePasteIntake(slot: AssetSlot | null, onAdd: AddFiles) {
     }, [slot, onAdd])
 }
 
-/** Text selections get dragged too; only a drag carrying files counts. */
-function carriesFiles(event: DragEvent): boolean {
-    return event.dataTransfer?.types.includes('Files') ?? false
-}
-
-/** Without this on dragover, the browser navigates to the dropped file. */
+/**
+ * Says the composer will take the files, which is what puts the copy cursor
+ * under the drag. Refusing the drop is `useDropGuard`'s job, and it has already
+ * cancelled this event by the time we see it.
+ */
 function allowDrop(event: DragEvent) {
     if (carriesFiles(event)) {
         event.preventDefault()

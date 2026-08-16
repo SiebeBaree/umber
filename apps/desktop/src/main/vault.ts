@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { app, ipcMain, safeStorage } from 'electron'
 
 import { VAULT_CHANNELS, type VaultConnectionDto, type VaultSaveDto } from '../shared/bridge'
+import { rendererOnly } from './ipc-guard'
 
 /**
  * Credential storage for the desktop shell.
@@ -150,8 +151,20 @@ async function handleCredentials(rawId: unknown): Promise<Record<string, string>
 }
 
 export function registerVaultIpc(): void {
-    ipcMain.handle(VAULT_CHANNELS.list, () => handleList())
-    ipcMain.handle(VAULT_CHANNELS.save, (_event, entry: VaultSaveDto) => handleSave(entry))
-    ipcMain.handle(VAULT_CHANNELS.remove, (_event, rawId: unknown) => handleRemove(rawId))
-    ipcMain.handle(VAULT_CHANNELS.credentials, (_event, rawId: unknown) => handleCredentials(rawId))
+    ipcMain.handle(
+        VAULT_CHANNELS.list,
+        rendererOnly(() => handleList()),
+    )
+    ipcMain.handle(
+        VAULT_CHANNELS.save,
+        rendererOnly((entry: VaultSaveDto) => handleSave(entry)),
+    )
+    ipcMain.handle(
+        VAULT_CHANNELS.remove,
+        rendererOnly((rawId: unknown) => handleRemove(rawId)),
+    )
+    ipcMain.handle(
+        VAULT_CHANNELS.credentials,
+        rendererOnly((rawId: unknown) => handleCredentials(rawId)),
+    )
 }

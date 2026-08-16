@@ -6,6 +6,7 @@ import {
     type NetRequestDto,
     type NetResponseDto,
 } from '../shared/bridge'
+import { rendererOnly } from './ipc-guard'
 import { proxyVerdictFor } from './security'
 
 /**
@@ -90,5 +91,8 @@ async function handleFetch(request: NetRequestDto): Promise<NetResponseDto> {
 }
 
 export function registerNetIpc(): void {
-    ipcMain.handle(NET_CHANNEL, (_event, request: NetRequestDto) => handleFetch(request))
+    ipcMain.handle(
+        NET_CHANNEL,
+        rendererOnly((request: NetRequestDto) => handleFetch(request)),
+    )
 }

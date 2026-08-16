@@ -1,5 +1,6 @@
 import { Outlet, useNavigate } from '@tanstack/react-router'
 
+import { useDropGuard } from '../../lib/drag-drop'
 import { useShortcut, type Shortcut } from '../../lib/use-shortcut'
 import { TooltipProvider } from '../ui/tooltip'
 import { AppHeader } from './app-header'
@@ -40,6 +41,8 @@ function useNavigationShortcuts() {
  */
 export function AppShell() {
     useNavigationShortcuts()
+    // Every route renders inside this, so nowhere in the app is left without it.
+    useDropGuard()
 
     return (
         <TooltipProvider>

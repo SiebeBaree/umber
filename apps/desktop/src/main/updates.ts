@@ -2,6 +2,7 @@ import { app, ipcMain, net, shell } from 'electron'
 
 import { toOperatingSystem, UPDATE_CHANNELS, type UpdateStatusDto } from '../shared/bridge'
 import { NO_UPDATE, readLatestRelease, type ReleaseLookup } from '../shared/release-feed'
+import { rendererOnly } from './ipc-guard'
 import { isAllowedExternalUrl } from './security'
 
 /**
@@ -114,6 +115,12 @@ async function download(): Promise<void> {
 }
 
 export function registerUpdatesIpc(): void {
-    ipcMain.handle(UPDATE_CHANNELS.check, () => check())
-    ipcMain.handle(UPDATE_CHANNELS.download, () => download())
+    ipcMain.handle(
+        UPDATE_CHANNELS.check,
+        rendererOnly(() => check()),
+    )
+    ipcMain.handle(
+        UPDATE_CHANNELS.download,
+        rendererOnly(() => download()),
+    )
 }

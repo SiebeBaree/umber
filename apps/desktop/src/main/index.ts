@@ -1,9 +1,11 @@
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
-import { app, BrowserWindow, session, shell } from 'electron'
+import { app, BrowserWindow, session, shell, type Event } from 'electron'
 
+import { trustRendererUrl } from './ipc-guard'
 import { registerNetIpc } from './net'
-import { CONTENT_SECURITY_POLICY, isAllowedExternalUrl } from './security'
+import { CONTENT_SECURITY_POLICY, isAllowedExternalUrl, isRendererUrl } from './security'
 import { registerUpdatesIpc } from './updates'
 import { registerVaultIpc } from './vault'
 import { createWindowOptions } from './window'
@@ -14,6 +16,11 @@ const APP_USER_MODEL_ID = 'com.umber.app'
 const rendererDevServerUrl = process.env['ELECTRON_RENDERER_URL']
 const isDev = rendererDevServerUrl !== undefined
 
+/** The one document the window is ever allowed to hold. */
+function rendererUrl(): string {
+    return rendererDevServerUrl ?? pathToFileURL(join(__dirname, '../renderer/index.html')).href
+}
+
 function applyContentSecurityPolicy(): void {
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
         callback({
@@ -23,6 +30,30 @@ function applyContentSecurityPolicy(): void {
             },
         })
     })
+}
+
+/**
+ * Pins the window to the app's own document.
+ *
+ * Without this the window will follow anything that asks it to navigate — a
+ * link or a file dropped onto the page, a redirect off a request — and since
+ * the preload is attached to the `webContents` rather than to an origin, the
+ * page that landed there would be handed the vault. There is nowhere in Umber
+ * that legitimately navigates the top frame: routes are hash changes, which do
+ * not raise these events, and outside links open in the browser.
+ */
+function pinToRenderer(window: BrowserWindow, appUrl: string): void {
+    const guard = (event: Event, url: string) => {
+        if (isRendererUrl(url, appUrl)) {
+            return
+        }
+
+        console.warn('Refused to navigate the window to', url)
+        event.preventDefault()
+    }
+
+    window.webContents.on('will-navigate', guard)
+    window.webContents.on('will-redirect', guard)
 }
 
 function createMainWindow(): BrowserWindow {
@@ -43,11 +74,9 @@ function createMainWindow(): BrowserWindow {
         return { action: 'deny' }
     })
 
-    if (rendererDevServerUrl === undefined) {
-        void window.loadFile(join(__dirname, '../renderer/index.html'))
-    } else {
-        void window.loadURL(rendererDevServerUrl)
-    }
+    const appUrl = rendererUrl()
+    pinToRenderer(window, appUrl)
+    void window.loadURL(appUrl)
 
     return window
 }
@@ -60,6 +89,9 @@ async function start(): Promise<void> {
     if (!isDev) {
         applyContentSecurityPolicy()
     }
+
+    // Before any handler is registered: the guards read it on every call.
+    trustRendererUrl(rendererUrl())
 
     registerVaultIpc()
     registerNetIpc()
