@@ -5,9 +5,9 @@ name: Release
 # find out it has fallen behind.
 #
 # To cut a release: set `version` in apps/desktop/package.json, commit it, then
-# push a matching `v` tag. Each runner builds its own platform and uploads into
-# one draft release, which stays a draft until it is published by hand, so a
-# half-finished matrix is never offered to anyone as an update.
+# push a matching `v` tag. The `draft` job claims one release, then each runner
+# builds its own platform and uploads into it. It stays a draft until it is
+# published by hand, so a half-finished matrix is never offered as an update.
 
 on:
     push:
@@ -22,7 +22,42 @@ concurrency:
     cancel-in-progress: false
 
 jobs:
+    # Claims the draft before anything is built.
+    #
+    # Without this the three build jobs each ask electron-builder to publish,
+    # each finds no release for the tag and each creates one. Two of them
+    # winning that race is not hypothetical: it is what happened on the first
+    # green run, which left two drafts with the assets split across them, so
+    # neither was a complete release. Creating it once here means every builder
+    # finds an existing draft and only uploads.
+    draft:
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - uses: actions/checkout@v5
+
+            - name: Create the draft release
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  version=$(node -p "require('./apps/desktop/package.json').version")
+                  tag="v$version"
+
+                  # Re-runs and manual rehearsals are expected to find their own
+                  # draft still sitting there, so an existing one is reused
+                  # rather than treated as an error.
+                  if gh release view "$tag" >/dev/null 2>&1; then
+                    echo "reusing existing release $tag"
+                  else
+                    gh release create "$tag" \
+                      --draft \
+                      --title "$version" \
+                      --target "$GITHUB_SHA" \
+                      --generate-notes
+                  fi
+
     build:
+        needs: draft
         strategy:
             # One platform failing should not throw away the others' artifacts.
             fail-fast: false
