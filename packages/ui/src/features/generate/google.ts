@@ -1,8 +1,8 @@
 import { httpFetch } from '../../lib/http'
-import { GenerationError, offlineError } from './errors'
+import { GenerationError, offlineError, unexpectedError } from './errors'
 import type { KeyVerification } from './openai'
 import type { EngineRequest } from './request'
-import { decodeBase64Blob, encodeBase64, readJson } from './shared'
+import { decodeBase64Blob, encodeBase64, fanOut, readJson } from './shared'
 
 /**
  * The Gemini API: Nano Banana image models via `generateContent`, Veo via the
@@ -59,9 +59,7 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
         )
     }
 
-    return new GenerationError(
-        detail ?? `Google returned an unexpected error (${response.status}).`,
-    )
+    return unexpectedError('Google', response.status)
 }
 
 interface InlinePart {
@@ -151,7 +149,7 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
 
 export function generateGoogleImages(request: EngineRequest): Promise<Blob[]> {
     // One image per API call, so a multi-image run is parallel calls.
-    return Promise.all(Array.from({ length: request.count }, () => generateOneImage(request)))
+    return fanOut(request, () => generateOneImage(request))
 }
 
 /** Shared with the Veo module, which speaks the same API with the same key. */

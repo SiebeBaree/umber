@@ -1,8 +1,8 @@
 import { httpFetch } from '../../lib/http'
-import { GenerationError, offlineError } from './errors'
+import { GenerationError, offlineError, unexpectedError } from './errors'
 import type { EngineRequest } from './request'
 import { seedreamSize } from './seedream-sizes'
-import { decodeBase64Blob, encodeDataUri, fetchBinary, poll, readJson } from './shared'
+import { decodeBase64Blob, encodeDataUri, fanOut, fetchBinary, poll, readJson } from './shared'
 
 /**
  * ByteDance's BytePlus ModelArk: Seedream images synchronously, Seedance
@@ -26,17 +26,11 @@ const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'seedance-1-pro': 'seedance-1-0-pro-250528',
 }
 
-interface ArkError {
-    readonly error?: { readonly message?: string; readonly code?: string }
-}
-
 function headersOf(request: EngineRequest): Readonly<Record<string, string>> {
     return { Authorization: `Bearer ${request.credentials['apiKey'] ?? ''}` }
 }
 
-async function toGenerationError(response: Response): Promise<GenerationError> {
-    const body = (await readJson(response)) as ArkError | null
-
+function toGenerationError(response: Response): GenerationError {
     if (response.status === 401 || response.status === 403) {
         return new GenerationError('ByteDance rejected the API key. Check it in Settings.')
     }
@@ -47,13 +41,7 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
         )
     }
 
-    const detail = body?.error?.message
-
-    return new GenerationError(
-        typeof detail === 'string' && detail !== ''
-            ? detail
-            : `ByteDance returned an unexpected error (${response.status}).`,
-    )
+    return unexpectedError('ByteDance', response.status)
 }
 
 interface SeedreamResponse {
@@ -90,7 +78,7 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
     }
 
     if (!response.ok) {
-        throw await toGenerationError(response)
+        throw toGenerationError(response)
     }
 
     const body = (await readJson(response)) as SeedreamResponse | null
@@ -107,7 +95,7 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
 }
 
 export function generateBytedanceImages(request: EngineRequest): Promise<Blob[]> {
-    return Promise.all(Array.from({ length: request.count }, () => generateOneImage(request)))
+    return fanOut(request, () => generateOneImage(request))
 }
 
 interface SeedanceTask {
@@ -178,7 +166,7 @@ async function createSeedanceTask(request: EngineRequest): Promise<string> {
     }
 
     if (!created.ok) {
-        throw await toGenerationError(created)
+        throw toGenerationError(created)
     }
 
     const task = (await readJson(created)) as SeedanceTask | null
@@ -203,7 +191,7 @@ export async function generateBytedanceVideo(request: EngineRequest): Promise<Bl
             })
 
             if (!response.ok) {
-                throw await toGenerationError(response)
+                throw toGenerationError(response)
             }
 
             const state = (await readJson(response)) as SeedanceTask | null

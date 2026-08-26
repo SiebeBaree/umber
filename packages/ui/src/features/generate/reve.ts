@@ -1,7 +1,7 @@
 import { httpFetch } from '../../lib/http'
-import { GenerationError, offlineError } from './errors'
+import { GenerationError, moderationError, offlineError, unexpectedError } from './errors'
 import type { EngineRequest } from './request'
-import { decodeBase64Blob, encodeBase64, readJson } from './shared'
+import { decodeBase64Blob, encodeBase64, fanOut, readJson } from './shared'
 
 /**
  * The Reve v2 API: one synchronous create endpoint that folds generation,
@@ -26,9 +26,7 @@ function headersOf(request: EngineRequest): Readonly<Record<string, string>> {
     }
 }
 
-async function toGenerationError(response: Response): Promise<GenerationError> {
-    const body = (await readJson(response)) as ReveResponse | null
-
+function toGenerationError(response: Response): GenerationError {
     if (response.status === 401 || response.status === 403) {
         return new GenerationError('Reve rejected the API key. Check it in Settings.')
     }
@@ -45,11 +43,7 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
         )
     }
 
-    return new GenerationError(
-        typeof body?.message === 'string' && body.message !== ''
-            ? body.message
-            : `Reve returned an unexpected error (${response.status}).`,
-    )
+    return unexpectedError('Reve', response.status)
 }
 
 /** One image per call, so a multi-image run is parallel calls. */
@@ -75,13 +69,13 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
     }
 
     if (!response.ok) {
-        throw await toGenerationError(response)
+        throw toGenerationError(response)
     }
 
     const body = (await readJson(response)) as ReveResponse | null
 
     if (body?.content_violation === true) {
-        throw new GenerationError('Reve declined this prompt as against its usage policies.')
+        throw moderationError('Reve')
     }
 
     if (typeof body?.image !== 'string' || body.image === '') {
@@ -92,5 +86,5 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
 }
 
 export function generateReveImages(request: EngineRequest): Promise<Blob[]> {
-    return Promise.all(Array.from({ length: request.count }, () => generateOneImage(request)))
+    return fanOut(request, () => generateOneImage(request))
 }

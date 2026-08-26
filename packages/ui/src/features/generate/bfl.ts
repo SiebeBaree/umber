@@ -1,9 +1,9 @@
 import { httpFetch } from '../../lib/http'
 import { FLUX_1_1_SIZE, FLUX_2_SIZE, pixelSize } from '../create/catalog'
-import { GenerationError, offlineError } from './errors'
+import { GenerationError, moderationError, offlineError, unexpectedError } from './errors'
 import type { KeyVerification } from './openai'
 import type { EngineRequest } from './request'
-import { encodeBase64, encodeDataUri, fetchBinary, poll, readJson } from './shared'
+import { encodeBase64, encodeDataUri, fanOut, fetchBinary, poll, readJson } from './shared'
 
 /**
  * The Black Forest Labs API. Every model is async: POST returns a polling
@@ -30,9 +30,7 @@ interface BflTask {
     readonly message?: string
 }
 
-async function toGenerationError(response: Response): Promise<GenerationError> {
-    const body = (await readJson(response)) as BflTask | null
-
+function toGenerationError(response: Response): GenerationError {
     if (response.status === 401 || response.status === 403) {
         return new GenerationError('Black Forest Labs rejected the API key. Check it in Settings.')
     }
@@ -49,11 +47,7 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
         )
     }
 
-    return new GenerationError(
-        typeof body?.message === 'string' && body.message !== ''
-            ? body.message
-            : `Black Forest Labs returned an unexpected error (${response.status}).`,
-    )
+    return unexpectedError('Black Forest Labs', response.status)
 }
 
 /** The per-model request body, honouring each family's own size vocabulary. */
@@ -117,7 +111,7 @@ async function awaitSample(
             const response = await httpFetch(pollingUrl, { headers })
 
             if (!response.ok) {
-                throw await toGenerationError(response)
+                throw toGenerationError(response)
             }
 
             const state = (await readJson(response)) as BflTask | null
@@ -127,9 +121,7 @@ async function awaitSample(
             }
 
             if (state?.status === 'Request Moderated' || state?.status === 'Content Moderated') {
-                throw new GenerationError(
-                    'Black Forest Labs declined this prompt as against its usage policies.',
-                )
+                throw moderationError('Black Forest Labs')
             }
 
             if (state?.status === 'Error' || state?.status === 'Task not found') {
@@ -167,7 +159,7 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
     }
 
     if (!created.ok) {
-        throw await toGenerationError(created)
+        throw toGenerationError(created)
     }
 
     const task = (await readJson(created)) as BflTask | null
@@ -190,7 +182,7 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
 }
 
 export function generateBflImages(request: EngineRequest): Promise<Blob[]> {
-    return Promise.all(Array.from({ length: request.count }, () => generateOneImage(request)))
+    return fanOut(request, () => generateOneImage(request))
 }
 
 /** FLUX.3 speaks lowercase bands; the catalog's tiers name the same pixels. */
@@ -252,7 +244,7 @@ export async function generateBflVideo(request: EngineRequest): Promise<Blob[]> 
     }
 
     if (!created.ok) {
-        throw await toGenerationError(created)
+        throw toGenerationError(created)
     }
 
     const task = (await readJson(created)) as BflTask | null

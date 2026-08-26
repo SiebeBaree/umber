@@ -145,7 +145,7 @@ async function startOmniInteraction(request: EngineRequest): Promise<Interaction
     const body = (await readJson(response)) as InteractionResponse | null
 
     if (body?.status === 'failed') {
-        throw new GenerationError(body.error?.message ?? 'Google could not finish this video.')
+        throw new GenerationError('Google could not finish this video. Try again.')
     }
 
     return body ?? {}

@@ -1,5 +1,5 @@
 import { httpFetch } from '../../lib/http'
-import { GenerationError, offlineError } from './errors'
+import { GenerationError, offlineError, unexpectedError } from './errors'
 import type { KeyVerification } from './openai'
 import type { EngineRequest } from './request'
 import { decodeBase64Blob, encodeDataUri, fetchBinary, poll, readJson } from './shared'
@@ -40,17 +40,14 @@ async function xaiDetailOf(response: Response): Promise<string | undefined> {
  * `invalid-argument`, 401 means no key reached them at all, and 403 is the
  * key's *team* being out of usable credits — never the key itself.
  */
-async function toGenerationError(response: Response): Promise<GenerationError> {
-    const detail = await xaiDetailOf(response)
-
+function toGenerationError(response: Response): GenerationError {
     if (response.status === 401) {
         return new GenerationError('xAI rejected the API key. Check it in Settings.')
     }
 
     if (response.status === 403) {
         return new GenerationError(
-            detail ??
-                'xAI blocked this run: the key’s team has no usable credits. Check billing in the xAI console.',
+            'xAI blocked this run: the key’s team has no usable credits. Check billing in the xAI console.',
         )
     }
 
@@ -58,7 +55,7 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
         return new GenerationError('xAI is rate limiting this key. Give it a moment and try again.')
     }
 
-    return new GenerationError(detail ?? `xAI returned an unexpected error (${response.status}).`)
+    return unexpectedError('xAI', response.status)
 }
 
 interface XaiImagesResponse {
@@ -109,7 +106,7 @@ export async function generateXaiImages(request: EngineRequest): Promise<Blob[]>
     }
 
     if (!response.ok) {
-        throw await toGenerationError(response)
+        throw toGenerationError(response)
     }
 
     const parsed = (await readJson(response)) as XaiImagesResponse | null
@@ -160,7 +157,7 @@ async function createVideoRequest(request: EngineRequest): Promise<string> {
     }
 
     if (!created.ok) {
-        throw await toGenerationError(created)
+        throw toGenerationError(created)
     }
 
     const body = (await readJson(created)) as XaiVideoState | null
@@ -185,7 +182,7 @@ export async function generateXaiVideo(request: EngineRequest): Promise<Blob[]> 
             })
 
             if (!response.ok) {
-                throw await toGenerationError(response)
+                throw toGenerationError(response)
             }
 
             const state = (await readJson(response)) as XaiVideoState | null

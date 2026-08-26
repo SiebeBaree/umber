@@ -1,20 +1,30 @@
-import { TriangleAlert, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 
-import { Button } from '../../components/ui/button'
 import { ImageDetailDialog, type ImageDetails } from '../gallery/image-detail-dialog'
-import { useGeneration, type GenerationJob } from '../generate/generation-context'
+import type { GenerationJob } from '../generate/generation-context'
 import { RenderingTile } from '../generate/rendering-tile'
 import { ratioParts } from './catalog'
 import { ResultTile, VideoResultTile } from './result-tile'
 
 /**
- * One run on the stage above the composer: skeletons while rendering, the
- * results once they land, a plain account of what went wrong if they don't.
- * Several of these stack when several runs are going at once.
+ * One run on the stage above the composer: skeletons while rendering, then the
+ * results once they land. Several of these stack when several runs are going at
+ * once. A run that made nothing is not here at all — it leaves the stage and
+ * says why in a notification.
  */
 
-/** Grid shape by requested count: a single, a pair, or a 2×2. */
+/**
+ * How many tiles this run puts on the stage.
+ *
+ * While it works, that is what was asked for. Once it lands, it is what
+ * actually arrived: a pair of images where one call failed is one picture, and
+ * the grid should be a single tile rather than a picture next to a hole.
+ */
+function tileCount(job: GenerationJob): number {
+    return job.status === 'done' ? job.outputs.length : job.count
+}
+
+/** Grid shape by tile count: a single, a pair, or a 2×2. */
 function columnsFor(count: number): number {
     return count <= 1 ? 1 : 2
 }
@@ -35,8 +45,9 @@ const CHROME_HEIGHT = 330
 function gridMaxWidth(job: GenerationJob): string {
     const { height, width } = ratioParts(job.ratio)
     const ratio = width / height
-    const columns = columnsFor(job.count)
-    const rows = Math.ceil(job.count / columns)
+    const count = tileCount(job)
+    const columns = columnsFor(count)
+    const rows = Math.ceil(count / columns)
 
     const tileHeight = `max(140px, (100vh - ${CHROME_HEIGHT}px) / ${rows})`
 
@@ -84,32 +95,6 @@ function DoneLine({ job }: { readonly job: GenerationJob }) {
         <p className="text-[13px] font-medium text-muted tabular-nums">
             {job.modelName} · {Math.max(1, Math.round(job.generationMs / 1000))}s
         </p>
-    )
-}
-
-function FailedCard({
-    job,
-    onDismiss,
-}: {
-    readonly job: GenerationJob
-    readonly onDismiss: () => void
-}) {
-    return (
-        <div className="glass flex w-full max-w-md flex-col items-center gap-4 rounded-3xl p-8 text-center">
-            <div className="flex size-11 items-center justify-center rounded-2xl bg-rose-500/10">
-                <TriangleAlert aria-hidden className="size-5 text-rose-600" />
-            </div>
-            <div>
-                <h2 className="font-semibold">That run didn&rsquo;t make it</h2>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                    {job.status === 'failed' ? job.error : null}
-                </p>
-            </div>
-            <Button onClick={onDismiss} size="sm" variant="glass">
-                <X aria-hidden />
-                Dismiss
-            </Button>
-        </div>
     )
 }
 
@@ -187,11 +172,10 @@ function RunTiles({
 }
 
 export function GenerationView({ job }: { readonly job: GenerationJob }) {
-    const { dismiss } = useGeneration()
     const gridStyle = useMemo(
         () => ({
             maxWidth: gridMaxWidth(job),
-            gridTemplateColumns: `repeat(${columnsFor(job.count)}, minmax(0, 1fr))`,
+            gridTemplateColumns: `repeat(${columnsFor(tileCount(job))}, minmax(0, 1fr))`,
         }),
         [job],
     )
@@ -203,14 +187,6 @@ export function GenerationView({ job }: { readonly job: GenerationJob }) {
     }, [])
 
     const openImage = openIndex === null ? null : detailsOf(job, openIndex)
-
-    const dismissJob = useCallback(() => {
-        dismiss(job.id)
-    }, [dismiss, job.id])
-
-    if (job.status === 'failed') {
-        return <FailedCard job={job} onDismiss={dismissJob} />
-    }
 
     return (
         <div className="flex w-full flex-col items-center gap-5">

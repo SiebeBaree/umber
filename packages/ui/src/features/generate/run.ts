@@ -1,7 +1,7 @@
 import { saveCreations, type CreationRecord } from '../gallery/creations-db'
-import { runGeneration } from './engine'
-import { GenerationError } from './errors'
-import type { GenerationJob, StartInput } from './job'
+import { runGeneration, type EngineRequest } from './engine'
+import { GenerationError, messageOf } from './errors'
+import type { FinishedJob, GenerationJob, StartInput } from './job'
 
 /**
  * One run from end to end: credentials, the provider call, the gallery write,
@@ -12,9 +12,14 @@ import type { GenerationJob, StartInput } from './job'
 export type CredentialsOf = (providerId: string) => Promise<Readonly<Record<string, string>> | null>
 
 interface RunResult {
-    readonly outcome: GenerationJob
+    readonly outcome: FinishedJob
     /** False when the render finished but could not be written to the gallery. */
     readonly persisted: boolean
+    /**
+     * One sentence per output that was asked for and did not arrive, where at
+     * least one did. Empty for a run that delivered everything.
+     */
+    readonly failures: readonly string[]
 }
 
 /**
@@ -39,18 +44,14 @@ function toRecord(job: GenerationJob, media: Blob, generationMs: number): Creati
     }
 }
 
-async function performRun(
+/** What the job and the composer's input add up to, as the engine reads it. */
+function requestFor(
     job: GenerationJob,
     input: StartInput,
-    credentialsOf: CredentialsOf,
-): Promise<RunResult> {
-    const credentials = await credentialsOf(input.model.provider)
-
-    if (credentials === null) {
-        throw new GenerationError('No key is connected for this provider. Add one in Settings.')
-    }
-
-    const blobs = await runGeneration({
+    credentials: Readonly<Record<string, string>>,
+    onAttemptFailed: (message: string) => void,
+): EngineRequest {
+    return {
         mode: job.kind,
         providerId: input.model.provider,
         credentials,
@@ -62,17 +63,28 @@ async function performRun(
         quality: input.settings.quality,
         durationSeconds: job.durationSeconds,
         references: input.references,
+        onAttemptFailed,
         ...(input.firstFrame === undefined ? {} : { firstFrame: input.firstFrame }),
         ...(input.lastFrame === undefined ? {} : { lastFrame: input.lastFrame }),
-    })
+    }
+}
 
-    // Measured once, the moment the files are in hand, so every output of a
-    // run reports the same figure — which is the truth: they rendered together.
+/**
+ * Writes the finished files to the gallery and mints the object URLs the tiles
+ * are shown through.
+ *
+ * The clock is read once, the moment the files are in hand, so every output of
+ * a run reports the same figure — which is the truth: they rendered together.
+ * A failed write must not eat a finished render, so it is reported rather than
+ * thrown: the pictures still show, they just won't survive a restart.
+ */
+async function land(
+    job: GenerationJob,
+    blobs: readonly Blob[],
+): Promise<{ readonly outcome: FinishedJob; readonly persisted: boolean }> {
     const generationMs = Date.now() - job.startedAt
     const records = blobs.map((blob) => toRecord(job, blob, generationMs))
 
-    // Persistence failing must not eat a finished render; the results still
-    // show, they just won't survive a restart.
     let persisted = true
     try {
         await saveCreations(records)
@@ -89,21 +101,52 @@ async function performRun(
     return { outcome: { ...job, status: 'done', outputs, generationMs }, persisted }
 }
 
-function failureOf(job: GenerationJob, error: unknown): GenerationJob {
-    return {
-        ...job,
-        status: 'failed',
-        error:
-            error instanceof GenerationError
-                ? error.message
-                : 'Something went wrong while generating. Try again.',
+async function performRun(
+    job: GenerationJob,
+    input: StartInput,
+    credentialsOf: CredentialsOf,
+): Promise<RunResult> {
+    const credentials = await credentialsOf(input.model.provider)
+
+    if (credentials === null) {
+        throw new GenerationError('No key is connected for this provider. Add one in Settings.')
     }
+
+    // Runs that make several images at once make them with several independent
+    // calls, and one of those failing is not the run failing. The ones that
+    // landed are still wanted; what the rest hit is collected here and told
+    // separately.
+    const failures: string[] = []
+
+    const blobs = await runGeneration(
+        requestFor(job, input, credentials, (message) => {
+            failures.push(message)
+        }),
+    )
+
+    if (blobs.length === 0) {
+        throw new GenerationError(`${job.modelName} sent nothing back. Try again.`)
+    }
+
+    // Providers that render every image in one call can quietly come back with
+    // fewer than were asked for, and say nothing about it. The gap is the only
+    // evidence, so it is what gets reported.
+    if (blobs.length < job.count && failures.length === 0) {
+        failures.push(`${job.modelName} sent back fewer images than you asked for.`)
+    }
+
+    const { outcome, persisted } = await land(job, blobs)
+
+    return { outcome, persisted, failures }
 }
 
 export interface RunEffects {
     /** Hands the run's object URLs to the store, which owns them from there. */
     readonly adopt: (jobId: string, urls: readonly string[]) => void
-    readonly settle: (outcome: GenerationJob) => void
+    /** The run landed. `failures` names whatever it was asked for and missed. */
+    readonly settle: (outcome: GenerationJob, failures: readonly string[]) => void
+    /** The run made nothing at all, for this reason. */
+    readonly fail: (reason: string) => void
     readonly onPersisted: () => void
 }
 
@@ -115,7 +158,7 @@ export async function launchRun(
     effects: RunEffects,
 ): Promise<void> {
     try {
-        const { outcome, persisted } = await performRun(job, input, credentialsOf)
+        const { failures, outcome, persisted } = await performRun(job, input, credentialsOf)
 
         if (persisted) {
             effects.onPersisted()
@@ -123,10 +166,10 @@ export async function launchRun(
 
         effects.adopt(
             job.id,
-            outcome.status === 'done' ? outcome.outputs.map((output) => output.url) : [],
+            outcome.outputs.map((output) => output.url),
         )
-        effects.settle(outcome)
+        effects.settle(outcome, failures)
     } catch (error: unknown) {
-        effects.settle(failureOf(job, error))
+        effects.fail(messageOf(error))
     }
 }

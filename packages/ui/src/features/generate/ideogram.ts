@@ -1,7 +1,7 @@
 import { httpFetch } from '../../lib/http'
-import { GenerationError, offlineError } from './errors'
+import { GenerationError, offlineError, unexpectedError } from './errors'
 import type { EngineRequest } from './request'
-import { fetchBinary, readJson } from './shared'
+import { fanOut, fetchBinary, readJson } from './shared'
 
 /**
  * The Ideogram API: synchronous generation returning short-lived signed URLs.
@@ -48,9 +48,7 @@ interface IdeogramResponse {
     readonly message?: string
 }
 
-async function toGenerationError(response: Response): Promise<GenerationError> {
-    const body = (await readJson(response)) as IdeogramResponse | null
-
+function toGenerationError(response: Response): GenerationError {
     if (response.status === 401 || response.status === 403) {
         return new GenerationError('Ideogram rejected the API key. Check it in Settings.')
     }
@@ -61,13 +59,7 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
         )
     }
 
-    const detail = body?.error ?? body?.message
-
-    return new GenerationError(
-        typeof detail === 'string' && detail !== ''
-            ? detail
-            : `Ideogram returned an unexpected error (${response.status}).`,
-    )
+    return unexpectedError('Ideogram', response.status)
 }
 
 function headersOf(request: EngineRequest): Readonly<Record<string, string>> {
@@ -81,7 +73,7 @@ function speedOf(request: EngineRequest): string {
 /** The signed URLs from one response, or the reason there are none. */
 async function urlsOf(response: Response): Promise<readonly string[]> {
     if (!response.ok) {
-        throw await toGenerationError(response)
+        throw toGenerationError(response)
     }
 
     const body = (await readJson(response)) as IdeogramResponse | null
@@ -129,8 +121,12 @@ async function generateV3(request: EngineRequest): Promise<readonly string[]> {
     return urlsOf(response)
 }
 
-/** Ideogram 4.0: one image per call, so the run fans out. */
-async function generateOneV4(request: EngineRequest): Promise<string> {
+/**
+ * Ideogram 4.0: one image per call, so the run fans out. The download happens
+ * inside the attempt rather than after the whole fan-out, so a link that fails
+ * to fetch costs one image rather than all of them.
+ */
+async function generateOneV4(request: EngineRequest): Promise<Blob> {
     let response: Response
 
     try {
@@ -152,10 +148,10 @@ async function generateOneV4(request: EngineRequest): Promise<string> {
         throw new GenerationError('Ideogram returned no images for this prompt.')
     }
 
-    return url
+    return fetchBinary('Ideogram', url, 'image/png')
 }
 
-function generateV4(request: EngineRequest): Promise<readonly string[]> {
+function generateV4(request: EngineRequest): Promise<Blob[]> {
     if (request.references.length > 0) {
         return Promise.reject(
             new GenerationError(
@@ -164,13 +160,15 @@ function generateV4(request: EngineRequest): Promise<readonly string[]> {
         )
     }
 
-    return Promise.all(Array.from({ length: request.count }, () => generateOneV4(request)))
+    return fanOut(request, () => generateOneV4(request))
 }
 
 export async function generateIdeogramImages(request: EngineRequest): Promise<Blob[]> {
-    const urls = await (request.modelId === 'ideogram-v4'
-        ? generateV4(request)
-        : generateV3(request))
+    if (request.modelId === 'ideogram-v4') {
+        return generateV4(request)
+    }
+
+    const urls = await generateV3(request)
 
     return Promise.all(urls.map((url) => fetchBinary('Ideogram', url, 'image/png')))
 }

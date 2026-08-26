@@ -1,5 +1,5 @@
 import { httpFetch } from '../../lib/http'
-import { GenerationError, offlineError } from './errors'
+import { GenerationError, moderationError, offlineError, unexpectedError } from './errors'
 import type { EngineRequest } from './request'
 import { encodeDataUri, fetchBinary, poll, readJson } from './shared'
 
@@ -66,14 +66,10 @@ function checkBaseResp(base: BaseResp | undefined): void {
     }
 
     if (code === 1026) {
-        throw new GenerationError('MiniMax declined this prompt as against its usage policies.')
+        throw moderationError('MiniMax')
     }
 
-    throw new GenerationError(
-        typeof base?.status_msg === 'string' && base.status_msg !== ''
-            ? `MiniMax: ${base.status_msg}`
-            : `MiniMax returned an unexpected error (${code}).`,
-    )
+    throw new GenerationError('MiniMax could not make this one. Try again.')
 }
 
 /**
@@ -137,7 +133,7 @@ async function createTask(request: EngineRequest): Promise<string> {
     checkBaseResp(body?.base_resp)
 
     if (!created.ok) {
-        throw new GenerationError(`MiniMax returned an unexpected error (${created.status}).`)
+        throw unexpectedError('MiniMax', created.status)
     }
 
     if (typeof body?.task_id !== 'string' || body.task_id === '') {
@@ -163,9 +159,7 @@ export async function generateMinimaxVideo(request: EngineRequest): Promise<Blob
             checkBaseResp(body?.base_resp)
 
             if (!response.ok) {
-                throw new GenerationError(
-                    `MiniMax returned an unexpected error (${response.status}).`,
-                )
+                throw unexpectedError('MiniMax', response.status)
             }
 
             const task = body?.task ?? body

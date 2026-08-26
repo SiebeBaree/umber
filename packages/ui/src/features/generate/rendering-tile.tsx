@@ -32,7 +32,7 @@ export function RenderingTile({ className, providerId, ratio }: RenderingTilePro
         >
             <div
                 aria-hidden
-                className="drift-b absolute -inset-[30%] opacity-60"
+                className="drift-pool absolute -inset-[30%] opacity-60"
                 style={POOL_STYLE}
             />
 

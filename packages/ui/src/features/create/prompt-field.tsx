@@ -1,5 +1,6 @@
 import { type ChangeEvent, type KeyboardEvent, useCallback, useLayoutEffect, useRef } from 'react'
 
+import { useAppActive } from '../../lib/app-activity'
 import { useShortcut, type Shortcut } from '../../lib/use-shortcut'
 import type { PromptSuggestions } from './prompt-suggestions'
 import { useTypedPlaceholder } from './use-typed-placeholder'
@@ -51,6 +52,7 @@ function useAutoGrow(value: string) {
 
 export function PromptField({ onChange, onKeyDown, suggestions, value }: PromptFieldProps) {
     const fieldRef = useAutoGrow(value)
+    const watched = useAppActive()
 
     // The field owns its own shortcut: it is the thing being focused, and the
     // ref is already here.
@@ -61,7 +63,9 @@ export function PromptField({ onChange, onKeyDown, suggestions, value }: PromptF
     const placeholder = useTypedPlaceholder({
         prefix: suggestions.prefix,
         endings: suggestions.endings,
-        enabled: value === '',
+        // A character every 55ms is a render every 55ms; there is no reason to
+        // spend them while the window is behind something else.
+        enabled: value === '' && watched,
     })
 
     const handleChange = useCallback(

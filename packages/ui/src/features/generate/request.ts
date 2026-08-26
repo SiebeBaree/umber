@@ -24,4 +24,10 @@ export interface EngineRequest {
     readonly firstFrame?: File
     /** The still a video run renders towards; only models that declare it. */
     readonly lastFrame?: File
+    /**
+     * Where a run that fans out into several independent calls reports one of
+     * them failing while its siblings land. Absent for anything that is a
+     * single call, which either works or throws.
+     */
+    readonly onAttemptFailed?: (message: string) => void
 }

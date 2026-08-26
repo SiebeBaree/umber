@@ -1,9 +1,9 @@
 import { httpFetch } from '../../lib/http'
 import type { AspectRatio } from '../create/catalog'
-import { GenerationError, offlineError } from './errors'
+import { GenerationError, offlineError, unexpectedError } from './errors'
 import type { KeyVerification } from './openai'
 import type { EngineRequest } from './request'
-import { encodeDataUri, fetchBinary, poll, readJson } from './shared'
+import { encodeDataUri, fanOut, fetchBinary, poll, readJson } from './shared'
 
 /**
  * The Runway API: image and video tasks, both async — POST creates a task,
@@ -62,13 +62,7 @@ function headersOf(request: EngineRequest): Readonly<Record<string, string>> {
     }
 }
 
-interface RunwayErrorBody {
-    readonly error?: string
-}
-
-async function toGenerationError(response: Response): Promise<GenerationError> {
-    const body = (await readJson(response)) as RunwayErrorBody | null
-
+function toGenerationError(response: Response): GenerationError {
     if (response.status === 401) {
         return new GenerationError('Runway rejected the API key. Check it in Settings.')
     }
@@ -79,18 +73,13 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
         )
     }
 
-    return new GenerationError(
-        typeof body?.error === 'string' && body.error !== ''
-            ? body.error
-            : `Runway returned an unexpected error (${response.status}).`,
-    )
+    return unexpectedError('Runway', response.status)
 }
 
 interface RunwayTask {
     readonly id?: string
     readonly status?: string
     readonly output?: readonly string[]
-    readonly failure?: string
 }
 
 async function createTask(
@@ -110,7 +99,7 @@ async function createTask(
     }
 
     if (!response.ok) {
-        throw await toGenerationError(response)
+        throw toGenerationError(response)
     }
 
     const task = (await readJson(response)) as RunwayTask | null
@@ -137,7 +126,7 @@ async function awaitTask(
             })
 
             if (!response.ok) {
-                throw await toGenerationError(response)
+                throw toGenerationError(response)
             }
 
             const task = (await readJson(response)) as RunwayTask | null
@@ -147,7 +136,7 @@ async function awaitTask(
             }
 
             if (task?.status === 'FAILED' || task?.status === 'CANCELLED') {
-                throw new GenerationError(task.failure ?? 'Runway could not finish this run.')
+                throw new GenerationError('Runway could not finish this one. Try again.')
             }
 
             // PENDING, THROTTLED and RUNNING all just mean "keep waiting".
@@ -194,7 +183,7 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
 }
 
 export function generateRunwayImages(request: EngineRequest): Promise<Blob[]> {
-    return Promise.all(Array.from({ length: request.count }, () => generateOneImage(request)))
+    return fanOut(request, () => generateOneImage(request))
 }
 
 /** The frames as Runway wants them: explicitly positioned keyframe entries. */
