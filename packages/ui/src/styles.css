@@ -301,76 +301,137 @@
 /*
  * Each blob follows its own looping path, and no two paths share a duration, so
  * the group never resynchronises into an obvious pattern. The waypoints wander
- * up and down as they cross rather than tracking straight, and `ease-in-out`
- * between them makes the drift gust and ease off — wind, not a conveyor belt.
+ * up and down as they cross rather than tracking straight, and each blob swells
+ * and fades as it travels — wind, not a conveyor belt.
+ *
+ * Position and opacity only, deliberately. These blobs carry an 80-100px blur,
+ * and scaling a blurred layer makes Chromium rasterise that blur again at every
+ * new size; moving and fading one is work the compositor already does for free.
+ * The swell that used to come from `scale` comes from opacity instead, which
+ * through that much blur reads the same.
  */
 @keyframes umber-drift-a {
     0%,
     100% {
-        transform: translate3d(-8%, 0, 0) scale(1);
+        transform: translate3d(-8%, 0, 0);
+        opacity: 0.9;
     }
 
     30% {
-        transform: translate3d(14%, -7%, 0) scale(1.12);
+        transform: translate3d(14%, -7%, 0);
+        opacity: 1;
     }
 
     55% {
-        transform: translate3d(30%, 5%, 0) scale(0.94);
+        transform: translate3d(30%, 5%, 0);
+        opacity: 0.76;
     }
 
     80% {
-        transform: translate3d(10%, 9%, 0) scale(1.06);
+        transform: translate3d(10%, 9%, 0);
+        opacity: 0.95;
     }
 }
 
 @keyframes umber-drift-b {
     0%,
     100% {
-        transform: translate3d(6%, 4%, 0) scale(1.04);
+        transform: translate3d(6%, 4%, 0);
+        opacity: 0.95;
     }
 
     35% {
-        transform: translate3d(-12%, -6%, 0) scale(0.92);
+        transform: translate3d(-12%, -6%, 0);
+        opacity: 0.8;
     }
 
     60% {
-        transform: translate3d(-26%, 6%, 0) scale(1.14);
+        transform: translate3d(-26%, 6%, 0);
+        opacity: 1;
     }
 
     85% {
-        transform: translate3d(-5%, 11%, 0) scale(0.98);
+        transform: translate3d(-5%, 11%, 0);
+        opacity: 0.88;
     }
 }
 
 @keyframes umber-drift-c {
     0%,
     100% {
-        transform: translate3d(0, -3%, 0) scale(0.96);
+        transform: translate3d(0, -3%, 0);
+        opacity: 0.85;
     }
 
     25% {
-        transform: translate3d(18%, 8%, 0) scale(1.1);
+        transform: translate3d(18%, 8%, 0);
+        opacity: 1;
     }
 
     50% {
-        transform: translate3d(6%, 16%, 0) scale(0.9);
+        transform: translate3d(6%, 16%, 0);
+        opacity: 0.74;
     }
 
     75% {
-        transform: translate3d(-14%, 5%, 0) scale(1.08);
+        transform: translate3d(-14%, 5%, 0);
+        opacity: 0.98;
     }
 }
 
+/*
+ * The blobs are stepped rather than eased, at roughly eight frames a second.
+ *
+ * This is the single biggest thing Umber can do for its own frame budget. Every
+ * glass surface in the app is a backdrop filter reading the canvas, and a
+ * backdrop filter is recomputed whenever the pixels behind it move — so a
+ * smoothly drifting blob makes the composer, the header and every tile blur
+ * themselves again on every single frame, forever, whether or not anything is
+ * happening. At a minute per lap these blobs travel two or three pixels between
+ * steps, under 90px of blur, so nobody can tell; the machine very much can.
+ *
+ * `will-change` keeps each blob on a layer of its own, so a step moves a
+ * finished texture instead of repainting the grain and wash it overlaps.
+ */
 @utility drift-a {
-    animation: umber-drift-a 47s ease-in-out infinite;
+    animation: umber-drift-a 47s steps(120) infinite;
+    will-change: transform, opacity;
 }
 
 @utility drift-b {
-    animation: umber-drift-b 61s ease-in-out infinite;
+    animation: umber-drift-b 61s steps(120) infinite;
+    will-change: transform, opacity;
 }
 
 @utility drift-c {
-    animation: umber-drift-c 73s ease-in-out infinite;
+    animation: umber-drift-c 73s steps(120) infinite;
+    will-change: transform, opacity;
+}
+
+/*
+ * The accent pool inside a rendering tile, wandering on a path of its own. It
+ * borrowed a blob's animation until the blobs learned to fade, which the pool
+ * must not do: it already sits under a sweeping sheen, and two things pulsing
+ * on one small tile is one too many.
+ */
+@keyframes umber-drift-pool {
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0);
+    }
+
+    33% {
+        transform: translate3d(9%, -6%, 0);
+    }
+
+    66% {
+        transform: translate3d(-7%, 5%, 0);
+    }
+}
+
+@utility drift-pool {
+    animation: umber-drift-pool 18s steps(90) infinite;
+    will-change: transform;
 }
 
 /*
@@ -391,6 +452,7 @@
 
 @utility sheen {
     animation: umber-sheen 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    will-change: transform;
 }
 
 /* The provider mark at the centre of a rendering tile, breathing. */
@@ -409,6 +471,7 @@
 
 @utility breathe {
     animation: umber-breathe 2.8s ease-in-out infinite;
+    will-change: transform, opacity;
 }
 
 /*
@@ -447,4 +510,19 @@
             transition-duration: 0.01ms !important;
         }
     }
+}
+
+/*
+ * Nothing decorative runs while Umber is not the window being looked at. The
+ * shell marks the document on blur and unmarks it on focus; Chromium only
+ * throttles a window it considers *hidden*, so an Umber sitting visible behind
+ * another app would otherwise keep drifting, sweeping and blurring for nobody.
+ *
+ * Unlayered, so it outranks the utilities it pauses, and limited to the endless
+ * loops. Pausing entrances and exits as well would strand a closing overlay
+ * half-gone: those unmount on `animationend`, which a paused animation never
+ * reaches.
+ */
+html[data-resting] :is(.drift-a, .drift-b, .drift-c, .drift-pool, .sheen, .breathe, .animate-ping) {
+    animation-play-state: paused;
 }

@@ -94,11 +94,7 @@ async function unwrap<T>(response: Response, providerAction: string): Promise<T>
     const body = (await readJson(response)) as KlingEnvelope<T> | null
 
     if (!response.ok || body === null || body.code !== 0 || body.data === undefined) {
-        throw new GenerationError(
-            typeof body?.message === 'string' && body.message !== '' && body.message !== 'SUCCEED'
-                ? `Kling: ${body.message}`
-                : `Kling could not ${providerAction} (${response.status}).`,
-        )
+        throw new GenerationError(`Kling could not ${providerAction}. Try again.`)
     }
 
     return body.data

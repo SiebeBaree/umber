@@ -1,6 +1,7 @@
 import { httpFetch } from '../../lib/http'
 import { ratioParts, type AspectRatio } from '../create/catalog'
-import { GenerationError, offlineError } from './errors'
+import { GenerationError, messageOf, offlineError } from './errors'
+import type { EngineRequest } from './request'
 
 /**
  * The handful of moves every provider integration makes: polling an async
@@ -39,6 +40,39 @@ export async function poll<T>(options: PollOptions<T>): Promise<T> {
 
         await wait(options.intervalMs)
     }
+}
+
+/**
+ * Runs one independent attempt per requested output and keeps whatever lands.
+ *
+ * A run of four where one call fails is still three pictures the user asked
+ * for, so a lone failure is reported back through the request instead of
+ * throwing the other three away with it. Every attempt failing is an ordinary
+ * failure, and the first reason is the one worth telling.
+ */
+export async function fanOut(
+    request: EngineRequest,
+    attempt: () => Promise<Blob>,
+): Promise<Blob[]> {
+    const settled = await Promise.allSettled(Array.from({ length: request.count }, () => attempt()))
+
+    const blobs = settled
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.value)
+
+    const failures = settled
+        .filter((result) => result.status === 'rejected')
+        .map((result) => result.reason as unknown)
+
+    if (blobs.length === 0) {
+        throw failures[0] ?? new GenerationError('Nothing came back from this run. Try again.')
+    }
+
+    for (const failure of failures) {
+        request.onAttemptFailed?.(messageOf(failure))
+    }
+
+    return blobs
 }
 
 export function decodeBase64Blob(b64: string, mimeType: string): Blob {
@@ -83,7 +117,7 @@ export async function fetchBinary(
 
     if (!response.ok) {
         throw new GenerationError(
-            `${providerName} produced a result Umber could not download (${response.status}).`,
+            `Umber could not download the finished result from ${providerName}. Try again.`,
         )
     }
 

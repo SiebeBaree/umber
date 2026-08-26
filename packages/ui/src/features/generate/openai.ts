@@ -1,6 +1,6 @@
 import { httpFetch } from '../../lib/http'
 import { GPT_IMAGE_2_SIZE, pixelSize, type AspectRatio } from '../create/catalog'
-import { GenerationError } from './errors'
+import { GenerationError, moderationError, unexpectedError } from './errors'
 import type { EngineRequest } from './request'
 import { decodeBase64Blob, readJson } from './shared'
 
@@ -74,12 +74,10 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
         detail?.toLowerCase().includes('moderation') === true ||
         detail?.toLowerCase().includes('safety') === true
     ) {
-        return new GenerationError('OpenAI declined this prompt as against its usage policies.')
+        return moderationError('OpenAI')
     }
 
-    return new GenerationError(
-        detail ?? `OpenAI returned an unexpected error (${response.status}).`,
-    )
+    return unexpectedError('OpenAI', response.status)
 }
 
 interface ImagesResponse {
@@ -100,7 +98,8 @@ function decodeResponse(body: ImagesResponse): Blob[] {
 }
 
 /** One network failure message, shared by generation and verification. */
-const OFFLINE_MESSAGE = 'Could not reach OpenAI. Check your connection and try again.'
+const OFFLINE_MESSAGE =
+    'Umber could not reach OpenAI. Check your internet connection and try again.'
 
 function apiKeyOf(request: EngineRequest): string {
     return request.credentials['apiKey'] ?? ''

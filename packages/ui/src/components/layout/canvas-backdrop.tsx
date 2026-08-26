@@ -7,7 +7,9 @@
  * across the stylesheet, so what sits in front of what is readable here.
  *
  * The blobs are blurred far past their own edges, which is what turns three
- * circles into weather; the blur is static, so only cheap transforms animate.
+ * circles into weather. The blur is static and each blob sits on a layer of
+ * its own, so drifting one moves a finished texture rather than repainting the
+ * wash and grain it crosses.
  */
 export function CanvasBackdrop() {
     return (

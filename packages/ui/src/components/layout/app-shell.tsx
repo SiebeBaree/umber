@@ -1,5 +1,8 @@
 import { Outlet, useNavigate } from '@tanstack/react-router'
+import { useEffect } from 'react'
 
+import { NotificationStack } from '../../features/notifications/notification-stack'
+import { useAppActive } from '../../lib/app-activity'
 import { useDropGuard } from '../../lib/drag-drop'
 import { useShortcut, type Shortcut } from '../../lib/use-shortcut'
 import { TooltipProvider } from '../ui/tooltip'
@@ -30,6 +33,20 @@ function useNavigationShortcuts() {
 }
 
 /**
+ * Marks the document while the window is in the background, which is what the
+ * stylesheet's paused decorative animations key off. One attribute rather than
+ * a prop threaded to every animated element: the drift, the sheens and the
+ * breathing marks are CSS, and none of them are worth re-rendering to stop.
+ */
+function useRestWhenUnwatched() {
+    const watched = useAppActive()
+
+    useEffect(() => {
+        document.documentElement.toggleAttribute('data-resting', !watched)
+    }, [watched])
+}
+
+/**
  * The root layout every page renders inside: the animated canvas behind
  * everything, header on top, the matched page filling the rest.
  *
@@ -43,12 +60,14 @@ export function AppShell() {
     useNavigationShortcuts()
     // Every route renders inside this, so nowhere in the app is left without it.
     useDropGuard()
+    useRestWhenUnwatched()
 
     return (
         <TooltipProvider>
             <div className="flex h-full flex-col">
                 <CanvasBackdrop />
                 <AppHeader />
+                <NotificationStack />
                 <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                     <Outlet />
                 </main>

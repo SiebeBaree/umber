@@ -1,5 +1,5 @@
 import { httpFetch } from '../../lib/http'
-import { GenerationError, offlineError } from './errors'
+import { GenerationError, offlineError, unexpectedError } from './errors'
 import type { KeyVerification } from './openai'
 import type { EngineRequest } from './request'
 import { decodeBase64Blob, nearestSize, readJson } from './shared'
@@ -47,9 +47,7 @@ interface RecraftResponse {
     readonly error?: { readonly message?: string }
 }
 
-async function toGenerationError(response: Response): Promise<GenerationError> {
-    const body = (await readJson(response)) as RecraftResponse | null
-
+function toGenerationError(response: Response): GenerationError {
     if (response.status === 401) {
         return new GenerationError('Recraft rejected the API key. Check it in Settings.')
     }
@@ -60,13 +58,7 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
         )
     }
 
-    const detail = body?.error?.message ?? body?.message
-
-    return new GenerationError(
-        typeof detail === 'string' && detail !== ''
-            ? detail
-            : `Recraft returned an unexpected error (${response.status}).`,
-    )
+    return unexpectedError('Recraft', response.status)
 }
 
 export async function generateRecraftImages(request: EngineRequest): Promise<Blob[]> {
@@ -96,7 +88,7 @@ export async function generateRecraftImages(request: EngineRequest): Promise<Blo
     }
 
     if (!response.ok) {
-        throw await toGenerationError(response)
+        throw toGenerationError(response)
     }
 
     const body = (await readJson(response)) as RecraftResponse | null

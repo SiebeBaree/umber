@@ -33,15 +33,24 @@ interface JobBase {
     readonly startedAt: number
 }
 
+/**
+ * A run is either working or finished. There is no failed state: a run that
+ * made nothing leaves the stage and says why in a notification instead, since
+ * a card of apology sitting where the pictures should be is the one thing the
+ * stage cannot spend its space on.
+ */
 export type GenerationJob =
     | (JobBase & { readonly status: 'running' })
     | (JobBase & {
           readonly status: 'done'
+          /** What actually landed, which may be fewer than `count` asked for. */
           readonly outputs: readonly GeneratedOutput[]
           /** How long the run took, in milliseconds. */
           readonly generationMs: number
       })
-    | (JobBase & { readonly status: 'failed'; readonly error: string })
+
+/** A run that landed, which is the only shape a finished run can take. */
+export type FinishedJob = Extract<GenerationJob, { readonly status: 'done' }>
 
 export interface StartInput {
     readonly prompt: string

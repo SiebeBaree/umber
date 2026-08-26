@@ -6,6 +6,7 @@ import { beforeEach, expect, test, vi } from 'vitest'
 // internal of the create flow, not part of the package's public surface.
 import { defaultModel } from '../packages/ui/src/features/create/catalog'
 import type { ModeSettings } from '../packages/ui/src/features/create/settings/schema'
+import { GenerationError } from '../packages/ui/src/features/generate/errors'
 import {
     GenerationProvider,
     useGeneration,
@@ -13,6 +14,11 @@ import {
 } from '../packages/ui/src/features/generate/generation-context'
 import { KeysProvider } from '../packages/ui/src/features/keys/keys-context'
 import type { KeyVault } from '../packages/ui/src/features/keys/vault'
+import {
+    NotificationsProvider,
+    useNotifications,
+    type NotificationsApi,
+} from '../packages/ui/src/features/notifications/notifications-context'
 
 /**
  * Several runs at once: starting one never waits on the one before it, results
@@ -20,12 +26,17 @@ import type { KeyVault } from '../packages/ui/src/features/keys/vault'
  */
 
 /** Every provider call left hanging, by the prompt that started it. */
-const pending = new Map<string, (blobs: Blob[]) => void>()
+interface PendingCall {
+    readonly resolve: (blobs: Blob[]) => void
+    readonly reject: (error: unknown) => void
+}
+
+const pending = new Map<string, PendingCall>()
 
 vi.mock('../packages/ui/src/features/generate/engine', () => ({
     runGeneration: (request: { readonly prompt: string }) =>
-        new Promise<Blob[]>((resolve) => {
-            pending.set(request.prompt, resolve)
+        new Promise<Blob[]>((resolve, reject) => {
+            pending.set(request.prompt, { resolve, reject })
         }),
 }))
 
@@ -47,11 +58,15 @@ const SETTINGS: ModeSettings = {
     durationSeconds: 4,
 }
 
-/** Hands the store itself to the test; nothing here renders anything. */
-const store: { api: GenerationApi | null } = { api: null }
+/** Hands the two stores themselves to the test; nothing here renders anything. */
+const store: { api: GenerationApi | null; notices: NotificationsApi | null } = {
+    api: null,
+    notices: null,
+}
 
 function Probe() {
     store.api = useGeneration()
+    store.notices = useNotifications()
 
     return null
 }
@@ -64,6 +79,14 @@ function api(): GenerationApi {
     return store.api
 }
 
+function notices(): NotificationsApi {
+    if (store.notices === null) {
+        throw new Error('the probe never mounted')
+    }
+
+    return store.notices
+}
+
 function mount() {
     const container = document.createElement('div')
     document.body.append(container)
@@ -72,18 +95,49 @@ function mount() {
         createRoot(container).render(
             <StrictMode>
                 <KeysProvider vault={vault}>
-                    <GenerationProvider>
-                        <Probe />
-                    </GenerationProvider>
+                    <NotificationsProvider>
+                        <GenerationProvider>
+                            <Probe />
+                        </GenerationProvider>
+                    </NotificationsProvider>
                 </KeysProvider>
             </StrictMode>,
         )
     })
 }
 
-function start(prompt: string) {
+function start(prompt: string, outputCount = 1) {
     act(() => {
-        api().start({ prompt, model: MODEL, settings: SETTINGS, references: [] })
+        api().start({
+            prompt,
+            model: MODEL,
+            settings: { ...SETTINGS, outputCount },
+            references: [],
+        })
+    })
+}
+
+/** One image, as the mocked provider hands them back. */
+function png() {
+    return new Blob(['pretend png'], { type: 'image/png' })
+}
+
+/** Waits for the run's provider call, then lets its own promises finish. */
+async function land(prompt: string, settle: (call: PendingCall) => void) {
+    await vi.waitFor(() => {
+        expect(pending.get(prompt)).toBeDefined()
+    })
+
+    await act(async () => {
+        const call = pending.get(prompt)
+
+        if (call !== undefined) {
+            settle(call)
+        }
+
+        await new Promise((resolve) => {
+            setTimeout(resolve, 0)
+        })
     })
 }
 
@@ -92,19 +146,11 @@ function start(prompt: string) {
  * itself is reached one credential lookup after `start`, so it is waited for
  * rather than assumed.
  */
-async function finish(prompt: string) {
-    await vi.waitFor(() => {
-        expect(pending.get(prompt)).toBeDefined()
-    })
-
-    await act(async () => {
-        pending.get(prompt)?.([new Blob(['pretend png'], { type: 'image/png' })])
-
-        // A turn of the loop, so the run's own promises — the gallery write
-        // among them — are all done before `act` flushes what they queued.
-        await new Promise((resolve) => {
-            setTimeout(resolve, 0)
-        })
+async function finish(prompt: string, images = 1) {
+    // A turn of the loop inside `land`, so the run's own promises — the gallery
+    // write among them — are all done before `act` flushes what they queued.
+    await land(prompt, (call) => {
+        call.resolve(Array.from({ length: images }, () => png()))
     })
 
     expect(api().jobs.some((job) => job.prompt === prompt && job.status === 'done')).toBe(true)
@@ -119,6 +165,7 @@ beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true
     pending.clear()
     store.api = null
+    store.notices = null
 
     // jsdom has no object URLs, and the store mints one per output.
     URL.createObjectURL = vi.fn(() => `blob:umber/${pending.size}`)
@@ -152,24 +199,23 @@ test('runs settle into their own place, whatever order they land in', async () =
     expect(api().running).toBe(0)
 })
 
-test('dismissing one run leaves the others alone', async () => {
+test('clearing one finished run releases its files and only its own', async () => {
     mount()
 
     start('a lighthouse')
     start('a harbour')
     await finish('a lighthouse')
 
-    const dismissed = api().jobs[0]
-    const url = dismissed?.status === 'done' ? dismissed.outputs[0]?.url : null
+    const cleared = api().jobs[0]
+    const url = cleared?.status === 'done' ? cleared.outputs[0]?.url : null
 
     act(() => {
-        api().dismiss(dismissed?.id ?? '')
+        api().clearFinished()
     })
 
     expect(api().jobs.map((job) => job.prompt)).toEqual(['a harbour'])
     expect(api().running).toBe(1)
 
-    // The dismissed run's file goes with it, and only its own.
     expect(URL.revokeObjectURL).toHaveBeenCalledWith(url)
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1)
 })
@@ -192,4 +238,51 @@ test('clearing the stage keeps the runs that are still going', async () => {
 
     // Both cleared runs release their files; the working one holds nothing yet.
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2)
+})
+
+test('a run that makes nothing leaves the stage and says why', async () => {
+    mount()
+
+    start('a lighthouse')
+    start('a harbour')
+
+    await land('a harbour', (call) => {
+        call.reject(new GenerationError('Reve is having trouble on their end.'))
+    })
+
+    // Gone from the stage entirely: there is no failed tile to dismiss.
+    expect(api().jobs.map((job) => job.prompt)).toEqual(['a lighthouse'])
+    expect(notices().notifications.map((notice) => notice.body)).toEqual([
+        'Reve is having trouble on their end.',
+    ])
+})
+
+test('a failure nobody wrote a sentence for still reads as English', async () => {
+    mount()
+
+    start('a lighthouse')
+
+    await land('a lighthouse', (call) => {
+        call.reject(new TypeError('undefined is not a function'))
+    })
+
+    expect(notices().notifications[0]?.body).toBe(
+        'Something went wrong while generating. Try again.',
+    )
+})
+
+test('a run that makes some of what was asked keeps them and accounts for the rest', async () => {
+    mount()
+
+    start('a lighthouse', 2)
+    await finish('a lighthouse', 1)
+
+    const job = api().jobs[0]
+
+    // The run stays, holding the one picture that landed — the stage draws a
+    // single tile from `outputs`, not a pair with a hole in it.
+    expect(job?.status === 'done' ? job.outputs.length : 0).toBe(1)
+    expect(job?.count).toBe(2)
+
+    expect(notices().notifications[0]?.title).toBe('1 of 2 images came out')
 })

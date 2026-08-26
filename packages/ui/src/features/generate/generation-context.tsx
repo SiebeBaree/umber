@@ -10,6 +10,7 @@ import {
 } from 'react'
 
 import { useKeys } from '../keys/keys-context'
+import { useNotifications } from '../notifications/notifications-context'
 import { newJob, pruned, type GenerationJob, type StartInput } from './job'
 import { launchRun } from './run'
 
@@ -30,8 +31,6 @@ export interface GenerationApi {
     /** Bumped when a run lands in the gallery, so galleries can re-query. */
     readonly completions: number
     readonly start: (input: StartInput) => void
-    /** Takes one finished or failed run off the stage. */
-    readonly dismiss: (jobId: string) => void
     /** Clears every run that has landed, leaving the ones still working. */
     readonly clearFinished: () => void
     /** Clears the whole stage, in flight or not. */
@@ -98,9 +97,35 @@ function useJobs() {
     return { jobs, jobsRef, commit, adopt }
 }
 
+/**
+ * "1 of 2 images came out". Only image runs ask for more than one output, so
+ * there is no video wording to reach here.
+ */
+function shortfallTitle(job: GenerationJob, made: number): string {
+    return `${made} of ${job.count} images came out`
+}
+
+/** What to call a run that produced nothing at all. */
+function failureTitle(job: GenerationJob): string {
+    if (job.kind === 'video') {
+        return 'Your video didn’t come out'
+    }
+
+    return job.count > 1 ? 'Your images didn’t come out' : 'Your image didn’t come out'
+}
+
+/**
+ * The reasons, as one paragraph. Four calls failing the same way is one thing
+ * that went wrong, not four, so identical sentences collapse.
+ */
+function reasonsOf(failures: readonly string[]): string {
+    return [...new Set(failures)].join(' ')
+}
+
 /** Putting a run in flight, and the tally of runs that reached the gallery. */
 function useStart({ adopt, commit, jobsRef }: Omit<ReturnType<typeof useJobs>, 'jobs'>) {
     const keys = useKeys()
+    const { notify } = useNotifications()
     const [completions, setCompletions] = useState(0)
 
     const start = useCallback(
@@ -111,21 +136,34 @@ function useStart({ adopt, commit, jobsRef }: Omit<ReturnType<typeof useJobs>, '
 
             void launchRun(job, input, keys.credentials, {
                 adopt,
-                // The run may have been dismissed or cleared while it worked;
-                // a result with no place on the stage is simply dropped.
-                settle: (outcome) => {
+                // The run may have been cleared off the stage while it worked;
+                // a result with no place to land is simply dropped.
+                settle: (outcome, failures) => {
                     commit(
                         jobsRef.current.map((current) =>
                             current.id === outcome.id ? outcome : current,
                         ),
                     )
+
+                    // Some of what was asked for landed and some did not. The
+                    // stage shows what there is — one picture where two were
+                    // asked for — and the notice accounts for the difference.
+                    if (failures.length > 0 && outcome.status === 'done') {
+                        notify(shortfallTitle(job, outcome.outputs.length), reasonsOf(failures))
+                    }
+                },
+                // Nothing came of it, so the run leaves the stage rather than
+                // holding a slot open for an apology.
+                fail: (reason) => {
+                    commit(jobsRef.current.filter((current) => current.id !== job.id))
+                    notify(failureTitle(job), reason)
                 },
                 onPersisted: () => {
                     setCompletions((current) => current + 1)
                 },
             })
         },
-        [adopt, commit, jobsRef, keys],
+        [adopt, commit, jobsRef, keys, notify],
     )
 
     return { start, completions }
@@ -134,13 +172,6 @@ function useStart({ adopt, commit, jobsRef }: Omit<ReturnType<typeof useJobs>, '
 export function GenerationProvider({ children }: { readonly children: ReactNode }) {
     const { adopt, commit, jobs, jobsRef } = useJobs()
     const { completions, start } = useStart({ adopt, commit, jobsRef })
-
-    const dismiss = useCallback(
-        (jobId: string) => {
-            commit(jobsRef.current.filter((job) => job.id !== jobId))
-        },
-        [commit, jobsRef],
-    )
 
     // A run still working keeps its place: its skeletons are the only sign it
     // is happening, and clearing the clutter should not take that with it.
@@ -155,8 +186,8 @@ export function GenerationProvider({ children }: { readonly children: ReactNode 
     const running = jobs.filter((job) => job.status === 'running').length
 
     const value = useMemo<GenerationApi>(
-        () => ({ jobs, running, completions, start, dismiss, clearFinished, clear }),
-        [jobs, running, completions, start, dismiss, clearFinished, clear],
+        () => ({ jobs, running, completions, start, clearFinished, clear }),
+        [jobs, running, completions, start, clearFinished, clear],
     )
 
     return <GenerationContext.Provider value={value}>{children}</GenerationContext.Provider>

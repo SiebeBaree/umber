@@ -1,12 +1,11 @@
 import { RouterProvider } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 
-import { GenerationProvider } from './features/generate/generation-context'
-import { KeysProvider } from './features/keys/keys-context'
+import { AppProviders } from './app-providers'
 import type { KeyVault } from './features/keys/vault'
 import { OnboardingFlow } from './features/onboarding/onboarding-flow'
-import { ProfileProvider, useProfile } from './features/profile/profile-context'
-import { UpdatesProvider, type UpdateChecker } from './features/updates/updates-context'
+import { useProfile } from './features/profile/profile-context'
+import type { UpdateChecker } from './features/updates/updates-context'
 import { setHttpTransport, type HttpTransport } from './lib/http'
 import { createUmberRouter } from './router'
 
@@ -114,14 +113,8 @@ export function App({
     })
 
     return (
-        <KeysProvider vault={vault}>
-            <ProfileProvider>
-                <GenerationProvider>
-                    <UpdatesProvider checker={updates}>
-                        <AppContent router={router} />
-                    </UpdatesProvider>
-                </GenerationProvider>
-            </ProfileProvider>
-        </KeysProvider>
+        <AppProviders updates={updates} vault={vault}>
+            <AppContent router={router} />
+        </AppProviders>
     )
 }

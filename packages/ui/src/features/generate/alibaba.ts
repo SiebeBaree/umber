@@ -1,8 +1,8 @@
 import { httpFetch } from '../../lib/http'
 import type { AspectRatio } from '../create/catalog'
-import { GenerationError, offlineError } from './errors'
+import { GenerationError, moderationError, offlineError, unexpectedError } from './errors'
 import type { EngineRequest } from './request'
-import { encodeDataUri, fetchBinary, nearestSize, readJson } from './shared'
+import { encodeDataUri, fanOut, fetchBinary, nearestSize, readJson } from './shared'
 
 /**
  * Alibaba Model Studio (DashScope), image side: the Qwen-Image family over
@@ -85,14 +85,10 @@ async function toGenerationError(response: Response): Promise<GenerationError> {
     }
 
     if (body?.code === 'DataInspectionFailed') {
-        return new GenerationError('Alibaba declined this prompt as against its usage policies.')
+        return moderationError('Alibaba')
     }
 
-    return new GenerationError(
-        typeof body?.message === 'string' && body.message !== ''
-            ? body.message
-            : `Alibaba returned an unexpected error (${response.status}).`,
-    )
+    return unexpectedError('Alibaba', response.status)
 }
 
 interface QwenImageResponse {
@@ -219,7 +215,7 @@ export function generateAlibabaImages(request: EngineRequest): Promise<Blob[]> {
         return generateQwen3Images(request)
     }
 
-    return Promise.all(Array.from({ length: request.count }, () => generateOneImage(request)))
+    return fanOut(request, () => generateOneImage(request))
 }
 
 /** Shared with the Wan module, which speaks the same API with the same key. */
