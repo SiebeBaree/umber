@@ -163,7 +163,9 @@ function SubmitCluster({ blocker, canSubmit, price }: SubmitClusterProps) {
     // it as busy would say the opposite of what it does.
     const submit = (
         <Button
-            aria-label={`Generate — estimated ${price}`}
+            aria-label={
+                price === 'Cost varies' ? 'Generate, cost varies' : `Generate, estimated ${price}`
+            }
             disabled={!canSubmit || blocker !== null}
             size="icon"
             type="submit"

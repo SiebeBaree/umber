@@ -15,6 +15,9 @@ const LABELS: Readonly<Record<ImageQuality, string>> = {
     low: 'Low',
     medium: 'Medium',
     high: 'High',
+    xhigh: 'Extra high',
+    max: 'Max',
+    auto: 'Auto',
 }
 
 export interface QualitySelectProps {

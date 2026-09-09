@@ -62,7 +62,7 @@ export function pixelSize(ratio: AspectRatio, resolution: string, rule: SizeRule
     return { width: pixelWidth, height: pixelHeight }
 }
 
-/** GPT Image 2 takes free-form sizes: multiples of 16, no edge past 3840, ~8.3MP. */
+/** GPT Image 2 and 2.5 take free-form sizes: multiples of 16, no edge past 3840, ~8.3MP. */
 export const GPT_IMAGE_2_SIZE: SizeRule = {
     tiers: { '1K': 1024 * 1024, '2K': 2048 * 2048, '4K': 8_294_400 },
     grid: 16,

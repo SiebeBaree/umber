@@ -45,8 +45,17 @@ const BASE: ModeSettings = {
     durationSeconds: 5,
 }
 
-const costOf = (model: ImageModel | VideoModel, settings: Partial<ModeSettings>, references = 0) =>
-    estimateCost(model, { ...BASE, ...settings }, references)
+function costOf(
+    model: ImageModel | VideoModel,
+    settings: Partial<ModeSettings>,
+    references = 0,
+): number {
+    const cost = estimateCost(model, { ...BASE, ...settings }, references)
+    if (cost === null) {
+        throw new Error(`No cost estimate for ${model.id}`)
+    }
+    return cost
+}
 
 test('GPT Image 2 matches the per-image figures OpenAI publishes', () => {
     const model = image('gpt-image-2')
@@ -123,11 +132,16 @@ test('a model quoted at 720p is not marked up for choosing 720p', () => {
     }
 })
 
-test('every catalog model prices every combination it offers', () => {
+test('every catalog model has a price or explicitly marks its estimate unavailable', () => {
     for (const model of [...IMAGE_MODELS, ...VIDEO_MODELS]) {
         for (const resolution of model.resolutions) {
             for (const aspectRatio of model.aspectRatios) {
-                const cost = costOf(model, { resolution, aspectRatio })
+                const cost = estimateCost(model, { ...BASE, resolution, aspectRatio })
+
+                if (model.kind === 'image' && model.pricePerImage === null) {
+                    expect(cost).toBeNull()
+                    continue
+                }
 
                 expect(Number.isFinite(cost)).toBe(true)
                 expect(cost).toBeGreaterThan(0)

@@ -144,6 +144,10 @@ test('the estimate follows the settings that drive cost', () => {
     const two = estimateCost(gptImage2, { ...base, outputCount: 2 })
     const higher = estimateCost(gptImage2, { ...base, resolution: '4K' })
 
+    if (one === null) {
+        throw new Error('GPT Image 2 must have a cost estimate')
+    }
+
     expect(two).toBeCloseTo(one * 2)
     expect(higher).toBeGreaterThan(one)
 })

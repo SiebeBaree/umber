@@ -15,7 +15,7 @@ import type { ModeSettings } from './settings/schema'
  */
 
 /** What one image or one second costs, given everything that can change it. */
-function unitPrice(model: Model, context: PriceContext): number {
+function unitPrice(model: Model, context: PriceContext): number | null {
     const cheapest = model.resolutions[0]
     const fromImage = context.references > 0
 
@@ -33,18 +33,20 @@ function unitPrice(model: Model, context: PriceContext): number {
     if (model.quality !== undefined) {
         const tier = context.quality as keyof typeof model.quality.pricePerImage
 
-        return priceAt(model.quality.pricePerImage[tier] ?? model.pricePerImage, context, cheapest)
+        const rate = model.quality.pricePerImage[tier] ?? model.pricePerImage
+
+        return rate === null ? null : priceAt(rate, context, cheapest)
     }
 
-    const rate: Price =
+    const rate =
         fromImage && model.pricePerImageFromImage !== undefined
             ? model.pricePerImageFromImage
             : model.pricePerImage
 
-    return priceAt(rate, context, cheapest)
+    return rate === null ? null : priceAt(rate, context, cheapest)
 }
 
-export function estimateCost(model: Model, settings: ModeSettings, references = 0): number {
+export function estimateCost(model: Model, settings: ModeSettings, references = 0): number | null {
     const context: PriceContext = {
         resolution: settings.resolution,
         ratio: settings.aspectRatio as PriceContext['ratio'],
@@ -53,6 +55,10 @@ export function estimateCost(model: Model, settings: ModeSettings, references = 
     }
 
     const unit = unitPrice(model, context)
+
+    if (unit === null) {
+        return null
+    }
 
     if (!isImageModel(model)) {
         // Some vendors bill the supplied first frame on top of the clip.
@@ -72,7 +78,11 @@ export function estimateCost(model: Model, settings: ModeSettings, references = 
  * price is never dressed up as an estimate, nor the reverse. Anything under a
  * cent would round to `$0.00` and read as free, so it gets its own form.
  */
-export function formatCost(amount: number): string {
+export function formatCost(amount: number | null): string {
+    if (amount === null) {
+        return 'Cost varies'
+    }
+
     if (amount > 0 && amount < 0.005) {
         return '<$0.01'
     }
