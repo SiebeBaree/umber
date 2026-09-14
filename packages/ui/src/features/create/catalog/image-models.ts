@@ -3,6 +3,7 @@ import {
     fluxTwoMaxPrice,
     fluxTwoPrice,
     gptImagePrice,
+    gptImage25Price,
     qwenImageThreeProPrice,
     seedreamFiveProPrice,
 } from './price-rules'
@@ -87,12 +88,17 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         resolutions: ['1K', '2K', '4K'],
         maxOutputs: 4,
         references: { max: 16, types: COMMON_IMAGE_TYPES },
-        // $30/M output tokens, but GPT Image 2's token formula does not apply.
-        // https://developers.openai.com/api/docs/models/gpt-image-2.5-flare
+        // Auto quality depends on the generated image, so it has no fixed estimate.
         pricePerImage: null,
         quality: {
             options: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
-            pricePerImage: {},
+            pricePerImage: {
+                low: gptImage25Price('low'),
+                medium: gptImage25Price('medium'),
+                high: gptImage25Price('high'),
+                xhigh: gptImage25Price('xhigh'),
+                max: gptImage25Price('max'),
+            },
         },
     },
     {
@@ -105,12 +111,17 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         resolutions: ['1K', '2K', '4K'],
         maxOutputs: 4,
         references: { max: 16, types: COMMON_IMAGE_TYPES },
-        // $30/M output tokens, but GPT Image 2's token formula does not apply.
-        // https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst
+        // Auto quality depends on the generated image, so it has no fixed estimate.
         pricePerImage: null,
         quality: {
             options: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
-            pricePerImage: {},
+            pricePerImage: {
+                low: gptImage25Price('low'),
+                medium: gptImage25Price('medium'),
+                high: gptImage25Price('high'),
+                xhigh: gptImage25Price('xhigh'),
+                max: gptImage25Price('max'),
+            },
         },
     },
     {

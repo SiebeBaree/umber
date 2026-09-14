@@ -87,8 +87,12 @@ test.each(MODEL_IDS)(
         for (const quality of model.quality?.options ?? []) {
             const settings = reconcileToModel({ ...defaultModeSettings('image'), quality }, model)
             expect(settings.quality).toBe(quality)
-            expect(estimateCost(model, settings)).toBeNull()
-            expect(formatCost(estimateCost(model, settings))).toBe('Cost varies')
+            if (quality === 'auto') {
+                expect(estimateCost(model, settings)).toBeNull()
+                expect(formatCost(estimateCost(model, settings))).toBe('Cost varies')
+            } else {
+                expect(estimateCost(model, settings)).toBeGreaterThan(0)
+            }
             expect(older.quality?.options).toContain(reconcileToModel(settings, older).quality)
         }
     },

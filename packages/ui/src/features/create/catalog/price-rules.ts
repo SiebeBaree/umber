@@ -1,9 +1,8 @@
 import { FLUX_2_SIZE, GPT_IMAGE_2_SIZE, pixelSize } from './output-size'
-import type { AspectRatio, PriceContext } from './types'
+import type { AspectRatio, ImageQuality, PriceContext } from './types'
 
 /**
- * Published output-cost formulas for older GPT Image models and FLUX.2.
- * GPT Image 2.5 uses different token counts and has no estimate here.
+ * Published output-cost formulas for GPT Image models and FLUX.2.
  */
 
 type LegacyImageQuality = 'low' | 'medium' | 'high'
@@ -69,6 +68,26 @@ export function gptImagePrice(modelId: string, quality: LegacyImageQuality) {
         const tokens = LEGACY_TOKENS[quality][context.ratio] ?? LEGACY_TOKENS[quality]['1:1'] ?? 0
 
         return (tokens * rate) / 1e6
+    }
+}
+
+const GPT_IMAGE_25_BASE = { low: 16, medium: 24, high: 48, xhigh: 64, max: 96 } as const
+
+/**
+ * OpenAI's calculator for both 2.5 models, including round-half-to-even.
+ * Estimates output only; prompt and reference-image tokens are billed separately.
+ * https://developers.openai.com/api/docs/guides/image-generation#cost-and-latency
+ */
+export function gptImage25Price(quality: Exclude<ImageQuality, 'auto'>) {
+    return (context: PriceContext): number => {
+        const { width, height } = pixelSize(context.ratio, context.resolution, GPT_IMAGE_2_SIZE)
+        const base = GPT_IMAGE_25_BASE[quality]
+        const scaled = base / (Math.max(width, height) / Math.min(width, height))
+        const floor = Math.floor(scaled)
+        const across = scaled - floor === 0.5 ? floor + (floor % 2) : Math.round(scaled)
+        const tokens = Math.ceil((base * across * (2e6 + width * height)) / 4e6)
+
+        return (tokens * 30) / 1e6
     }
 }
 
