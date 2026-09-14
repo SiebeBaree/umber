@@ -7,6 +7,7 @@ import { VideoPlayer } from '../../components/ui/video-player'
 import { mediaExtension } from '../../lib/media'
 import { ProviderMark, ratioToCss, type AspectRatio, type ProviderId } from '../create/catalog'
 import type { DeleteRequest } from './gallery-tile'
+import { PromptDetails } from './prompt-details'
 
 /**
  * One creation at full size: how it was made on the left, the piece itself
@@ -173,17 +174,17 @@ function DetailActions({
 /** The record beside the picture, and what one can do with it. */
 function DetailPanel({ image, onClose, onDelete }: DetailPanelProps) {
     return (
-        <div className="flex min-h-0 shrink-0 flex-col overflow-y-auto p-5 sm:w-[21rem] sm:p-6">
+        <div className="flex min-h-0 min-w-0 shrink-0 flex-col overflow-y-auto p-5 sm:w-[21rem] sm:p-6">
             <div>
                 <Button aria-label="Close" onClick={onClose} size="icon-sm" variant="ghost">
                     <ArrowLeft aria-hidden />
                 </Button>
             </div>
 
-            {/* The prompt is the picture's only name, so it is the title. No
-                subtitle under it: everything one would carry — the model, the
-                moment — the details card below states exactly. */}
-            <DialogTitle className="mt-4 pe-0 text-lg leading-snug">{image.prompt}</DialogTitle>
+            <DialogTitle className="sr-only">
+                {image.kind === 'video' ? 'Video details' : 'Image details'}
+            </DialogTitle>
+            <PromptDetails key={image.id} prompt={image.prompt} />
 
             <DetailActions image={image} onDelete={onDelete} />
 
@@ -244,7 +245,7 @@ export interface ImageDetailDialogProps {
  * `showClose` is off because the panel's top-right corner belongs to the
  * picture; the details column carries the close control instead. And
  * `aria-describedby` is cleared because there is no description element — the
- * title is the prompt, which says it all.
+ * the prompt has its own expandable reader.
  */
 export function ImageDetailDialog({ image, onDelete, onOpenChange }: ImageDetailDialogProps) {
     const close = useCallback(() => {
