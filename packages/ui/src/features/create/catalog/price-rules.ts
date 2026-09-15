@@ -2,14 +2,10 @@ import { FLUX_2_SIZE, GPT_IMAGE_2_SIZE, pixelSize } from './output-size'
 import type { AspectRatio, ImageQuality, PriceContext } from './types'
 
 /**
- * The two vendors whose price is a function rather than a rate.
- *
- * Everyone else charges a figure per image or per second that can simply be
- * written down. OpenAI bills GPT Image by output tokens, which fall out of the
- * exact pixel grid, and Black Forest Labs bills FLUX.2 by the megapixel. Both
- * are computed here from the same size the request will ask for, so the
- * estimate and the invoice agree.
+ * Published output-cost formulas for GPT Image models and FLUX.2.
  */
+
+type LegacyImageQuality = 'low' | 'medium' | 'high'
 
 /** USD per million output tokens, per GPT Image model. */
 const GPT_IMAGE_TOKEN_RATES: Readonly<Record<string, number>> = {
@@ -20,7 +16,11 @@ const GPT_IMAGE_TOKEN_RATES: Readonly<Record<string, number>> = {
 }
 
 /** The grid OpenAI lays over the image, per quality tier. */
-const GPT_IMAGE_2_BASE: Readonly<Record<ImageQuality, number>> = { low: 16, medium: 48, high: 96 }
+const GPT_IMAGE_2_BASE: Readonly<Record<LegacyImageQuality, number>> = {
+    low: 16,
+    medium: 48,
+    high: 96,
+}
 
 /**
  * OpenAI's own published calculation for GPT Image 2: a quality-sized grid
@@ -28,7 +28,7 @@ const GPT_IMAGE_2_BASE: Readonly<Record<ImageQuality, number>> = { low: 16, medi
  * figure in OpenAI's per-image table exactly, including the fact that a wide
  * 4K frame costs less than a 2K square.
  */
-function gptImage2Tokens(quality: ImageQuality, width: number, height: number): number {
+function gptImage2Tokens(quality: LegacyImageQuality, width: number, height: number): number {
     const base = GPT_IMAGE_2_BASE[quality]
     const longest = Math.max(width, height)
     const shortest = Math.min(width, height)
@@ -43,7 +43,7 @@ function gptImage2Tokens(quality: ImageQuality, width: number, height: number): 
  * the output tokens for each. Keyed by the composer's ratios.
  */
 const LEGACY_TOKENS: Readonly<
-    Record<ImageQuality, Readonly<Partial<Record<AspectRatio, number>>>>
+    Record<LegacyImageQuality, Readonly<Partial<Record<AspectRatio, number>>>>
 > = {
     low: { '1:1': 272, '2:3': 408, '3:2': 400 },
     medium: { '1:1': 1056, '2:3': 1584, '3:2': 1568 },
@@ -55,7 +55,7 @@ const LEGACY_TOKENS: Readonly<
  * out under OpenAI's own quoted figures, which appear to fold in a fixed
  * prompt cost; billing follows the tokens, so the tokens are what is used.
  */
-export function gptImagePrice(modelId: string, quality: ImageQuality) {
+export function gptImagePrice(modelId: string, quality: LegacyImageQuality) {
     const rate = GPT_IMAGE_TOKEN_RATES[modelId] ?? 30
 
     return (context: PriceContext): number => {
@@ -68,6 +68,26 @@ export function gptImagePrice(modelId: string, quality: ImageQuality) {
         const tokens = LEGACY_TOKENS[quality][context.ratio] ?? LEGACY_TOKENS[quality]['1:1'] ?? 0
 
         return (tokens * rate) / 1e6
+    }
+}
+
+const GPT_IMAGE_25_BASE = { low: 16, medium: 24, high: 48, xhigh: 64, max: 96 } as const
+
+/**
+ * OpenAI's calculator for both 2.5 models, including round-half-to-even.
+ * Estimates output only; prompt and reference-image tokens are billed separately.
+ * https://developers.openai.com/api/docs/guides/image-generation#cost-and-latency
+ */
+export function gptImage25Price(quality: Exclude<ImageQuality, 'auto'>) {
+    return (context: PriceContext): number => {
+        const { width, height } = pixelSize(context.ratio, context.resolution, GPT_IMAGE_2_SIZE)
+        const base = GPT_IMAGE_25_BASE[quality]
+        const scaled = base / (Math.max(width, height) / Math.min(width, height))
+        const floor = Math.floor(scaled)
+        const across = scaled - floor === 0.5 ? floor + (floor % 2) : Math.round(scaled)
+        const tokens = Math.ceil((base * across * (2e6 + width * height)) / 4e6)
+
+        return (tokens * 30) / 1e6
     }
 }
 

@@ -3,6 +3,7 @@ import {
     fluxTwoMaxPrice,
     fluxTwoPrice,
     gptImagePrice,
+    gptImage25Price,
     qwenImageThreeProPrice,
     seedreamFiveProPrice,
 } from './price-rules'
@@ -77,10 +78,52 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         references: { max: 3, types: GOOGLE_IMAGE_TYPES },
         pricePerImage: 0.039,
     },
-    // The GPT Image family: OpenAI bills these by output tokens, which fall out
-    // of the quality tier and the exact pixel grid, so their prices are
-    // computed rather than quoted. A wide 4K frame really is cheaper than a
-    // 2K square.
+    {
+        id: 'gpt-image-2.5-flare',
+        name: 'GPT Image 2.5 Flare',
+        provider: 'openai',
+        kind: 'image',
+        releasedOn: '2026-09-08',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        resolutions: ['1K', '2K', '4K'],
+        maxOutputs: 4,
+        references: { max: 16, types: COMMON_IMAGE_TYPES },
+        // Auto quality depends on the generated image, so it has no fixed estimate.
+        pricePerImage: null,
+        quality: {
+            options: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
+            pricePerImage: {
+                low: gptImage25Price('low'),
+                medium: gptImage25Price('medium'),
+                high: gptImage25Price('high'),
+                xhigh: gptImage25Price('xhigh'),
+                max: gptImage25Price('max'),
+            },
+        },
+    },
+    {
+        id: 'gpt-image-2.5-sunburst',
+        name: 'GPT Image 2.5 Sunburst',
+        provider: 'openai',
+        kind: 'image',
+        releasedOn: '2026-09-08',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        resolutions: ['1K', '2K', '4K'],
+        maxOutputs: 4,
+        references: { max: 16, types: COMMON_IMAGE_TYPES },
+        // Auto quality depends on the generated image, so it has no fixed estimate.
+        pricePerImage: null,
+        quality: {
+            options: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
+            pricePerImage: {
+                low: gptImage25Price('low'),
+                medium: gptImage25Price('medium'),
+                high: gptImage25Price('high'),
+                xhigh: gptImage25Price('xhigh'),
+                max: gptImage25Price('max'),
+            },
+        },
+    },
     {
         id: 'gpt-image-2',
         name: 'GPT Image 2',

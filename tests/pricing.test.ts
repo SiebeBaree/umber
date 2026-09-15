@@ -45,8 +45,17 @@ const BASE: ModeSettings = {
     durationSeconds: 5,
 }
 
-const costOf = (model: ImageModel | VideoModel, settings: Partial<ModeSettings>, references = 0) =>
-    estimateCost(model, { ...BASE, ...settings }, references)
+function costOf(
+    model: ImageModel | VideoModel,
+    settings: Partial<ModeSettings>,
+    references = 0,
+): number {
+    const cost = estimateCost(model, { ...BASE, ...settings }, references)
+    if (cost === null) {
+        throw new Error(`No cost estimate for ${model.id}`)
+    }
+    return cost
+}
 
 test('GPT Image 2 matches the per-image figures OpenAI publishes', () => {
     const model = image('gpt-image-2')
@@ -123,11 +132,11 @@ test('a model quoted at 720p is not marked up for choosing 720p', () => {
     }
 })
 
-test('every catalog model prices every combination it offers', () => {
+test('every catalog model prices its explicit high-quality setting', () => {
     for (const model of [...IMAGE_MODELS, ...VIDEO_MODELS]) {
         for (const resolution of model.resolutions) {
             for (const aspectRatio of model.aspectRatios) {
-                const cost = costOf(model, { resolution, aspectRatio })
+                const cost = estimateCost(model, { ...BASE, resolution, aspectRatio })
 
                 expect(Number.isFinite(cost)).toBe(true)
                 expect(cost).toBeGreaterThan(0)
@@ -135,3 +144,42 @@ test('every catalog model prices every combination it offers', () => {
         }
     }
 })
+
+// Output-token fixtures from OpenAI's GPT Image 2.5 calculator.
+test.each(['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst'])(
+    '%s matches the official calculator at every explicit quality',
+    (id) => {
+        const model = image(id)
+        const fixtures = [
+            {
+                resolution: '1K',
+                aspectRatio: '1:1',
+                tokens: { low: 196, medium: 439, high: 1756, xhigh: 3122, max: 7024 },
+            },
+            {
+                resolution: '2K',
+                aspectRatio: '1:1',
+                tokens: { low: 397, medium: 892, high: 3568, xhigh: 6343, max: 14272 },
+            },
+            {
+                resolution: '4K',
+                aspectRatio: '16:9',
+                tokens: { low: 371, medium: 865, high: 3336, xhigh: 5930, max: 13342 },
+            },
+        ]
+        for (const { resolution, aspectRatio, tokens } of fixtures) {
+            for (const [quality, count] of Object.entries(tokens)) {
+                expect(costOf(model, { resolution, aspectRatio, quality })).toBeCloseTo(
+                    (count * 30) / 1e6,
+                    8,
+                )
+                expect(
+                    costOf(model, { resolution, aspectRatio, quality, outputCount: 4 }),
+                ).toBeCloseTo(((count * 30) / 1e6) * 4, 8)
+            }
+        }
+        expect(
+            costOf(model, { resolution: '4K', aspectRatio: '9:16', quality: 'medium' }),
+        ).toBeCloseTo(0.02595, 8)
+    },
+)

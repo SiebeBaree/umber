@@ -68,12 +68,12 @@ export type VideoResolution = '480p' | '720p' | '768p' | '1080p' | '2K' | '4K'
  * The render-effort tiers some models expose. Quality is priced per tier, so a
  * model that supports it carries its own price table instead of one figure.
  */
-export type ImageQuality = 'low' | 'medium' | 'high'
+export type ImageQuality = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'auto'
 
 export interface QualityRule {
     readonly options: readonly [ImageQuality, ...ImageQuality[]]
-    /** USD for one image, per tier. */
-    readonly pricePerImage: Readonly<Record<ImageQuality, Price>>
+    /** USD for one image per tier, falling back to the model price when absent. */
+    readonly pricePerImage: Readonly<Partial<Record<ImageQuality, Price>>>
 }
 
 /** Everything about a run that a vendor might charge differently for. */
@@ -177,8 +177,8 @@ export interface ImageModel extends ModelBase {
     readonly maxOutputs: number
     /** What the model accepts as reference images. */
     readonly references: ImageReferenceRule
-    /** USD for one image. Ignored when the model prices by quality tier. */
-    readonly pricePerImage: Price
+    /** USD for one image, or null when no reliable estimate is available. */
+    readonly pricePerImage: Price | null
     /** Present only when the model trades render quality against price. */
     readonly quality?: QualityRule
     /** Only where editing a picture is billed differently from drawing one. */
