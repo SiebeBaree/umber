@@ -7,6 +7,7 @@ import { cn } from '../../lib/cn'
 import { mediaExtension } from '../../lib/media'
 import { ratioToCss, type AspectRatio } from '../create/catalog'
 import { DurationBadge, TileImage, TileVideo } from './tile-media'
+import { TileMetadata } from './tile-metadata'
 
 /**
  * A stored creation as the gallery renders it: enough to draw the tile, and
@@ -14,11 +15,17 @@ import { DurationBadge, TileImage, TileVideo } from './tile-media'
  */
 export interface GalleryImage {
     readonly id: string
+    readonly parentId?: string | undefined
+    readonly rootId?: string | undefined
+    readonly version?: number | undefined
+    /** Estimate captured at generation time, in USD. Null means unknown. */
+    readonly estimatedCost?: number | null | undefined
     /** What the tile holds; videos preview on hover and open as a player. */
     readonly kind: 'image' | 'video'
     readonly prompt: string
     readonly ratio: AspectRatio
     readonly providerId: string
+    readonly modelId?: string | undefined
     readonly modelName: string
     /** Absent on rows stored before these were recorded. */
     readonly resolution?: string | undefined
@@ -240,14 +247,7 @@ function SelectedFrame({ selected }: { readonly selected: boolean }) {
     )
 }
 
-/**
- * One creation in the masonry: the picture, which opens full size, the
- * selection square in one corner, and the hover controls in the other. The
- * prompt doubles as the media's accessible name — it is the only description
- * of the picture that exists. The id is on the wrapper so a key press can
- * find the creation the keyboard is currently inside, which is what ⌘⌫
- * deletes.
- */
+/** A creation, its selection state and hover controls. */
 export function GalleryTile({
     image,
     onDelete,
@@ -284,6 +284,7 @@ export function GalleryTile({
                 )}
             >
                 <TileFace image={image} onActivate={activate} />
+                <TileMetadata image={image} />
                 <SelectedFrame selected={selected} />
                 <SelectToggle
                     image={image}

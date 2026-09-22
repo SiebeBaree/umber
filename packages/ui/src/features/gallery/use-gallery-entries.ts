@@ -29,6 +29,11 @@ export function isCreation(entry: GalleryEntry): entry is CreationEntry {
 function toGalleryImage(record: CreationRecord): GalleryImage {
     return {
         id: record.id,
+        modelId: record.modelId,
+        parentId: record.parentId,
+        rootId: record.rootId,
+        version: record.version,
+        estimatedCost: record.estimatedCost,
         // Rows from before video existed carry no kind, and are all images.
         kind: record.kind ?? 'image',
         prompt: record.prompt,
@@ -50,7 +55,12 @@ async function loadImages(): Promise<readonly GalleryImage[]> {
     try {
         const records = await listCreations()
 
-        return records.map((record) => toGalleryImage(record))
+        const roots = new Set(
+            records.flatMap((record) => (record.rootId === undefined ? [] : [record.rootId])),
+        )
+        return records.map((record) =>
+            toGalleryImage(roots.has(record.id) ? { ...record, version: 1 } : record),
+        )
     } catch {
         return []
     }

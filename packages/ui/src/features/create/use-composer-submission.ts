@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useShortcut, type Shortcut } from '../../lib/use-shortcut'
 import { useGeneration, type StartInput } from '../generate/generation-context'
 import { useKeys } from '../keys/keys-context'
-import { MODELS_BY_MODE, PROVIDERS, type GenerationMode, type Model } from './catalog'
+import { useNotifications } from '../notifications/notifications-context'
+import {
+    isImageModel,
+    MODELS_BY_MODE,
+    PROVIDERS,
+    type GenerationMode,
+    type ImageModel,
+    type Model,
+} from './catalog'
+import { firstImageRatio } from './first-image-ratio'
 import type { ModeSettings } from './settings/schema'
 import { useComposerSettings, type ComposerSettingsApi } from './settings/use-composer-settings'
 import type { ComposerAsset } from './use-composer-assets'
@@ -72,6 +81,23 @@ function toStartInput(
     }
 }
 
+async function startMatched(
+    input: StartInput,
+    model: ImageModel,
+    start: (input: StartInput) => void,
+    notify: (title: string, message: string) => void,
+) {
+    try {
+        const aspectRatio = await firstImageRatio(input.references[0], model)
+        start({ ...input, settings: { ...input.settings, aspectRatio } })
+    } catch (error: unknown) {
+        notify(
+            'Could not match the first image',
+            error instanceof Error ? error.message : 'Could not read this image.',
+        )
+    }
+}
+
 export function useComposerSubmission(): ComposerSubmission {
     const [mode, setMode] = useState<GenerationMode>('image')
 
@@ -83,11 +109,42 @@ export function useComposerSubmission(): ComposerSubmission {
     const composer = useComposerSettings(mode)
     const keys = useKeys()
     const generation = useGeneration()
+    const { notify } = useNotifications()
+    const preparing = useRef(false)
 
     const { model } = composer
     const providerConnected = keys.connectedProviders.has(model.provider)
     const blocker = blockerFor(keys.ready, providerConnected, model, generation.running)
 
+    useConnectedModel(mode, composer, keys, providerConnected)
+
+    const submit = useCallback(
+        (prompt: string, assets: readonly ComposerAsset[]) => {
+            if (prompt !== '' && blocker === null) {
+                if (preparing.current) return
+                const input = toStartInput(prompt, model, composer.settings, assets)
+                if (input.settings.aspectRatio !== 'first-image' || !isImageModel(model)) {
+                    generation.start(input)
+                    return
+                }
+                preparing.current = true
+                void startMatched(input, model, generation.start, notify).finally(() => {
+                    preparing.current = false
+                })
+            }
+        },
+        [blocker, composer.settings, generation, model, notify],
+    )
+
+    return { mode, setMode, composer, blocker, submit }
+}
+
+function useConnectedModel(
+    mode: GenerationMode,
+    composer: ComposerSettingsApi,
+    keys: ReturnType<typeof useKeys>,
+    providerConnected: boolean,
+) {
     // If the remembered model is locked but some other model in this mode is
     // usable, quietly move to the newest usable one — a fresh install with one
     // key should land on a model that works, not on a disabled default.
@@ -104,15 +161,4 @@ export function useComposerSubmission(): ComposerSubmission {
             composer.selectModel(usable.id)
         }
     }, [keys.ready, keys.connectedProviders, providerConnected, mode, composer])
-
-    const submit = useCallback(
-        (prompt: string, assets: readonly ComposerAsset[]) => {
-            if (prompt !== '' && blocker === null) {
-                generation.start(toStartInput(prompt, model, composer.settings, assets))
-            }
-        },
-        [blocker, composer.settings, generation, model],
-    )
-
-    return { mode, setMode, composer, blocker, submit }
 }

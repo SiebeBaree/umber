@@ -29,6 +29,10 @@ interface RunResult {
 function toRecord(job: GenerationJob, media: Blob, generationMs: number): CreationRecord {
     return {
         id: crypto.randomUUID(),
+        parentId: job.parentId,
+        rootId: job.rootId,
+        version: job.version,
+        estimatedCost: job.estimatedCost,
         kind: job.kind,
         prompt: job.prompt,
         providerId: job.providerId,
@@ -83,11 +87,11 @@ async function land(
     blobs: readonly Blob[],
 ): Promise<{ readonly outcome: FinishedJob; readonly persisted: boolean }> {
     const generationMs = Date.now() - job.startedAt
-    const records = blobs.map((blob) => toRecord(job, blob, generationMs))
+    let records: readonly CreationRecord[] = blobs.map((blob) => toRecord(job, blob, generationMs))
 
     let persisted = true
     try {
-        await saveCreations(records)
+        records = await saveCreations(records)
     } catch {
         persisted = false
     }
@@ -98,7 +102,16 @@ async function land(
         mediaType: record.image.type,
     }))
 
-    return { outcome: { ...job, status: 'done', outputs, generationMs }, persisted }
+    return {
+        outcome: {
+            ...job,
+            version: records[0]?.version ?? job.version,
+            status: 'done',
+            outputs,
+            generationMs,
+        },
+        persisted,
+    }
 }
 
 async function performRun(

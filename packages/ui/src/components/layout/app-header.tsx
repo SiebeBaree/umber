@@ -1,11 +1,12 @@
 import { Link, useRouteContext, useRouterState } from '@tanstack/react-router'
 import { UMBER_LOCKUP } from '@umber/brand'
-import { Images, Settings, WandSparkles, type LucideIcon } from 'lucide-react'
+import { ChartNoAxesCombined, Images, Settings, WandSparkles, type LucideIcon } from 'lucide-react'
 
 import { ClearStageButton } from '../../features/create/clear-stage'
 import { useUpdates } from '../../features/updates/updates-context'
 import { cn } from '../../lib/cn'
 import { SlidingIndicator } from '../ui/sliding-indicator'
+import { Tooltip } from '../ui/tooltip'
 
 interface NavItem {
     readonly to: '/' | '/gallery'
@@ -45,6 +46,20 @@ function PrimaryNav() {
     )
 }
 
+function UsageButton() {
+    return (
+        <Tooltip label="Usage">
+            <Link
+                aria-label="Usage"
+                className="no-drag glass-control flex size-10 items-center justify-center rounded-full text-muted outline-none select-none hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent data-[status=active]:text-accent"
+                to="/usage"
+            >
+                <ChartNoAxesCombined aria-hidden className="size-[18px]" />
+            </Link>
+        </Tooltip>
+    )
+}
+
 /**
  * The settings button, wearing an accent ring and a dot while an update is
  * waiting. Both, rather than one: the ring is what catches the eye across the
@@ -79,7 +94,7 @@ function SettingsButton({ updateWaiting }: { readonly updateWaiting: boolean }) 
 
 /**
  * The app header: wordmark on the left, the Create/Gallery switcher floating in
- * the centre, settings on the right. It doubles as the window's drag handle,
+ * the centre, usage and settings on the right. It doubles as the window's drag handle,
  * which is why every control inside it opts out of the drag region.
  *
  * Where the OS paints its own window controls over the app — macOS — the
@@ -113,11 +128,10 @@ export function AppHeader() {
 
             <PrimaryNav />
 
-            {/* Settings is the anchor and never moves; anything page-specific
-                appears to its left. */}
+            {/* Usage and Settings stay anchored; Clear appears to their left. */}
             <div className="flex items-center gap-2 justify-self-end">
                 <ClearStageButton />
-
+                <UsageButton />
                 <SettingsButton updateWaiting={updates.available} />
             </div>
         </header>

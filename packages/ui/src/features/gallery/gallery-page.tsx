@@ -20,13 +20,19 @@ import { useGallerySelection } from './use-gallery-selection'
 function GalleryDialogs({
     deletion,
     detail,
+    entries,
 }: {
+    readonly entries: ReturnType<typeof useGalleryEntries>['entries']
     readonly detail: OpenImage
     readonly deletion: DeleteFlow
 }) {
     return (
         <>
             <ImageDetailDialog
+                versions={entries.flatMap((entry) =>
+                    entry.kind === 'creation' ? [entry.image] : [],
+                )}
+                onSelectVersion={detail.open}
                 image={detail.image}
                 onDelete={deletion.request}
                 onOpenChange={detail.close}
@@ -105,7 +111,7 @@ export function GalleryPage() {
                 onDownload={downloadSelection}
             />
 
-            <GalleryDialogs deletion={deletion} detail={detail} />
+            <GalleryDialogs deletion={deletion} detail={detail} entries={entries} />
         </div>
     )
 }

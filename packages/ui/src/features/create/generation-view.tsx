@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, useEffect } from 'react'
 
-import { ImageDetailDialog, type ImageDetails } from '../gallery/image-detail-dialog'
+import { GenerationDetailDialog } from '../gallery/generation-detail-dialog'
+import type { ImageDetails } from '../gallery/image-detail-dialog'
 import type { GenerationJob } from '../generate/generation-context'
 import { RenderingTile } from '../generate/rendering-tile'
 import { ratioParts } from './catalog'
@@ -116,6 +117,11 @@ function detailsOf(job: GenerationJob, index: number): ImageDetails | null {
 
     return {
         id: output.id,
+        modelId: job.modelId,
+        parentId: job.parentId,
+        rootId: job.rootId,
+        version: job.version,
+        estimatedCost: job.estimatedCost,
         kind: job.kind,
         url: output.url,
         mediaType: output.mediaType,
@@ -198,7 +204,9 @@ export function GenerationView({ job }: { readonly job: GenerationJob }) {
 
             {/* No delete here: these tiles mirror one run, and removing a
                 creation is the gallery's job. */}
-            <ImageDetailDialog image={openImage} onOpenChange={closeDetail} />
+            {openImage === null ? null : (
+                <GenerationDetailDialog image={openImage} onClose={closeDetail} />
+            )}
         </div>
     )
 }

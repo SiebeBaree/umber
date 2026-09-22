@@ -47,6 +47,7 @@ function unitPrice(model: Model, context: PriceContext): number | null {
 }
 
 export function estimateCost(model: Model, settings: ModeSettings, references = 0): number | null {
+    if (settings.aspectRatio === 'first-image') return null
     const context: PriceContext = {
         resolution: settings.resolution,
         ratio: settings.aspectRatio as PriceContext['ratio'],

@@ -12,6 +12,11 @@ import type { AspectRatio } from '../create/catalog'
 
 export interface CreationRecord {
     readonly id: string
+    readonly parentId?: string | undefined
+    readonly rootId?: string | undefined
+    readonly version?: number | undefined
+    /** Estimate captured at generation time, in USD. Null means unknown. */
+    readonly estimatedCost?: number | null | undefined
     /** Absent on rows stored before video existed, which are all images. */
     readonly kind?: 'image' | 'video'
     readonly prompt: string
@@ -32,7 +37,7 @@ export interface CreationRecord {
      * How long the run took, in milliseconds, from pressing send to the file
      * arriving. Absent on rows stored before it was recorded.
      */
-    readonly generationMs?: number
+    readonly generationMs?: number | undefined
     /** Epoch milliseconds; the gallery sorts newest first on this. */
     readonly createdAt: number
     /** The file itself. Named for the store's image-only beginnings; video
@@ -41,8 +46,36 @@ export interface CreationRecord {
 }
 
 const DB_NAME = 'umber'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE = 'creations'
+const USAGE_STORE = 'usage'
+
+export type UsageRecord = Pick<
+    CreationRecord,
+    | 'id'
+    | 'modelId'
+    | 'modelName'
+    | 'createdAt'
+    | 'generationMs'
+    | 'estimatedCost'
+    | 'rootId'
+    | 'version'
+>
+const usageMemory = new Map<string, UsageRecord>()
+
+function usageOf(record: CreationRecord): UsageRecord {
+    const { id, modelId, modelName, createdAt, generationMs, estimatedCost } = record
+    return {
+        id,
+        modelId,
+        modelName,
+        createdAt,
+        generationMs,
+        estimatedCost,
+        rootId: record.rootId ?? id,
+        version: record.version ?? 1,
+    }
+}
 
 let memory: Map<string, CreationRecord> | null = null
 
@@ -65,6 +98,19 @@ function openDb(): Promise<IDBDatabase | null> {
                 request.result.createObjectStore(STORE, { keyPath: 'id' })
             }
         })
+        request.addEventListener('upgradeneeded', () => {
+            if (!request.result.objectStoreNames.contains(USAGE_STORE)) {
+                const usage = request.result.createObjectStore(USAGE_STORE, { keyPath: 'id' })
+                const cursor = request.transaction?.objectStore(STORE).openCursor()
+                cursor?.addEventListener('success', () => {
+                    const row = cursor.result
+                    if (row !== null) {
+                        usage.put(usageOf(row.value as CreationRecord))
+                        row.continue()
+                    }
+                })
+            }
+        })
         request.addEventListener('success', () => {
             resolve(request.result)
         })
@@ -77,7 +123,7 @@ function openDb(): Promise<IDBDatabase | null> {
 /** Runs one transaction and settles when it commits, closing the db after. */
 async function withStore<T>(
     mode: IDBTransactionMode,
-    run: (store: IDBObjectStore) => IDBRequest<T> | null,
+    run: (store: IDBObjectStore, usage: IDBObjectStore) => IDBRequest<T> | null,
 ): Promise<T | null> {
     const db = await openDb()
 
@@ -87,11 +133,17 @@ async function withStore<T>(
 
     try {
         return await new Promise<T | null>((resolve, reject) => {
-            const transaction = db.transaction(STORE, mode)
-            const request = run(transaction.objectStore(STORE))
+            const transaction = db.transaction([STORE, USAGE_STORE], mode)
+            const request = run(
+                transaction.objectStore(STORE),
+                transaction.objectStore(USAGE_STORE),
+            )
 
             transaction.addEventListener('complete', () => {
                 resolve(request === null ? null : request.result)
+            })
+            transaction.addEventListener('abort', () => {
+                reject(transaction.error ?? new Error('IndexedDB transaction aborted'))
             })
             transaction.addEventListener('error', () => {
                 reject(transaction.error ?? new Error('IndexedDB transaction failed'))
@@ -112,22 +164,48 @@ export async function listCreations(): Promise<readonly CreationRecord[]> {
     return records.toSorted((a, b) => b.createdAt - a.createdAt)
 }
 
-export async function saveCreations(records: readonly CreationRecord[]): Promise<void> {
+/** Number versions at commit time, including concurrent edits of an older version. */
+function versioned(record: CreationRecord, history: readonly UsageRecord[]): CreationRecord {
+    if (record.parentId === undefined) return record
+    const existing = history.find((entry) => entry.id === record.id)
+    const latest = history
+        .filter((entry) => entry.rootId === record.rootId)
+        .reduce((maximum, entry) => Math.max(maximum, entry.version ?? 1), 1)
+    return { ...record, version: existing?.version ?? latest + 1 }
+}
+
+export async function saveCreations(
+    records: readonly CreationRecord[],
+): Promise<readonly CreationRecord[]> {
+    const saved: CreationRecord[] = []
     if (typeof indexedDB === 'undefined') {
         for (const record of records) {
-            memoryStore().set(record.id, record)
+            const next = versioned(record, [...usageMemory.values()])
+            memoryStore().set(next.id, next)
+            usageMemory.set(next.id, usageOf(next))
+            saved.push(next)
         }
 
-        return
+        return saved
     }
 
-    await withStore('readwrite', (store) => {
-        for (const record of records) {
-            store.put(record)
-        }
+    await withStore('readwrite', (store, usage) => {
+        const request = usage.getAll()
+        request.addEventListener('success', () => {
+            const history = request.result as UsageRecord[]
+            for (const record of records) {
+                const next = versioned(record, history)
+                const metadata = usageOf(next)
+                store.put(next)
+                usage.put(metadata)
+                history.push(metadata)
+                saved.push(next)
+            }
+        })
 
         return null
     })
+    return saved
 }
 
 export async function deleteCreations(ids: readonly string[]): Promise<void> {
@@ -163,9 +241,27 @@ export async function countCreations(): Promise<number> {
 export async function clearCreations(): Promise<void> {
     if (typeof indexedDB === 'undefined') {
         memoryStore().clear()
+        usageMemory.clear()
 
         return
     }
 
-    await withStore('readwrite', (store) => store.clear())
+    await withStore('readwrite', (store, usage) => {
+        store.clear()
+        return usage.clear()
+    })
+}
+
+/** Usage survives gallery deletion and is cleared by Erase all data. */
+export async function listUsage(): Promise<readonly UsageRecord[]> {
+    if (typeof indexedDB === 'undefined') return [...usageMemory.values()]
+    return (await withStore<UsageRecord[]>('readonly', (_store, usage) => usage.getAll())) ?? []
+}
+
+export async function getCreation(id: string): Promise<CreationRecord | undefined> {
+    if (typeof indexedDB === 'undefined') return memoryStore().get(id)
+    return (
+        (await withStore<CreationRecord | undefined>('readonly', (store) => store.get(id))) ??
+        undefined
+    )
 }

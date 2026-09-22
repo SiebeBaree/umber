@@ -86,10 +86,11 @@ function ShapeControls({ composer }: ControlProps) {
         <>
             <motion.div layout transition={REFLOW}>
                 <AspectRatioSelect
+                    allowFirst={isImageModel(model) && model.references.max > 0}
                     modelName={model.name}
                     onValueChange={setAspectRatio}
                     options={model.aspectRatios}
-                    value={settings.aspectRatio as AspectRatio}
+                    value={settings.aspectRatio as AspectRatio | 'first-image'}
                 />
             </motion.div>
 

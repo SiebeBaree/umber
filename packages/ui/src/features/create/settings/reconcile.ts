@@ -34,7 +34,10 @@ function nearestDuration(remembered: number, options: readonly number[]): number
  * silently sending an unsupported request.
  */
 export function reconcileToModel(settings: ModeSettings, model: Model): ModeSettings {
-    const aspectRatio = keepOrReset(settings.aspectRatio, model.aspectRatios)
+    const aspectRatio =
+        settings.aspectRatio === 'first-image' && isImageModel(model) && model.references.max > 0
+            ? 'first-image'
+            : keepOrReset(settings.aspectRatio, model.aspectRatios)
     const resolution = keepOrReset(settings.resolution, model.resolutions)
 
     if (isImageModel(model)) {
