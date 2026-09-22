@@ -8,7 +8,7 @@ export function matchImageRatio(width: number, height: number, model: ImageModel
     const ratio = width / height
     const fixed = model.aspectRatios.find((option) => {
         const parts = ratioParts(option)
-        return Math.abs(Math.log(ratio / (parts.width / parts.height))) < 0.005
+        return width * parts.height === height * parts.width
     })
     if (fixed !== undefined) return fixed
     const flexible = model.id.startsWith('gpt-image-2') || model.id.startsWith('flux-2-')

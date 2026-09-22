@@ -12,7 +12,7 @@ export function UsageTotals({ summary }: { readonly summary: UsageSummary }) {
                 <dd className="mt-2 text-2xl font-semibold tabular-nums">
                     {summary.count > 0 && summary.unknown === summary.count
                         ? '—'
-                        : formatCost(summary.cost)}
+                        : `${formatCost(summary.cost)}${summary.unknown > 0 ? '+' : ''}`}
                 </dd>
             </div>
             <div>

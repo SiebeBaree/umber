@@ -65,7 +65,7 @@ export function AspectRatioSelect({
     options,
     value,
 }: AspectRatioSelectProps) {
-    if (options.length <= 1 && value !== 'first-image') {
+    if (options.length <= 1 && !allowFirst && value !== 'first-image') {
         return (
             <LockedPill
                 ariaLabel={`Aspect ratio: ${value}`}

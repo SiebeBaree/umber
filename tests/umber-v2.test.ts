@@ -39,6 +39,8 @@ beforeEach(async () => {
 
 test('first image preserves supported shapes and rejects incompatible fixed sizes', () => {
     expect(matchImageRatio(1920, 1080, model('nano-banana'))).toBe('16:9')
+    expect(() => matchImageRatio(1004, 1000, model('gpt-image-1'))).toThrow('cannot preserve')
+    expect(matchImageRatio(1004, 1000, model('gpt-image-2'))).toBe('1004:1000')
     expect(matchImageRatio(1200, 1000, model('gpt-image-2'))).toBe('1200:1000')
     expect(() => matchImageRatio(1920, 1080, model('gpt-image-1'))).toThrow('cannot preserve')
     expect(() => matchImageRatio(4000, 500, model('gpt-image-2'))).toThrow('cannot preserve')

@@ -22,7 +22,11 @@ function UsageBar({
         month: 'short',
         ...(period === '365' ? { year: 'numeric' } : { day: 'numeric' }),
     })
-    const label = `${date}: ${bucket.count} creations, ${formatCost(bucket.cost)} estimated${bucket.unknown > 0 ? `, ${bucket.unknown} without recorded cost` : ''}`
+    const cost =
+        bucket.count > 0 && bucket.unknown === bucket.count
+            ? 'cost not recorded'
+            : `${formatCost(bucket.cost)} estimated${bucket.unknown > 0 ? `, ${bucket.unknown} without recorded cost` : ''}`
+    const label = `${date}: ${bucket.count} creations, ${cost}`
     return (
         <button
             aria-label={label}
