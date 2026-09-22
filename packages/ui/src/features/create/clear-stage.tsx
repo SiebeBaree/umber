@@ -9,7 +9,7 @@ import { useGeneration } from '../generate/generation-context'
 
 /**
  * Clearing the stage: a key, and one round control in the header beside
- * Settings.
+ * Usage.
  *
  * It sits up there rather than over the runs because the stage is the pictures
  * — putting a button on top of them is the one place in this app that cannot

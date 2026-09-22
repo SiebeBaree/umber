@@ -29,7 +29,7 @@ export interface Provider {
     readonly name: string
 }
 
-export type AspectRatio = '1:1' | '3:2' | '2:3' | '4:3' | '3:4' | '16:9' | '9:16' | '21:9'
+export type AspectRatio = `${number}:${number}`
 
 /**
  * The two sides of a ratio, parsed once and validated loudly — the single way

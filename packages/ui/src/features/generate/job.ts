@@ -1,4 +1,5 @@
 import { isImageModel, type AspectRatio, type Model } from '../create/catalog'
+import { estimateCost } from '../create/pricing'
 import type { ModeSettings } from '../create/settings/schema'
 
 /**
@@ -16,6 +17,12 @@ export interface GeneratedOutput {
 }
 
 interface JobBase {
+    readonly parentId?: string | undefined
+    readonly rootId?: string | undefined
+    readonly version?: number | undefined
+    /** Estimate captured at generation time, in USD. Null means unknown. */
+    readonly estimatedCost?: number | null | undefined
+
     readonly id: string
     /** What the run makes; decides how its tiles render and store. */
     readonly kind: 'image' | 'video'
@@ -53,6 +60,9 @@ export type GenerationJob =
 export type FinishedJob = Extract<GenerationJob, { readonly status: 'done' }>
 
 export interface StartInput {
+    readonly parentId?: string
+    readonly rootId?: string
+    readonly version?: number
     readonly prompt: string
     readonly model: Model
     readonly settings: ModeSettings
@@ -68,6 +78,14 @@ export function newJob(input: StartInput): GenerationJob {
 
     return {
         id: crypto.randomUUID(),
+        parentId: input.parentId,
+        rootId: input.rootId,
+        version: input.version,
+        estimatedCost: estimateCost(
+            input.model,
+            { ...input.settings, outputCount: 1 },
+            input.references.length + (input.firstFrame === undefined ? 0 : 1),
+        ),
         kind: input.model.kind,
         prompt: input.prompt,
         providerId: input.model.provider,

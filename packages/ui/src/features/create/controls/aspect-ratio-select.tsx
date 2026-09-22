@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Scan } from 'lucide-react'
 
 import { Button } from '../../../components/ui/button'
 import {
@@ -14,16 +14,25 @@ import { AspectRatioIcon } from './aspect-ratio-icon'
 import { LockedPill } from './locked-pill'
 
 interface RatioMenuProps {
+    readonly allowFirst?: boolean | undefined
     readonly options: readonly AspectRatio[]
-    readonly value: AspectRatio
+    readonly value: AspectRatio | 'first-image'
     readonly onValueChange: (value: string) => void
 }
 
-function RatioMenu({ onValueChange, options, value }: RatioMenuProps) {
+function RatioMenu({ onValueChange, options, value, allowFirst }: RatioMenuProps) {
     return (
         <DropdownMenuContent align="start">
             <DropdownMenuLabel>Aspect ratio</DropdownMenuLabel>
             <DropdownMenuRadioGroup onValueChange={onValueChange} value={value}>
+                {allowFirst ? (
+                    <DropdownMenuRadioItem value="first-image">
+                        <span className="flex items-center gap-3">
+                            <Scan aria-hidden className="size-[18px] text-muted" />
+                            First image
+                        </span>
+                    </DropdownMenuRadioItem>
+                ) : null}
                 {options.map((option) => (
                     <DropdownMenuRadioItem key={option} value={option}>
                         <span className="flex items-center gap-3">
@@ -38,8 +47,9 @@ function RatioMenu({ onValueChange, options, value }: RatioMenuProps) {
 }
 
 export interface AspectRatioSelectProps {
+    readonly allowFirst?: boolean | undefined
     readonly options: readonly AspectRatio[]
-    readonly value: AspectRatio
+    readonly value: AspectRatio | 'first-image'
     readonly onValueChange: (value: string) => void
     readonly modelName: string
 }
@@ -50,11 +60,12 @@ export interface AspectRatioSelectProps {
  */
 export function AspectRatioSelect({
     modelName,
+    allowFirst,
     onValueChange,
     options,
     value,
 }: AspectRatioSelectProps) {
-    if (options.length <= 1) {
+    if (options.length <= 1 && value !== 'first-image') {
         return (
             <LockedPill
                 ariaLabel={`Aspect ratio: ${value}`}
@@ -73,8 +84,12 @@ export function AspectRatioSelect({
                     className="group gap-2 ps-3 pe-3 text-[13px]"
                     variant="glass"
                 >
-                    <AspectRatioIcon className="size-[18px] text-muted" ratio={value} />
-                    {value}
+                    {value === 'first-image' ? (
+                        <Scan aria-hidden className="size-[18px] text-muted" />
+                    ) : (
+                        <AspectRatioIcon className="size-[18px] text-muted" ratio={value} />
+                    )}
+                    {value === 'first-image' ? 'First image' : value}
                     <ChevronDown
                         aria-hidden
                         className="size-3.5 text-muted transition-transform duration-200 ease-out group-data-[state=open]:rotate-180"
@@ -82,7 +97,12 @@ export function AspectRatioSelect({
                 </Button>
             </DropdownMenuTrigger>
 
-            <RatioMenu onValueChange={onValueChange} options={options} value={value} />
+            <RatioMenu
+                allowFirst={allowFirst}
+                onValueChange={onValueChange}
+                options={options}
+                value={value}
+            />
         </DropdownMenu>
     )
 }

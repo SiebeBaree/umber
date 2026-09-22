@@ -11,6 +11,7 @@ import { Button } from './components/ui/button'
 import { CreatePage } from './features/create/create-page'
 import { GalleryPage } from './features/gallery/gallery-page'
 import { SettingsPage } from './features/settings/settings-page'
+import { UsagePage } from './features/usage/usage-page'
 
 /**
  * Values the host shell provides once at startup; every route can read them
@@ -60,7 +61,17 @@ const settingsRoute = createRoute({
     component: SettingsPage,
 })
 
-const routeTree = rootRoute.addChildren([createRouteDefinition, galleryRoute, settingsRoute])
+const usageRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/usage',
+    component: UsagePage,
+})
+const routeTree = rootRoute.addChildren([
+    createRouteDefinition,
+    galleryRoute,
+    settingsRoute,
+    usageRoute,
+])
 
 /**
  * Builds the app router. History is hash-based because the packaged renderer is
