@@ -2,13 +2,14 @@ import { useRouteContext } from '@tanstack/react-router'
 
 import { ApiKeysSection } from './api-keys-section'
 import { EraseDataSection } from './erase-data-section'
+import { LocalApiSection } from './local-api-section'
 import { NameSection } from './name-section'
 import { ShortcutsSection } from './shortcuts-section'
 import { UpdateSection } from './update-section'
 
 /**
  * The settings page: any waiting update, the name the app greets, the provider
- * keys you generate with, the shortcuts, and the way to erase the lot.
+ * keys you generate with, the local image API, shortcuts and data reset.
  *
  * The update notice leads because it is the only section that arrives
  * unannounced, and the version it would replace closes the page.
@@ -24,6 +25,7 @@ export function SettingsPage() {
                 <UpdateSection />
                 <NameSection />
                 <ApiKeysSection />
+                <LocalApiSection />
                 <ShortcutsSection />
                 <EraseDataSection />
             </div>

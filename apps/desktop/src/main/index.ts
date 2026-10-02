@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, session, shell, type Event } from 'electron'
 
 import { trustRendererUrl } from './ipc-guard'
+import { registerLocalApiIpc } from './local-api'
 import { registerNetIpc } from './net'
 import { CONTENT_SECURITY_POLICY, isAllowedExternalUrl, isRendererUrl } from './security'
 import { registerUpdatesIpc } from './updates'
@@ -15,6 +16,11 @@ const APP_USER_MODEL_ID = 'com.umber.app'
 /** Set by `electron-vite dev`; absent in a packaged build. */
 const rendererDevServerUrl = process.env['ELECTRON_RENDERER_URL']
 const isDev = rendererDevServerUrl !== undefined
+let localApi: Awaited<ReturnType<typeof registerLocalApiIpc>> | undefined
+let quitting = false
+app.on('before-quit', () => {
+    quitting = true
+})
 
 /** The one document the window is ever allowed to hold. */
 function rendererUrl(): string {
@@ -74,6 +80,14 @@ function createMainWindow(): BrowserWindow {
         return { action: 'deny' }
     })
 
+    // Keep the existing renderer available for API calls when the window is closed.
+    window.on('close', (event) => {
+        if (!quitting && localApi?.keepWindow()) {
+            event.preventDefault()
+            window.hide()
+        }
+    })
+
     const appUrl = rendererUrl()
     pinToRenderer(window, appUrl)
     void window.loadURL(appUrl)
@@ -96,12 +110,15 @@ async function start(): Promise<void> {
     registerVaultIpc()
     registerNetIpc()
     registerUpdatesIpc()
+    localApi = await registerLocalApiIpc()
     createMainWindow()
 
     // macOS: clicking the dock icon with no windows open reopens one.
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
             createMainWindow()
+        } else {
+            BrowserWindow.getAllWindows()[0]?.show()
         }
     })
 }
