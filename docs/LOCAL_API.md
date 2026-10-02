@@ -6,7 +6,7 @@ Generate images using the provider connections already configured in the Umber d
 
 Enable **Local image API** in Settings. Copy the base URL, or use **Copy for your agent**. The default base URL is `http://127.0.0.1:19432`. No authentication key or Authorization header is required. Enabling the API allows local programs to use Umber's connected providers.
 
-Keep Umber running. Closing its window while the API is enabled keeps that window available in the background. Quitting Umber stops the API. The enabled setting survives restarts. Turning the API off stops new requests immediately. An accepted generation continues and saves its results; turn the API back on to retrieve its job.
+Keep Umber running. On macOS, closing its window while the API is enabled keeps that window available in the background. On Windows and Linux, closing the last window quits Umber. Quitting Umber stops the API. The enabled setting survives restarts. Turning the API off stops new requests immediately. An accepted generation continues and saves its results; turn the API back on to retrieve its job.
 
 The server listens only on IPv4 loopback. Use a local terminal, script or agent process. A cloud agent needs a tool that executes on this computer. Browser-origin requests and non-loopback Host headers are rejected. There is no CORS access, remote listening mode or separate background service.
 

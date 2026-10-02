@@ -80,9 +80,9 @@ function createMainWindow(): BrowserWindow {
         return { action: 'deny' }
     })
 
-    // Keep the existing renderer available for API calls when the window is closed.
+    // On macOS, keep the renderer available for API calls when the window is closed.
     window.on('close', (event) => {
-        if (!quitting && localApi?.keepWindow()) {
+        if (process.platform === 'darwin' && !quitting && localApi?.keepWindow()) {
             event.preventDefault()
             window.hide()
         }
