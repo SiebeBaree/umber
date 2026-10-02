@@ -11,7 +11,8 @@ import type { FinishedJob, GenerationJob, StartInput } from './job'
 
 export type CredentialsOf = (providerId: string) => Promise<Readonly<Record<string, string>> | null>
 
-interface RunResult {
+export interface RunResult {
+    readonly records: readonly CreationRecord[]
     readonly outcome: FinishedJob
     /** False when the render finished but could not be written to the gallery. */
     readonly persisted: boolean
@@ -85,7 +86,7 @@ function requestFor(
 async function land(
     job: GenerationJob,
     blobs: readonly Blob[],
-): Promise<{ readonly outcome: FinishedJob; readonly persisted: boolean }> {
+): Promise<Pick<RunResult, 'outcome' | 'persisted' | 'records'>> {
     const generationMs = Date.now() - job.startedAt
     let records: readonly CreationRecord[] = blobs.map((blob) => toRecord(job, blob, generationMs))
 
@@ -111,6 +112,7 @@ async function land(
             generationMs,
         },
         persisted,
+        records,
     }
 }
 
@@ -148,9 +150,9 @@ async function performRun(
         failures.push(`${job.modelName} sent back fewer images than you asked for.`)
     }
 
-    const { outcome, persisted } = await land(job, blobs)
+    const { outcome, persisted, records } = await land(job, blobs)
 
-    return { outcome, persisted, failures }
+    return { outcome, persisted, failures, records }
 }
 
 export interface RunEffects {
@@ -169,9 +171,10 @@ export async function launchRun(
     input: StartInput,
     credentialsOf: CredentialsOf,
     effects: RunEffects,
-): Promise<void> {
+): Promise<RunResult | { readonly error: string }> {
     try {
-        const { failures, outcome, persisted } = await performRun(job, input, credentialsOf)
+        const result = await performRun(job, input, credentialsOf)
+        const { failures, outcome, persisted } = result
 
         if (persisted) {
             effects.onPersisted()
@@ -182,7 +185,10 @@ export async function launchRun(
             outcome.outputs.map((output) => output.url),
         )
         effects.settle(outcome, failures)
+        return result
     } catch (error: unknown) {
-        effects.fail(messageOf(error))
+        const reason = messageOf(error)
+        effects.fail(reason)
+        return { error: reason }
     }
 }

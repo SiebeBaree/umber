@@ -10,7 +10,8 @@
     ],
     "exports": {
         ".": "./src/index.ts",
-        "./styles.css": "./src/styles.css"
+        "./styles.css": "./src/styles.css",
+        "./local-api": "./src/features/local-api/contract.ts"
     },
     "scripts": {
         "clean": "rimraf .turbo",

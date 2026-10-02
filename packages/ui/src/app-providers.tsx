@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { GenerationProvider } from './features/generate/generation-context'
 import { KeysProvider } from './features/keys/keys-context'
 import type { KeyVault } from './features/keys/vault'
+import type { LocalApiBridge } from './features/local-api/contract'
+import { LocalApiProvider } from './features/local-api/local-api-context'
 import { NotificationsProvider } from './features/notifications/notifications-context'
 import { ProfileProvider } from './features/profile/profile-context'
 import { UpdatesProvider, type UpdateChecker } from './features/updates/updates-context'
@@ -17,9 +19,11 @@ import { UpdatesProvider, type UpdateChecker } from './features/updates/updates-
  */
 export function AppProviders({
     children,
+    localApi,
     updates,
     vault,
 }: {
+    readonly localApi: LocalApiBridge | undefined
     readonly children: ReactNode
     readonly updates: UpdateChecker | undefined
     readonly vault: KeyVault | undefined
@@ -29,7 +33,9 @@ export function AppProviders({
             <ProfileProvider>
                 <NotificationsProvider>
                     <GenerationProvider>
-                        <UpdatesProvider checker={updates}>{children}</UpdatesProvider>
+                        <LocalApiProvider bridge={localApi}>
+                            <UpdatesProvider checker={updates}>{children}</UpdatesProvider>
+                        </LocalApiProvider>
                     </GenerationProvider>
                 </NotificationsProvider>
             </ProfileProvider>

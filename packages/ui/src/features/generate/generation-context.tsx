@@ -30,7 +30,7 @@ export interface GenerationApi {
     readonly running: number
     /** Bumped when a run lands in the gallery, so galleries can re-query. */
     readonly completions: number
-    readonly start: (input: StartInput) => void
+    readonly start: (input: StartInput) => ReturnType<typeof launchRun>
     /** Clears every run that has landed, leaving the ones still working. */
     readonly clearFinished: () => void
     /** Clears the whole stage, in flight or not. */
@@ -134,7 +134,7 @@ function useStart({ adopt, commit, jobsRef }: Omit<ReturnType<typeof useJobs>, '
 
             commit(pruned([...jobsRef.current, job]))
 
-            void launchRun(job, input, keys.credentials, {
+            return launchRun(job, input, keys.credentials, {
                 adopt,
                 // The run may have been cleared off the stage while it worked;
                 // a result with no place to land is simply dropped.

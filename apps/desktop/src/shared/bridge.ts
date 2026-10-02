@@ -1,3 +1,5 @@
+import type { LocalApiBridge } from '@umber/ui/local-api'
+
 /**
  * The contract between the preload script and the renderer.
  *
@@ -135,6 +137,8 @@ export interface UmberUpdatesBridge {
 }
 
 export interface UmberBridge {
+    readonly localApi?: LocalApiBridge
+
     readonly os: UmberOperatingSystem
     readonly versions: UmberVersions
     readonly vault: UmberVaultBridge

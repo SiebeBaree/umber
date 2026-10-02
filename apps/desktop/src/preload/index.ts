@@ -1,4 +1,5 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import type { LocalApiRequest, LocalApiStatus } from '@umber/ui/local-api'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 import {
     BRIDGE_KEY,
@@ -11,6 +12,7 @@ import {
     type UmberBridge,
     type VaultSaveDto,
 } from '../shared/bridge'
+import { LOCAL_API_CHANNELS } from '../shared/local-api'
 
 /**
  * The renderer is sandboxed and context-isolated, so this is the only channel
@@ -18,6 +20,46 @@ import {
  * the only road credentials travel between the UI and the main process.
  */
 const bridge: UmberBridge = {
+    localApi: {
+        status: () => ipcRenderer.invoke(LOCAL_API_CHANNELS.status),
+        setEnabled: (enabled) => ipcRenderer.invoke(LOCAL_API_CHANNELS.enable, enabled),
+        reset: () => ipcRenderer.invoke(LOCAL_API_CHANNELS.reset),
+        onStatus: (listener) => {
+            const receive = (_event: IpcRendererEvent, status: LocalApiStatus) => listener(status)
+            ipcRenderer.on(LOCAL_API_CHANNELS.changed, receive)
+            return () => {
+                ipcRenderer.removeListener(LOCAL_API_CHANNELS.changed, receive)
+            }
+        },
+        handle: (handler) => {
+            const receive = (_event: IpcRendererEvent, request: LocalApiRequest) => {
+                void handler(request)
+                    .then(
+                        (response) =>
+                            ipcRenderer.invoke(LOCAL_API_CHANNELS.response, request.id, response),
+                        () =>
+                            ipcRenderer.invoke(LOCAL_API_CHANNELS.response, request.id, {
+                                status: 500,
+                                body: {
+                                    error: {
+                                        code: 'internal_error',
+                                        message: 'Umber could not complete this request.',
+                                    },
+                                },
+                            }),
+                    )
+                    .catch(() => {
+                        /* The renderer or main process is shutting down. */
+                    })
+            }
+            ipcRenderer.on(LOCAL_API_CHANNELS.request, receive)
+            void ipcRenderer.invoke(LOCAL_API_CHANNELS.ready, true).catch(() => {})
+            return () => {
+                ipcRenderer.removeListener(LOCAL_API_CHANNELS.request, receive)
+                void ipcRenderer.invoke(LOCAL_API_CHANNELS.ready, false).catch(() => {})
+            }
+        },
+    },
     os: toOperatingSystem(process.platform),
     versions: {
         // Absent only if the window was created without the switch, which no

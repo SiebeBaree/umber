@@ -44,6 +44,7 @@ export function mount(container: HTMLElement): Root {
     root.render(
         <StrictMode>
             <App
+                localApi={window.umber?.localApi}
                 overlaidWindowControls={window.umber?.os === 'macos'}
                 runtime={describeRuntime(window.umber)}
                 transport={window.umber === undefined ? undefined : toTransport(window.umber)}

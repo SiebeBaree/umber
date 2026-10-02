@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { AppProviders } from './app-providers'
 import type { KeyVault } from './features/keys/vault'
+import type { LocalApiBridge } from './features/local-api/contract'
 import { OnboardingFlow } from './features/onboarding/onboarding-flow'
 import { useProfile } from './features/profile/profile-context'
 import type { UpdateChecker } from './features/updates/updates-context'
@@ -10,6 +11,7 @@ import { setHttpTransport, type HttpTransport } from './lib/http'
 import { createUmberRouter } from './router'
 
 export interface AppProps {
+    readonly localApi?: LocalApiBridge | undefined
     /**
      * The running build's version, shown at the foot of the settings page. The
      * shell knows it; the UI package has no way to find it out on its own.
@@ -94,6 +96,7 @@ function AppContent({ router }: { readonly router: UmberRouter }) {
  * host shell, which cannot change while the app is running.
  */
 export function App({
+    localApi,
     overlaidWindowControls = false,
     runtime,
     transport,
@@ -113,7 +116,7 @@ export function App({
     })
 
     return (
-        <AppProviders updates={updates} vault={vault}>
+        <AppProviders localApi={localApi} updates={updates} vault={vault}>
             <AppContent router={router} />
         </AppProviders>
     )

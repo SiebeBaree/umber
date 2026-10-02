@@ -5,6 +5,7 @@ import { COMPOSER_SETTINGS_KEY } from '../create/settings/schema'
 import { clearCreations } from '../gallery/creations-db'
 import { useGeneration } from '../generate/generation-context'
 import { useKeys } from '../keys/keys-context'
+import { useLocalApi } from '../local-api/local-api-context'
 import { useProfile } from '../profile/profile-context'
 
 /**
@@ -13,17 +14,19 @@ import { useProfile } from '../profile/profile-context'
  * onboarding. Nothing is sent anywhere and nothing is kept elsewhere, so this
  * really is the whole of it.
  *
- * The order runs from the heaviest to the lightest, so a failure part-way
- * leaves the smallest possible mess behind. The profile goes last: its absence
+ * Stop API admission before clearing storage, so an API request cannot refill
+ * the gallery during the reset. The profile goes last: its absence
  * is what drops the app back into onboarding, so by the time the flow appears
  * the erase is already complete.
  */
 export function useEraseEverything(): () => Promise<void> {
+    const localApi = useLocalApi()
     const keys = useKeys()
     const generation = useGeneration()
     const profile = useProfile()
 
     return useCallback(async () => {
+        await localApi.reset()
         await clearCreations()
 
         // One provider at a time: the vault rewrites its whole file per
@@ -41,5 +44,5 @@ export function useEraseEverything(): () => Promise<void> {
         generation.clear()
 
         profile.clear()
-    }, [keys, generation, profile])
+    }, [keys, generation, profile, localApi])
 }
