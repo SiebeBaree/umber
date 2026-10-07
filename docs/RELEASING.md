@@ -8,16 +8,20 @@ To cut a release, bump that version, commit it, then push a matching tag.
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
-[`.github/workflows/release.yml`](../.github/workflows/release.yml) builds macOS (arm64), Windows and Linux on their own runners and uploads every installer into one **draft** release. Check the assets, then publish the release by hand. The running app only ever sees published, non-prerelease tags.
+[`.github/workflows/release.yml`](../.github/workflows/release.yml) builds macOS (arm64), Windows and Linux on their own runners and uploads every installer into one **draft** release. Once every platform succeeds, the workflow publishes the release automatically. The running app only ever sees published, non-prerelease tags.
 
 To rehearse the whole matrix without tagging anything, run the workflow manually from the Actions tab. electron-builder still targets a draft release named after the current version, so all three platforms get exercised and nothing becomes public. Delete the draft afterwards.
 
-Each copy of the app polls `/releases/latest` on launch and every six hours ([`updates-context.tsx`](../packages/ui/src/features/updates/updates-context.tsx) drives the interval, [`updates.ts`](../apps/desktop/src/main/updates.ts) does the fetch). When it finds a newer tag the settings button grows a dot and the settings page leads with the notice, whose button opens the installer for that machine in the browser.
+Packaged copies check for stable releases ten seconds after launch and every six hours. The main process owns the timer, so checks continue with no renderer window open. Development builds and Linux copies running outside an AppImage do not check.
+
+`electron-updater` downloads updates in the background using the release manifests. On macOS, Squirrel verifies and stages the signed ZIP before Umber offers to restart. Windows uses NSIS and Linux uses AppImage. The native prompt offers **Restart now** or **Later**. Later keeps the app running and the update installs on normal quit. Settings shows download progress, a retry action after errors and a restart action once ready.
+
+The first release containing this updater still needs to be installed manually by users on older versions. Subsequent releases can update in place. Keep the macOS signing identity consistent across releases.
 
 Two things the release job depends on and that are easy to break:
 
 - **The build command must not pass `--` before its flags.** pnpm 11 forwards `--` to the script verbatim instead of stripping it, and electron-builder reads a bare `--` as the end of the options. Every flag after it is collected as a positional and ignored, which costs you the target, the architectures and the publish step, without failing the job.
-- **`artifactName` puts the architecture in every filename.** `pickInstaller` in [`release-feed.ts`](../apps/desktop/src/shared/release-feed.ts) matches on it to send an arm64 Mac to the arm64 dmg. Change the naming and change that function with it.
+- **macOS needs both `dmg` and `zip` targets.** The DMG is for first installs. The ZIP and `latest-mac.yml` feed automatic updates. Keep all generated manifests and blockmaps alongside the installers. The workflow publishes them together.
 
 The app icon lives at `apps/desktop/build/icon.png` and is committed. It is generated from `packages/brand/assets/icon.svg` with `pnpm --filter @umber/brand icons` (macOS only, it uses `sips`), and electron-builder derives the macOS `.icns` and Windows `.ico` from it. Re-run it only when the mark changes.
 
@@ -43,4 +47,8 @@ Notarization adds a few minutes per architecture, so a macOS release job runs no
 
 **Linux.** Nothing to sign. AppImages can be GPG signed but effectively nothing verifies the signature.
 
-Once macOS signing is in place, the check-and-notify updater can be swapped for `electron-updater`. That means adding a `zip` target to the `mac` block and rewriting `download()` in [`updates.ts`](../apps/desktop/src/main/updates.ts). The renderer only learns _whether_ there is an update, so no UI changes with it. Note that after that switch the signing identity can no longer change freely: macOS will not let an app replace itself with a differently signed bundle.
+## Verifying an update
+
+Run `pnpm check` for the updater lifecycle, renderer state tests and build checks. Package locally with signing discovery disabled and publishing off to inspect `app-update.yml` and the runtime dependencies without touching installed copies.
+
+A full installation check needs two signed versions in an isolated test environment. Install the older updater-enabled build, point the test build at a separate release feed and publish the newer build there. Verify automatic download, Later, restart from Settings and ordinary quit. Check that keys and creations survive. Also try an interrupted download and confirm retry works. Never point a rehearsal at the public release channel.

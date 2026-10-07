@@ -132,7 +132,7 @@ export function AppHeader() {
             <div className="flex items-center gap-2 justify-self-end">
                 <ClearStageButton />
                 <UsageButton />
-                <SettingsButton updateWaiting={updates.available} />
+                <SettingsButton updateWaiting={updates.status.latestVersion !== null} />
             </div>
         </header>
     )

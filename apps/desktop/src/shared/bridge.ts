@@ -1,4 +1,5 @@
 import type { LocalApiBridge } from '@umber/ui/local-api'
+import type { UpdateChecker } from '@umber/ui/updates'
 
 /**
  * The contract between the preload script and the renderer.
@@ -111,30 +112,12 @@ export interface UmberNetBridge {
     fetch(request: NetRequestDto): Promise<NetResponseDto>
 }
 
-/**
- * What one look at the release feed found. `latestVersion` is `null` while
- * nothing has been published yet, which is also what a failed check reports:
- * the app has no news either way, and says nothing rather than crying wolf.
- */
-export interface UpdateStatusDto {
-    readonly latestVersion: string | null
-    readonly available: boolean
-}
-
 export const UPDATE_CHANNELS = {
+    status: 'umber:updates:status',
     check: 'umber:updates:check',
-    download: 'umber:updates:download',
+    install: 'umber:updates:install',
+    changed: 'umber:updates:changed',
 } as const
-
-/**
- * The update check. Deliberately narrow: the shell decides *how* an update
- * arrives, and today that is the browser opening the release. Swapping in a
- * real in-app installer later changes `download` and nothing the UI can see.
- */
-export interface UmberUpdatesBridge {
-    check(): Promise<UpdateStatusDto>
-    download(): Promise<void>
-}
 
 export interface UmberBridge {
     readonly localApi?: LocalApiBridge
@@ -143,7 +126,7 @@ export interface UmberBridge {
     readonly versions: UmberVersions
     readonly vault: UmberVaultBridge
     readonly net: UmberNetBridge
-    readonly updates: UmberUpdatesBridge
+    readonly updates: UpdateChecker
 }
 
 /**

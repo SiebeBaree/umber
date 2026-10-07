@@ -1,126 +1,152 @@
-import { app, ipcMain, net, shell } from 'electron'
+import type { UpdateStatus } from '@umber/ui/updates'
+import { app, autoUpdater as nativeUpdater, BrowserWindow, dialog, ipcMain } from 'electron'
+import { autoUpdater } from 'electron-updater'
 
-import { toOperatingSystem, UPDATE_CHANNELS, type UpdateStatusDto } from '../shared/bridge'
-import { NO_UPDATE, readLatestRelease, type ReleaseLookup } from '../shared/release-feed'
+import { UPDATE_CHANNELS } from '../shared/bridge'
 import { rendererOnly } from './ipc-guard'
-import { isAllowedExternalUrl } from './security'
 
-/**
- * The update check.
- *
- * Umber is distributed as GitHub releases, so "is there a new version?" is one
- * unauthenticated GET against the release feed, compared with the version
- * `electron-builder` stamped into this build. There is no in-app installer yet:
- * an auto-updating macOS build has to be signed and notarised, and until there
- * is a signing identity the honest thing is to hand the download to the
- * browser. The renderer only ever learns *whether* there is an update, so
- * swapping in `electron-updater` later touches nothing but this file.
- *
- * The check runs in the main process rather than through the renderer's net
- * proxy on purpose: the proxy's allowlist is for provider APIs, and the UI has
- * no business being able to reach github.com.
- */
+const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
+const STARTUP_DELAY_MS = 10_000
 
-const RELEASE_FEED_URL = 'https://api.github.com/repos/SiebeBaree/umber/releases/latest'
+/** Runs independently of renderer windows, including when the macOS window is closed. */
+class Updates {
+    status: UpdateStatus = { state: 'idle', latestVersion: null }
+    private checking = false
+    private promptedVersion: string | null = null
+    private readonly enabled =
+        app.isPackaged && (process.platform !== 'linux' || !!process.env['APPIMAGE'])
 
-/** Hosts `download` is willing to send the browser to. */
-const DOWNLOAD_HOSTS: ReadonlySet<string> = new Set(['github.com', 'objects.githubusercontent.com'])
+    private publish(next: UpdateStatus): void {
+        this.status = next
+        for (const window of BrowserWindow.getAllWindows()) {
+            if (!window.webContents.isDestroyed()) {
+                window.webContents.send(UPDATE_CHANNELS.changed, this.status)
+            }
+        }
+    }
 
-/** How long a look at the feed stays good for. Keeps a re-render off the wire. */
-const CACHE_MS = 15 * 60 * 1000
+    private fail = (error: unknown): void => {
+        console.warn('Umber update failed', error)
+        const message =
+            this.status.state === 'installing'
+                ? 'The update could not be installed. Try again.'
+                : this.status.state === 'checking'
+                  ? 'Could not check for updates. Check your connection and try again.'
+                  : 'The update could not be prepared. Try again.'
+        this.publish({ state: 'error', latestVersion: this.status.latestVersion, message })
+    }
 
-const REQUEST_TIMEOUT_MS = 10_000
+    install = (): void => {
+        if (!this.enabled || this.status.state !== 'ready') return
+        this.publish({ state: 'installing', latestVersion: this.status.latestVersion })
+        try {
+            autoUpdater.quitAndInstall(false, true)
+        } catch (error) {
+            this.fail(error)
+        }
+    }
 
-interface CachedLookup {
-    readonly lookup: ReleaseLookup
-    readonly at: number
+    private async promptToRestart(version: string): Promise<void> {
+        if (this.promptedVersion === version) return
+        this.promptedVersion = version
+        try {
+            const { response } = await dialog.showMessageBox({
+                type: 'info',
+                title: 'Update ready',
+                message: `Umber ${version} is ready to install`,
+                detail: 'Restart to apply the update. Wait for any running generations to finish. If you choose Later, the update will install when you quit Umber.',
+                buttons: ['Restart now', 'Later'],
+                defaultId: 1,
+                cancelId: 1,
+                noLink: true,
+            })
+            if (response === 0) this.install()
+        } catch (error) {
+            // Settings still offers Restart if the native dialog cannot be shown.
+            console.warn('Umber could not show the update prompt', error)
+        }
+    }
+
+    private ready(version: string): void {
+        this.publish({ state: 'ready', latestVersion: version })
+        void this.promptToRestart(version)
+    }
+
+    check = async (): Promise<void> => {
+        if (
+            !this.enabled ||
+            this.checking ||
+            this.status.state === 'downloading' ||
+            this.status.state === 'ready' ||
+            this.status.state === 'installing'
+        )
+            return
+
+        this.checking = true
+        this.publish({ state: 'checking', latestVersion: null })
+        try {
+            const result = await autoUpdater.checkForUpdates()
+            // The check resolves before its automatic download. Observe both
+            // promises so download errors cannot become unhandled rejections.
+            await result?.downloadPromise
+        } catch (error) {
+            if (this.status.state !== 'error') this.fail(error)
+        } finally {
+            this.checking = false
+        }
+    }
+
+    constructor() {
+        if (!this.enabled) return
+
+        autoUpdater.autoDownload = true
+        autoUpdater.autoInstallOnAppQuit = true
+        autoUpdater.autoRunAppAfterInstall = true
+        autoUpdater.allowPrerelease = false
+        autoUpdater.allowDowngrade = false
+        autoUpdater.on('error', this.fail)
+        autoUpdater.on('update-not-available', () =>
+            this.publish({ state: 'idle', latestVersion: null }),
+        )
+        autoUpdater.on('update-available', ({ version }) => {
+            this.publish({ state: 'downloading', latestVersion: version, percent: 0 })
+        })
+        autoUpdater.on('download-progress', ({ percent }) => {
+            if (this.status.state !== 'downloading' || !Number.isFinite(percent)) return
+            const rounded = Math.max(0, Math.min(100, Math.floor(percent)))
+            if (rounded !== this.status.percent) this.publish({ ...this.status, percent: rounded })
+        })
+        autoUpdater.on('update-downloaded', ({ version }) => {
+            // On macOS this event precedes Squirrel's signature verification.
+            // Keep showing preparation until the native updater confirms readiness.
+            if (process.platform === 'darwin') {
+                this.publish({ state: 'downloading', latestVersion: version, percent: 100 })
+            } else {
+                this.ready(version)
+            }
+        })
+        if (process.platform === 'darwin') {
+            nativeUpdater.on('update-downloaded', () => {
+                if (this.status.state === 'downloading') this.ready(this.status.latestVersion)
+            })
+        }
+
+        const startup = setTimeout(() => void this.check(), STARTUP_DELAY_MS)
+        const interval = setInterval(() => void this.check(), CHECK_INTERVAL_MS)
+        app.once('before-quit', () => {
+            clearTimeout(startup)
+            clearInterval(interval)
+        })
+    }
 }
 
-let cached: CachedLookup | null = null
-
-async function fetchLatestRelease(): Promise<ReleaseLookup> {
-    const response = await net.fetch(RELEASE_FEED_URL, {
-        headers: {
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            'User-Agent': `Umber/${app.getVersion()}`,
-        },
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
-
-    // 404 is the ordinary answer before the first release is published.
-    if (!response.ok) {
-        return NO_UPDATE
-    }
-
-    return readLatestRelease(
-        await response.json(),
-        app.getVersion(),
-        toOperatingSystem(process.platform),
-        process.arch,
-    )
-}
-
-async function lookup(): Promise<ReleaseLookup> {
-    const now = Date.now()
-
-    if (cached !== null && now - cached.at < CACHE_MS) {
-        return cached.lookup
-    }
-
-    try {
-        const fresh = await fetchLatestRelease()
-        cached = { lookup: fresh, at: now }
-        return fresh
-    } catch (error: unknown) {
-        // Being offline is not a fault worth surfacing; the app simply has no
-        // news. Cached so a flapping connection cannot spin the check.
-        console.warn('Umber could not reach the release feed', error)
-        cached = { lookup: NO_UPDATE, at: now }
-        return NO_UPDATE
-    }
-}
-
-async function check(): Promise<UpdateStatusDto> {
-    return (await lookup()).status
-}
-
-/**
- * Opens the download for this machine in the browser. Re-checks first, because
- * the button may be pressed long after the status that revealed it was read.
- */
-async function download(): Promise<void> {
-    const { downloadUrl } = await lookup()
-
-    if (downloadUrl === null) {
-        return
-    }
-
-    let host: string
-
-    try {
-        host = new URL(downloadUrl).hostname
-    } catch {
-        return
-    }
-
-    // The URL came off the network, so it is checked against the same rules as
-    // any other link the app is asked to open, plus the release hosts.
-    if (!isAllowedExternalUrl(downloadUrl) || !DOWNLOAD_HOSTS.has(host)) {
-        console.warn('Refused to open release download', downloadUrl)
-        return
-    }
-
-    await shell.openExternal(downloadUrl)
-}
-
+/** Runs independently of renderer windows, including when the macOS window is closed. */
 export function registerUpdatesIpc(): void {
+    const updates = new Updates()
     ipcMain.handle(
-        UPDATE_CHANNELS.check,
-        rendererOnly(() => check()),
+        UPDATE_CHANNELS.status,
+        rendererOnly(() => updates.status),
     )
-    ipcMain.handle(
-        UPDATE_CHANNELS.download,
-        rendererOnly(() => download()),
-    )
+    ipcMain.handle(UPDATE_CHANNELS.check, rendererOnly(updates.check))
+    ipcMain.handle(UPDATE_CHANNELS.install, rendererOnly(updates.install))
 }

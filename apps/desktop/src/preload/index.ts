@@ -1,4 +1,5 @@
 import type { LocalApiRequest, LocalApiStatus } from '@umber/ui/local-api'
+import type { UpdateStatus } from '@umber/ui/updates'
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 import {
@@ -80,8 +81,16 @@ const bridge: UmberBridge = {
         fetch: (request: NetRequestDto) => ipcRenderer.invoke(NET_CHANNEL, request),
     },
     updates: {
+        status: () => ipcRenderer.invoke(UPDATE_CHANNELS.status),
         check: () => ipcRenderer.invoke(UPDATE_CHANNELS.check),
-        download: () => ipcRenderer.invoke(UPDATE_CHANNELS.download),
+        install: () => ipcRenderer.invoke(UPDATE_CHANNELS.install),
+        onStatus: (listener) => {
+            const receive = (_event: IpcRendererEvent, status: UpdateStatus) => listener(status)
+            ipcRenderer.on(UPDATE_CHANNELS.changed, receive)
+            return () => {
+                ipcRenderer.removeListener(UPDATE_CHANNELS.changed, receive)
+            }
+        },
     },
 }
 

@@ -1,107 +1,262 @@
-import { expect, test } from 'vitest'
+// @vitest-environment node
+// Electron and electron-updater both use Node event emitters.
+/* oxlint-disable unicorn/prefer-event-target */
+import type { IpcMainInvokeEvent } from 'electron'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
-// Reached by path rather than through a package export: these are internals of
-// the desktop shell's update check, and unit-testing them should not force
-// them into anything's public surface.
-import { readAppVersionArgument } from '../apps/desktop/src/shared/bridge'
-import { pickInstaller, readLatestRelease } from '../apps/desktop/src/shared/release-feed'
-import { compareVersions, isNewerVersion } from '../apps/desktop/src/shared/version'
+import { trustRendererUrl } from '../apps/desktop/src/main/ipc-guard'
+import { registerUpdatesIpc } from '../apps/desktop/src/main/updates'
+import { readAppVersionArgument, UPDATE_CHANNELS } from '../apps/desktop/src/shared/bridge'
 
-function release(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-    return {
-        tag_name: 'v0.2.0',
-        draft: false,
-        prerelease: false,
-        html_url: 'https://github.com/SiebeBaree/umber/releases/tag/v0.2.0',
-        assets: [
-            {
-                name: 'Umber-0.2.0-arm64.dmg',
-                browser_download_url: 'https://github.com/dl/Umber-0.2.0-arm64.dmg',
-            },
-            {
-                name: 'Umber-0.2.0-x64.dmg',
-                browser_download_url: 'https://github.com/dl/Umber-0.2.0-x64.dmg',
-            },
-            {
-                name: 'Umber-0.2.0-x64.exe',
-                browser_download_url: 'https://github.com/dl/Umber-0.2.0-x64.exe',
-            },
-            {
-                name: 'latest-mac.yml',
-                browser_download_url: 'https://github.com/dl/latest-mac.yml',
-            },
-        ],
-        ...overrides,
+const { mocks, app, nativeUpdater, autoUpdater, ipcMain, dialog } = await vi.hoisted(async () => {
+    const { EventEmitter } = await import('node:events')
+    const controls = {
+        packaged: true,
+        send: vi.fn(),
+        check: vi.fn<() => Promise<{ downloadPromise?: Promise<string[]> } | null>>(),
+        install: vi.fn(),
     }
+    return {
+        mocks: controls,
+        app: Object.defineProperty(new EventEmitter(), 'isPackaged', {
+            get: () => controls.packaged,
+        }),
+        nativeUpdater: new EventEmitter(),
+        autoUpdater: Object.assign(new EventEmitter(), {
+            checkForUpdates: controls.check,
+            quitAndInstall: controls.install,
+        }),
+        ipcMain: {
+            handle: vi.fn<
+                (channel: string, handler: (event: IpcMainInvokeEvent) => unknown) => void
+            >(),
+        },
+        dialog: {
+            showMessageBox: vi.fn<() => Promise<{ response: number; checkboxChecked: boolean }>>(),
+        },
+    }
+})
+// Resolve the desktop's dependencies, rather than synthetic modules at the workspace root.
+vi.mock('../apps/desktop/node_modules/electron', () => ({
+    app,
+    autoUpdater: nativeUpdater,
+    BrowserWindow: {
+        getAllWindows: () => [{ webContents: { send: mocks.send, isDestroyed: () => false } }],
+    },
+    ipcMain,
+    dialog,
+}))
+vi.mock('../apps/desktop/node_modules/electron-updater', () => ({ autoUpdater }))
+
+const platform = process.platform
+const rendererUrl = 'file:///umber/renderer/index.html'
+const caller = { senderFrame: { url: rendererUrl } } as IpcMainInvokeEvent
+
+function invoke(channel: string, event = caller): unknown {
+    const handler = vi.mocked(ipcMain.handle).mock.calls.find(([name]) => name === channel)?.[1]
+    if (!handler) throw new Error(`Missing handler: ${channel}`)
+    return handler(event)
 }
 
-test('versions order by release number before prerelease tag', () => {
-    expect(compareVersions('1.2.3', '1.2.3')).toBe(0)
-    expect(compareVersions('0.10.0', '0.9.9')).toBe(1)
-    expect(compareVersions('1.0.0', '1.0.1')).toBe(-1)
-    // A finished release outranks any of its own prereleases.
-    expect(compareVersions('1.0.0', '1.0.0-beta.2')).toBe(1)
-    expect(compareVersions('1.0.0-beta.2', '1.0.0-beta.10')).toBe(-1)
-    expect(compareVersions('1.0.0-alpha', '1.0.0-beta')).toBe(-1)
-})
-
-test('a tag that cannot be read is never an update', () => {
-    expect(isNewerVersion('nightly', '0.1.0')).toBe(false)
-    expect(isNewerVersion('', '0.1.0')).toBe(false)
-    expect(isNewerVersion('v0.2.0', '0.1.0')).toBe(true)
-})
-
-test('a newer release reports the version and the installer for this machine', () => {
-    const lookup = readLatestRelease(release(), '0.1.0', 'macos', 'arm64')
-
-    expect(lookup.status).toEqual({ latestVersion: '0.2.0', available: true })
-    expect(lookup.downloadUrl).toBe('https://github.com/dl/Umber-0.2.0-arm64.dmg')
-})
-
-test('the running version and anything older are not an update', () => {
-    expect(readLatestRelease(release(), '0.2.0', 'macos', 'arm64').status).toEqual({
-        latestVersion: '0.2.0',
-        available: false,
+beforeEach(() => {
+    vi.useFakeTimers()
+    vi.clearAllMocks()
+    Object.defineProperty(process, 'platform', { value: 'darwin' })
+    mocks.packaged = true
+    mocks.check.mockImplementation(() => {
+        autoUpdater.emit('update-not-available', { version: '0.2.0' })
+        return Promise.resolve(null)
     })
-    expect(readLatestRelease(release(), '0.3.0', 'macos', 'arm64').status.available).toBe(false)
+    vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 1, checkboxChecked: false })
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    trustRendererUrl(rendererUrl)
 })
 
-test('drafts, prereleases and junk payloads are no news at all', () => {
-    for (const payload of [
-        release({ draft: true }),
-        release({ prerelease: true }),
-        release({ tag_name: undefined }),
-        'not a release',
-        null,
+afterEach(() => {
+    app.removeAllListeners()
+    autoUpdater.removeAllListeners()
+    nativeUpdater.removeAllListeners()
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+    Object.defineProperty(process, 'platform', { value: platform })
+})
+
+test('development builds and unpacked Linux copies never check, download or install', async () => {
+    mocks.packaged = false
+    registerUpdatesIpc()
+    await invoke(UPDATE_CHANNELS.check)
+    await invoke(UPDATE_CHANNELS.install)
+    await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000)
+    expect(mocks.check).not.toHaveBeenCalled()
+    expect(mocks.install).not.toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(0)
+
+    vi.mocked(ipcMain.handle).mockClear()
+    mocks.packaged = true
+    Object.defineProperty(process, 'platform', { value: 'linux' })
+    vi.stubEnv('APPIMAGE', '')
+    registerUpdatesIpc()
+    await invoke(UPDATE_CHANNELS.check)
+    expect(mocks.check).not.toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(0)
+})
+
+test('checks at startup and every six hours, with stable automatic downloads enabled', async () => {
+    registerUpdatesIpc()
+    expect(autoUpdater).toMatchObject({
+        autoDownload: true,
+        autoInstallOnAppQuit: true,
+        autoRunAppAfterInstall: true,
+        allowPrerelease: false,
+        allowDowngrade: false,
+    })
+    await vi.advanceTimersByTimeAsync(9_999)
+    expect(mocks.check).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(mocks.check).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(6 * 60 * 60 * 1000)
+    expect(mocks.check).toHaveBeenCalledTimes(2)
+    expect(invoke(UPDATE_CHANNELS.status)).toEqual({ state: 'idle', latestVersion: null })
+    app.emit('before-quit')
+    expect(vi.getTimerCount()).toBe(0)
+})
+
+test('checks cannot overlap an automatic download or erase a ready update', async () => {
+    let finish: (() => void) | undefined
+    const download = new Promise<string[]>((resolve) => {
+        finish = () => resolve([])
+    })
+    mocks.check.mockImplementationOnce(() => {
+        autoUpdater.emit('update-available', { version: '0.3.0' })
+        return Promise.resolve({ downloadPromise: download })
+    })
+    registerUpdatesIpc()
+    const pending = invoke(UPDATE_CHANNELS.check)
+    await invoke(UPDATE_CHANNELS.check)
+    await vi.advanceTimersByTimeAsync(6 * 60 * 60 * 1000)
+    expect(mocks.check).toHaveBeenCalledOnce()
+    autoUpdater.emit('download-progress', { percent: 42.9 })
+    expect(mocks.send).toHaveBeenLastCalledWith(UPDATE_CHANNELS.changed, {
+        state: 'downloading',
+        latestVersion: '0.3.0',
+        percent: 42,
+    })
+    autoUpdater.emit('update-downloaded', { version: '0.3.0' })
+    finish?.()
+    await pending
+    await invoke(UPDATE_CHANNELS.check)
+    expect(dialog.showMessageBox).not.toHaveBeenCalled()
+    expect(invoke(UPDATE_CHANNELS.status)).toMatchObject({ state: 'downloading', percent: 100 })
+
+    nativeUpdater.emit('update-downloaded')
+    await Promise.resolve()
+    expect(invoke(UPDATE_CHANNELS.status)).toEqual({ state: 'ready', latestVersion: '0.3.0' })
+    expect(dialog.showMessageBox).toHaveBeenCalledWith(
+        expect.objectContaining({
+            buttons: ['Restart now', 'Later'],
+            defaultId: 1,
+            cancelId: 1,
+        }),
+    )
+    expect(mocks.install).not.toHaveBeenCalled()
+    await invoke(UPDATE_CHANNELS.check)
+    expect(mocks.check).toHaveBeenCalledOnce()
+    await invoke(UPDATE_CHANNELS.install)
+    await invoke(UPDATE_CHANNELS.install)
+    expect(mocks.install).toHaveBeenCalledExactlyOnceWith(false, true)
+})
+
+test.each(['win32', 'linux'])(
+    '%s prompts after download and restarts only on consent',
+    async (os) => {
+        Object.defineProperty(process, 'platform', { value: os })
+        vi.stubEnv('APPIMAGE', '/tmp/Umber.AppImage')
+        vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 0, checkboxChecked: false })
+        registerUpdatesIpc()
+        autoUpdater.emit('update-available', { version: '0.3.0' })
+        expect(mocks.install).not.toHaveBeenCalled()
+        autoUpdater.emit('update-downloaded', { version: '0.3.0' })
+        await Promise.resolve()
+        expect(dialog.showMessageBox).toHaveBeenCalledOnce()
+        expect(mocks.install).toHaveBeenCalledExactlyOnceWith(false, true)
+        expect(invoke(UPDATE_CHANNELS.status)).toMatchObject({ state: 'installing' })
+    },
+)
+
+test('download rejection is observed and a retry can recover', async () => {
+    let rejectDownload: ((error: Error) => void) | undefined
+    const download = new Promise<string[]>((_resolve, reject) => {
+        rejectDownload = reject
+    })
+    mocks.check.mockImplementationOnce(() => {
+        autoUpdater.emit('update-available', { version: '0.3.0' })
+        return Promise.resolve({ downloadPromise: download })
+    })
+    registerUpdatesIpc()
+    const pending = invoke(UPDATE_CHANNELS.check)
+    const error = new Error('Connection interrupted')
+    autoUpdater.emit('error', error)
+    rejectDownload?.(error)
+    await pending
+    expect(invoke(UPDATE_CHANNELS.status)).toMatchObject({ state: 'error', latestVersion: '0.3.0' })
+    await invoke(UPDATE_CHANNELS.install)
+    expect(mocks.install).not.toHaveBeenCalled()
+    await invoke(UPDATE_CHANNELS.check)
+    expect(mocks.check).toHaveBeenCalledTimes(2)
+    expect(invoke(UPDATE_CHANNELS.status)).toMatchObject({ state: 'idle' })
+})
+
+test('macOS verification errors never offer restart and retry waits for native readiness', async () => {
+    registerUpdatesIpc()
+    autoUpdater.emit('update-downloaded', { version: '0.3.0' })
+    autoUpdater.emit('error', new Error('Invalid code signature'))
+    nativeUpdater.emit('update-downloaded')
+    expect(dialog.showMessageBox).not.toHaveBeenCalled()
+    await invoke(UPDATE_CHANNELS.install)
+    expect(mocks.install).not.toHaveBeenCalled()
+    await invoke(UPDATE_CHANNELS.check)
+    autoUpdater.emit('update-downloaded', { version: '0.3.0' })
+    nativeUpdater.emit('update-downloaded')
+    expect(dialog.showMessageBox).toHaveBeenCalledOnce()
+})
+
+test('a failed installation returns to a recoverable state', async () => {
+    registerUpdatesIpc()
+    autoUpdater.emit('update-downloaded', { version: '0.3.0' })
+    nativeUpdater.emit('update-downloaded')
+    await Promise.resolve()
+    mocks.install.mockImplementationOnce(() => {
+        autoUpdater.emit('error', new Error('Permission denied'))
+    })
+    await invoke(UPDATE_CHANNELS.install)
+    expect(invoke(UPDATE_CHANNELS.status)).toMatchObject({
+        state: 'error',
+        message: 'The update could not be installed. Try again.',
+    })
+    await invoke(UPDATE_CHANNELS.check)
+    expect(mocks.check).toHaveBeenCalledOnce()
+})
+
+test('offline checks recover on the next scheduled check', async () => {
+    mocks.check.mockRejectedValueOnce(new Error('Offline'))
+    registerUpdatesIpc()
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(invoke(UPDATE_CHANNELS.status)).toMatchObject({ state: 'error' })
+    await vi.advanceTimersByTimeAsync(6 * 60 * 60 * 1000)
+    expect(invoke(UPDATE_CHANNELS.status)).toMatchObject({ state: 'idle' })
+})
+
+test('only the trusted renderer can control or inspect updates', () => {
+    registerUpdatesIpc()
+    const foreign = { senderFrame: { url: 'https://example.com' } } as IpcMainInvokeEvent
+    for (const channel of [
+        UPDATE_CHANNELS.status,
+        UPDATE_CHANNELS.check,
+        UPDATE_CHANNELS.install,
     ]) {
-        expect(readLatestRelease(payload, '0.1.0', 'linux', 'x64').status).toEqual({
-            latestVersion: null,
-            available: false,
-        })
+        expect(() => invoke(channel, foreign)).toThrow('Refused an IPC call')
     }
-})
-
-test('an unmatched platform falls back to the release page', () => {
-    // No AppImage in the release, so there is nothing to hand a Linux machine
-    // but the page listing what there is.
-    const lookup = readLatestRelease(release(), '0.1.0', 'linux', 'x64')
-
-    expect(lookup.downloadUrl).toBe('https://github.com/SiebeBaree/umber/releases/tag/v0.2.0')
-})
-
-test('the installer choice ignores update metadata and unmatched architectures', () => {
-    const assets = [
-        { name: 'Umber-0.2.0-arm64.dmg', url: 'arm64-dmg' },
-        { name: 'Umber-0.2.0-x64.dmg', url: 'x64-dmg' },
-        { name: 'Umber-0.2.0-arm64.dmg.blockmap', url: 'blockmap' },
-        { name: 'latest-mac.yml', url: 'manifest' },
-    ]
-
-    expect(pickInstaller(assets, 'macos', 'x64')).toBe('x64-dmg')
-    // An architecture the release does not build for is not worth guessing at.
-    expect(pickInstaller(assets, 'macos', 'ia32')).toBeNull()
-    // A single candidate needs no architecture in its name to be the one.
-    expect(pickInstaller([{ name: 'Umber.exe', url: 'exe' }], 'windows', 'x64')).toBe('exe')
 })
 
 test('the app version rides in on the preload command line', () => {
