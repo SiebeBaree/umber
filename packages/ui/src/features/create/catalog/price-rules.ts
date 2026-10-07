@@ -144,7 +144,21 @@ export function seedreamFiveProPrice(context: PriceContext): number {
  * image, both straight off Model Studio's Singapore price list.
  */
 export function qwenImageThreeProPrice(context: PriceContext): number {
-    const base = context.resolution === '2K' ? 0.079 : 0.042
+    const base = context.resolution === '2K' ? 0.075 : 0.04
 
-    return base + 0.0031 * context.references
+    return base + 0.003 * context.references
+}
+
+/** Singapore list price for Qwen Image 3.0, including reference inputs. */
+export function qwenImageThreePrice(context: PriceContext): number {
+    return 0.03 + 0.003 * context.references
+}
+
+/** Klein bills the first output megapixel, then each additional megapixel. */
+export function fluxKleinPrice(variant: '4b' | '9b') {
+    return (context: PriceContext): number => {
+        const { width, height } = pixelSize(context.ratio, context.resolution, FLUX_2_SIZE)
+        const additional = billedMegapixels(width * height) - 1
+        return variant === '4b' ? 0.014 + 0.001 * additional : 0.015 + 0.002 * additional
+    }
 }

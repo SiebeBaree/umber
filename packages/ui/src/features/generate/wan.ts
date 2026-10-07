@@ -110,21 +110,59 @@ async function wanTwoSixBody(request: EngineRequest): Promise<Record<string, unk
     }
 }
 
+/** Wan 3 uses one model per tier and accepts either frames or references. */
+async function wanThreeBody(request: EngineRequest): Promise<Record<string, unknown>> {
+    const { firstFrame, lastFrame, references } = request
+    if (lastFrame !== undefined && firstFrame === undefined) {
+        throw new GenerationError('Wan needs a start frame when an end frame is attached.')
+    }
+    if (references.length > 0 && (firstFrame !== undefined || lastFrame !== undefined)) {
+        throw new GenerationError(
+            'Wan takes either frames or reference images. Remove one or the other.',
+        )
+    }
+    const media = [
+        ...(firstFrame === undefined
+            ? []
+            : [{ type: 'first_frame', url: await encodeDataUri(firstFrame) }]),
+        ...(lastFrame === undefined
+            ? []
+            : [{ type: 'last_frame', url: await encodeDataUri(lastFrame) }]),
+        ...(await Promise.all(
+            references.map(async (file) => ({
+                type: 'reference_image',
+                url: await encodeDataUri(file),
+            })),
+        )),
+    ]
+    return {
+        model: request.modelId === 'wan-3-prime' ? 'wan3.0-video-prime' : 'wan3.0-video',
+        input: { prompt: request.prompt, ...(media.length === 0 ? {} : { media }) },
+        parameters: {
+            resolution: request.resolution.toUpperCase(),
+            ratio: request.ratio,
+            duration: request.durationSeconds,
+            audio: true,
+            watermark: false,
+        },
+    }
+}
+
 /** Starts the async Wan task and returns its id. */
 async function createWanTask(request: EngineRequest): Promise<string> {
+    const root = alibabaApiRoot(request)
+    const payload = request.modelId.startsWith('wan-3')
+        ? await wanThreeBody(request)
+        : request.modelId === 'wan-2-7'
+          ? await wanTwoSevenBody(request)
+          : await wanTwoSixBody(request)
     let created: Response
 
     try {
-        created = await httpFetch(
-            `${alibabaApiRoot(request)}/services/aigc/video-generation/video-synthesis`,
-            {
-                headers: { ...alibabaHeadersOf(request), 'X-DashScope-Async': 'enable' },
-                json:
-                    request.modelId === 'wan-2-7'
-                        ? await wanTwoSevenBody(request)
-                        : await wanTwoSixBody(request),
-            },
-        )
+        created = await httpFetch(`${root}/services/aigc/video-generation/video-synthesis`, {
+            headers: { ...alibabaHeadersOf(request), 'X-DashScope-Async': 'enable' },
+            json: payload,
+        })
     } catch {
         throw offlineError('Alibaba')
     }

@@ -131,7 +131,9 @@ function detailsOf(job: GenerationJob, index: number): ImageDetails | null {
         ratio: job.ratio,
         resolution: job.resolution,
         quality: job.quality,
-        ...(job.kind === 'video' ? { durationSeconds: job.durationSeconds } : {}),
+        ...(job.kind === 'video' && job.durationSeconds > 0
+            ? { durationSeconds: job.durationSeconds }
+            : {}),
         generationMs: job.generationMs,
         // The run's own clock: what the gallery stores is a few milliseconds
         // later, and neither is worth telling apart at minute resolution.

@@ -12,11 +12,13 @@ import { encodeDataUri, fetchBinary, poll, readJson } from './shared'
 const API_ROOT = 'https://api.minimax.io/v2'
 
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
+    'minimax-h3-max': 'MiniMax-H3-Max',
     'minimax-h3': 'MiniMax-H3',
 }
 
 /** The tier names on the wire: lowercase in the catalog, MiniMax's own casing here. */
 const RESOLUTIONS: Readonly<Record<string, string>> = {
+    '480p': '480P',
     '768p': '768P',
     '2K': '2K',
 }
@@ -111,6 +113,7 @@ async function minimaxContent(request: EngineRequest): Promise<Record<string, un
 async function createTask(request: EngineRequest): Promise<string> {
     const grounded = request.firstFrame !== undefined || request.lastFrame !== undefined
 
+    const content = await minimaxContent(request)
     let created: Response
 
     try {
@@ -118,7 +121,7 @@ async function createTask(request: EngineRequest): Promise<string> {
             headers: headersOf(request),
             json: {
                 model: WIRE_MODEL_IDS[request.modelId] ?? request.modelId,
-                content: await minimaxContent(request),
+                content,
                 duration: request.durationSeconds,
                 resolution: RESOLUTIONS[request.resolution] ?? '768P',
                 // Fixed frames only accept `adaptive`, which follows the still.

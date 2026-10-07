@@ -261,7 +261,9 @@ export function ConfigureStep({
         [invalidate],
     )
 
-    const complete = provider.fields.every((field) => (values[field.id] ?? '').trim() !== '')
+    const complete = provider.fields.every(
+        (field) => field.optional === true || (values[field.id] ?? '').trim() !== '',
+    )
 
     const submit = useCallback(
         (event: FormEvent) => {

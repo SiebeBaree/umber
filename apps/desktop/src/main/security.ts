@@ -110,7 +110,12 @@ export function proxyVerdictFor(url: string, method: string): ProxyVerdict {
         return 'refuse'
     }
 
-    if (PROVIDER_API_HOSTS.has(parsed.hostname)) {
+    // New Model Studio APIs use one workspace subdomain in either supported region.
+    const alibabaWorkspace =
+        /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(?:ap-southeast-1|cn-beijing)\.maas\.aliyuncs\.com$/u.test(
+            parsed.hostname,
+        )
+    if (PROVIDER_API_HOSTS.has(parsed.hostname) || alibabaWorkspace) {
         return 'full'
     }
 

@@ -17,6 +17,7 @@ const API_ROOT = 'https://api.dev.runwayml.com/v1'
 const API_VERSION = '2024-11-06'
 
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
+    'gen-4-image-turbo': 'gen4_image_turbo',
     'gen-4-image': 'gen4_image',
     'gen-4-5': 'gen4.5',
     'gen-4-turbo': 'gen4_turbo',

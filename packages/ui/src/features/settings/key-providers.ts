@@ -12,6 +12,7 @@ import { PROVIDERS, type ProviderId } from '../create/catalog'
 export type KeyProviderId = ProviderId
 
 interface CredentialFieldBase {
+    readonly optional?: boolean
     readonly id: string
     readonly label: string
     /** One line under the field for anything the label cannot carry alone. */
@@ -100,7 +101,7 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
     {
         id: 'openai',
         name: PROVIDERS.openai.name,
-        unlocks: 'GPT Image and Sora',
+        unlocks: 'GPT Image',
         console: { label: 'OpenAI platform', url: 'https://platform.openai.com/api-keys' },
         setup: [
             {
@@ -144,7 +145,7 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
     {
         id: 'ideogram',
         name: PROVIDERS.ideogram.name,
-        unlocks: 'Ideogram 4.0 and V3',
+        unlocks: 'Ideogram 4.5, 4.0 and V3',
         console: { label: 'Ideogram API settings', url: 'https://ideogram.ai/manage-api' },
         fields: [apiKeyField('Your Ideogram API key')],
     },
@@ -252,6 +253,14 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
         fields: [
             apiKeyField('sk-…'),
             {
+                kind: 'text',
+                id: 'workspaceId',
+                label: 'Workspace ID',
+                placeholder: 'Your Model Studio workspace ID',
+                optional: true,
+                hint: 'Required for Wan 3.0 and Wan 2.7 Image. Find it in the Model Studio console.',
+            },
+            {
                 kind: 'choice',
                 id: 'region',
                 label: 'Key region',
@@ -266,7 +275,7 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
     {
         id: 'minimax',
         name: PROVIDERS.minimax.name,
-        unlocks: 'Hailuo 3 video',
+        unlocks: 'MiniMax H3 and H3 Max video',
         console: {
             label: 'MiniMax platform',
             url: 'https://platform.minimax.io/user-center/basic-information/interface-key',

@@ -62,3 +62,23 @@ test('the proxy carries credentials to provider hosts and nothing else', () => {
     expect(proxyVerdictFor('http://api.openai.com/v1/images', 'GET')).toBe('refuse')
     expect(proxyVerdictFor('nonsense', 'GET')).toBe('refuse')
 })
+
+test('the proxy permits Alibaba workspace APIs without trusting lookalike domains', () => {
+    for (const region of ['ap-southeast-1', 'cn-beijing']) {
+        expect(
+            proxyVerdictFor(
+                `https://workspace-123.${region}.maas.aliyuncs.com/api/v1/tasks`,
+                'POST',
+            ),
+        ).toBe('full')
+    }
+    for (const host of [
+        'workspace-123.ap-southeast-1.maas.aliyuncs.com.attacker.example',
+        'attacker.example/anything.ap-southeast-1.maas.aliyuncs.com',
+        'ap-southeast-1.maas.aliyuncs.com',
+        'nested.workspace-123.ap-southeast-1.maas.aliyuncs.com',
+        'workspace-123.us-east-1.maas.aliyuncs.com',
+    ]) {
+        expect(proxyVerdictFor(`https://${host}`, 'POST')).toBe('refuse')
+    }
+})

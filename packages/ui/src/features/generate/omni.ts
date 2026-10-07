@@ -14,7 +14,7 @@ import { encodeBase64, fetchBinary, poll, readJson } from './shared'
  * clip length itself; there is no duration parameter to send.
  */
 
-const OMNI_WIRE_MODEL_ID = 'gemini-omni-flash-preview'
+const OMNI_WIRE_MODEL_ID = 'gemini-omni-1.1-flash'
 
 interface InteractionContent {
     readonly type?: string
@@ -52,16 +52,13 @@ async function omniInput(request: EngineRequest): Promise<unknown> {
         })),
     )
 
-    // The tags index the attached images in order, the opening frame first.
-    const offset = firstFrame === undefined ? 0 : 1
+    const offset = firstFrame === undefined ? 1 : 2
     const tags = [
-        ...(firstFrame === undefined ? [] : ['Start from <FIRST_FRAME>.']),
+        ...(firstFrame === undefined ? [] : ['[# Sources <FIRST_FRAME>@Image1]']),
         ...(references.length === 0
             ? []
             : [
-                  `Use ${references
-                      .map((_, index) => `<IMAGE_REF_${index + offset}>`)
-                      .join(', ')} as reference images.`,
+                  `[# References ${references.map((_, index) => `<IMAGE_REF_${index}>@Image${index + offset}`).join(' ')}]`,
               ]),
     ]
 
@@ -130,6 +127,7 @@ async function startOmniInteraction(request: EngineRequest): Promise<Interaction
                 response_format: {
                     type: 'video',
                     aspect_ratio: request.ratio,
+                    resolution: request.resolution.toLowerCase(),
                     delivery: 'uri',
                 },
             },

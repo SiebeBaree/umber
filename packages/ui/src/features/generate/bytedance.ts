@@ -17,6 +17,8 @@ const API_ROOT = 'https://ark.ap-southeast.bytepluses.com/api/v3'
  * `dreamina-` prefix is real and belongs to the Seedance 2.x line only.
  */
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
+    'seedream-5-flash': 'dola-seedream-5-0-flash-260915',
+    'seedance-2-0-fast': 'dreamina-seedance-2-0-fast-260128',
     'seedream-5-pro': 'dola-seedream-5-0-pro-260628',
     'seedream-5-lite': 'seedream-5-0-lite-260128',
     'seedream-4-5': 'seedream-4-5-251128',

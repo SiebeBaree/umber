@@ -17,6 +17,7 @@ const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'nano-banana-2': 'gemini-3.1-flash-image',
     'nano-banana-2-lite': 'gemini-3.1-flash-lite-image',
     'nano-banana': 'gemini-2.5-flash-image',
+    'veo-3-1-lite': 'veo-3.1-lite-generate-preview',
     'veo-3-1': 'veo-3.1-generate-preview',
     'veo-3-1-fast': 'veo-3.1-fast-generate-preview',
 }
@@ -147,9 +148,59 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
     return images[0]
 }
 
+interface ImageInteraction {
+    readonly steps?: readonly {
+        readonly content?: readonly {
+            readonly type?: string
+            readonly data?: string
+            readonly mime_type?: string
+        }[]
+    }[]
+}
+
+/** Nano Banana 2.1 uses Interactions rather than generateContent. */
+async function generateInteractionImage(request: EngineRequest): Promise<Blob> {
+    const images = await Promise.all(
+        request.references.map(async (file) => ({
+            type: 'image',
+            mime_type: file.type || 'image/png',
+            data: await encodeBase64(file),
+        })),
+    )
+    let response: Response
+    try {
+        response = await httpFetch(`${API_ROOT}/interactions`, {
+            headers: headersOf(request),
+            json: {
+                model: 'gemini-nano-banana-2.1',
+                input: [...images, { type: 'text', text: request.prompt }],
+                response_format: {
+                    type: 'image',
+                    mime_type: 'image/png',
+                    aspect_ratio: request.ratio,
+                    image_size: request.resolution,
+                },
+            },
+        })
+    } catch {
+        throw offlineError('Google')
+    }
+    if (!response.ok) throw await toGenerationError(response)
+    const body = (await readJson(response)) as ImageInteraction | null
+    const image = body?.steps
+        ?.flatMap((step) => step.content ?? [])
+        .find((part) => part.type === 'image' && part.data)
+    if (!image?.data) throw new GenerationError('Google returned no image for this prompt.')
+    return decodeBase64Blob(image.data, image.mime_type ?? 'image/png')
+}
+
 export function generateGoogleImages(request: EngineRequest): Promise<Blob[]> {
     // One image per API call, so a multi-image run is parallel calls.
-    return fanOut(request, () => generateOneImage(request))
+    return fanOut(request, () =>
+        request.modelId === 'nano-banana-2-1'
+            ? generateInteractionImage(request)
+            : generateOneImage(request),
+    )
 }
 
 /** Shared with the Veo module, which speaks the same API with the same key. */

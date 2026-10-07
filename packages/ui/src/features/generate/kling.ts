@@ -18,6 +18,8 @@ const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'kling-2-6': 'kling-v2-6',
     'kling-2-5-turbo': 'kling-v2-5-turbo',
     'kling-image-2-1': 'kling-v2-1',
+    'kling-image-3': 'kling-v3',
+    'kling-image-3-omni': 'kling-v3-omni',
 }
 
 function base64Url(bytes: Uint8Array): string {
@@ -179,13 +181,32 @@ export async function generateKlingLegacyVideo(request: EngineRequest): Promise<
     return [await fetchBinary('Kling', url, 'video/mp4')]
 }
 
-export async function generateKlingImages(request: EngineRequest): Promise<Blob[]> {
+async function klingImageInputs(request: EngineRequest): Promise<Record<string, unknown>> {
     const reference = request.references[0]
+    const omni = request.modelId === 'kling-image-3-omni'
+    return omni
+        ? {
+              image_list: await Promise.all(
+                  request.references.map(async (file) => ({ image: await encodeBase64(file) })),
+              ),
+          }
+        : reference === undefined
+          ? {}
+          : {
+                image: await encodeBase64(reference),
+                ...(request.modelId === 'kling-image-3' ? {} : { image_reference: 'subject' }),
+            }
+}
+
+export async function generateKlingImages(request: EngineRequest): Promise<Blob[]> {
+    const endpoint =
+        request.modelId === 'kling-image-3-omni' ? 'images/omni-image' : 'images/generations'
+    const images = await klingImageInputs(request)
 
     let created: Response
 
     try {
-        created = await httpFetch(`${API_ROOT}/images/generations`, {
+        created = await httpFetch(`${API_ROOT}/${endpoint}`, {
             headers: await headersOf(request),
             json: {
                 model_name: WIRE_MODEL_IDS[request.modelId] ?? request.modelId,
@@ -193,9 +214,7 @@ export async function generateKlingImages(request: EngineRequest): Promise<Blob[
                 n: request.count,
                 resolution: request.resolution.toLowerCase(),
                 aspect_ratio: request.ratio,
-                ...(reference === undefined
-                    ? {}
-                    : { image: await encodeBase64(reference), image_reference: 'subject' }),
+                ...images,
             },
         })
     } catch {
@@ -208,7 +227,7 @@ export async function generateKlingImages(request: EngineRequest): Promise<Blob[
         throw new GenerationError('Kling accepted the run but returned no task to follow.')
     }
 
-    const finished = await awaitTask(request, `images/generations/${job.task_id}`, 5 * 60_000)
+    const finished = await awaitTask(request, `${endpoint}/${job.task_id}`, 5 * 60_000)
     const urls = (finished.task_result?.images ?? [])
         .map((image) => image.url)
         .filter((url): url is string => typeof url === 'string' && url !== '')

@@ -114,11 +114,13 @@ export function priceAt(price: Price, context: PriceContext, cheapest: string): 
  * lengths, others any whole second inside a range, so both are expressible.
  */
 export type DurationRule =
+    | { readonly kind: 'automatic'; readonly typicalSeconds: number }
     | { readonly kind: 'list'; readonly seconds: readonly [number, ...number[]] }
     | { readonly kind: 'range'; readonly min: number; readonly max: number; readonly step: number }
 
 /** Every allowed length, ascending — the single way callers read a rule. */
 export function durationOptions(rule: DurationRule): readonly number[] {
+    if (rule.kind === 'automatic') return [rule.typicalSeconds]
     if (rule.kind === 'list') {
         return rule.seconds
     }
@@ -163,7 +165,8 @@ interface ModelBase {
     readonly name: string
     readonly provider: ProviderId
     /**
-     * Ordering key within a provider, newest first. An ISO date rather than a
+     * Ordering key within a provider, newest first. Uses the public release date
+     * when known, otherwise the date first verified in the catalog. An ISO date rather than a
      * version string, because version schemes differ between vendors.
      */
     readonly releasedOn: string
@@ -192,7 +195,7 @@ export interface VideoModel extends ModelBase {
     /** The stills the model can be handed alongside the prompt. */
     readonly assets: VideoAssetRule
     /** USD for one second of finished clip. */
-    readonly pricePerSecond: Price
+    readonly pricePerSecond: Price | null
     /** Only where animating a still is billed differently from text alone. */
     readonly pricePerSecondFromImage?: Price
     /** A one-off charge some vendors add for the supplied first frame. */

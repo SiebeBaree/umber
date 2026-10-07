@@ -105,9 +105,13 @@ test('frames collapse into references on an image model', () => {
 })
 
 test('the end frame is dropped for a model without one', () => {
-    // Sora 2 takes a start frame only.
+    // Grok Imagine Video 1.5 Lite takes a start frame only.
     const assets = [asset('start'), asset('end')]
-    const fit = fitAssets(assets, capabilities('video', 'sora-2'), 'Sora 2')
+    const fit = fitAssets(
+        assets,
+        capabilities('video', 'grok-imagine-video-1-5-lite'),
+        'Grok Imagine Video 1.5 Lite',
+    )
 
     expect(fit.kept).toHaveLength(1)
     expect(fit.kept[0]?.slot).toBe('start')
