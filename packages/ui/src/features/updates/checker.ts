@@ -1,25 +1,29 @@
-/**
- * The shape a host shell implements so the app can tell whether a newer Umber
- * has been published. Deliberately says nothing about *how* an update is
- * fetched: the desktop shell hands the release to the browser today and may
- * install it in place later, and neither is the UI's business.
- */
-
-export interface UpdateStatus {
-    /** The newest published version, or `null` when there is no news. */
-    readonly latestVersion: string | null
-    /** Whether that version is newer than the running build. */
-    readonly available: boolean
-}
+/** The main process owns downloads and installation; the UI observes its state. */
+export type UpdateStatus =
+    | { readonly state: 'idle' | 'checking'; readonly latestVersion: null }
+    | {
+          readonly state: 'downloading'
+          readonly latestVersion: string
+          readonly percent: number
+      }
+    | { readonly state: 'ready' | 'installing'; readonly latestVersion: string }
+    | {
+          readonly state: 'error'
+          readonly latestVersion: string | null
+          readonly message: string
+      }
 
 export interface UpdateChecker {
-    check(): Promise<UpdateStatus>
-    /** Starts the update, whatever that means for this host. */
-    download(): Promise<void>
+    status(): Promise<UpdateStatus>
+    check(): Promise<void>
+    install(): Promise<void>
+    onStatus(listener: (status: UpdateStatus) => void): () => void
 }
 
-/** What a build with no shell behind it reports: never an update. */
+/** Browser previews have no installed app to update. */
 export const NO_UPDATES: UpdateChecker = {
-    check: () => Promise.resolve({ latestVersion: null, available: false }),
-    download: () => Promise.resolve(),
+    status: () => Promise.resolve({ state: 'idle', latestVersion: null }),
+    check: () => Promise.resolve(),
+    install: () => Promise.resolve(),
+    onStatus: () => () => {},
 }

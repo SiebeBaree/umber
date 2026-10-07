@@ -8,8 +8,8 @@ import type { UserConfig } from 'vite'
  * `src/preload/index.ts` and `src/renderer/index.html`, and emit to `out/`.
  *
  * `externalizeDepsPlugin` keeps anything listed under `dependencies` out of the
- * main and preload bundles. This package deliberately has none: everything the
- * app needs is bundled, so electron-builder ships `out/` and no `node_modules`.
+ * main and preload bundles. electron-builder ships those runtime dependencies
+ * alongside `out/`, including electron-updater.
  */
 
 /**

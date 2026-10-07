@@ -1,57 +1,67 @@
-import { useRouteContext } from '@tanstack/react-router'
-import { ArrowDownToLine, Sparkles } from 'lucide-react'
+import { RefreshCw, Sparkles } from 'lucide-react'
 
 import { Button } from '../../components/ui/button'
+import type { UpdateStatus } from '../updates/checker'
 import { useUpdates } from '../updates/updates-context'
 
-/**
- * The new-version notice. Renders nothing at all until there is something to
- * say, which is why it can sit unconditionally at the top of the page.
- *
- * It is the one section wearing the accent: it is the only thing on this page
- * that appeared without being asked for, and the dot on the header's settings
- * button sent people here to find it.
- */
-export function UpdateSection() {
-    const { version } = useRouteContext({ from: '__root__' })
-    const updates = useUpdates()
-
-    if (!updates.available || updates.latestVersion === null) {
-        return null
+function describeUpdate(status: UpdateStatus): string {
+    switch (status.state) {
+        case 'downloading':
+            return status.percent === 100
+                ? 'Preparing the update. You can keep using Umber.'
+                : `Downloading ${status.percent}%. You can keep using Umber.`
+        case 'ready':
+            return 'Restart to apply the update, or keep working and it will install when you quit.'
+        case 'installing':
+            return 'Restarting to apply the update.'
+        case 'error':
+            return status.message
+        default:
+            return ''
     }
+}
+
+/** Uses the existing update notice for download progress, recovery and restart. */
+export function UpdateSection() {
+    const { status, retry, restart } = useUpdates()
+    if (status.state === 'idle' || status.state === 'checking') return null
+
+    const title =
+        status.state === 'error'
+            ? 'Update interrupted'
+            : status.state === 'ready'
+              ? `Umber ${status.latestVersion} is ready`
+              : `Updating to Umber ${status.latestVersion}`
 
     return (
         <section
             aria-labelledby="settings-update"
             className="glass rounded-3xl p-6 ring-1 ring-accent/40"
         >
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex min-w-0 items-start gap-3">
                     <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
                         <Sparkles aria-hidden className="size-4" />
                     </span>
-
                     <div className="min-w-0">
                         <h2 className="font-semibold" id="settings-update">
-                            Umber {updates.latestVersion} is available
+                            {title}
                         </h2>
                         <p className="mt-1 text-sm leading-relaxed text-muted">
-                            {version === undefined
-                                ? 'Downloads in your browser. Install it over this copy to keep your keys and creations.'
-                                : `You are on ${version}. Install the download over this copy to keep your keys and creations.`}
+                            {describeUpdate(status)}
                         </p>
                     </div>
                 </div>
-
-                <Button
-                    className="shrink-0"
-                    disabled={updates.starting}
-                    onClick={updates.start}
-                    size="sm"
-                >
-                    <ArrowDownToLine aria-hidden />
-                    {updates.starting ? 'Opening' : 'Update'}
-                </Button>
+                {status.state === 'ready' || status.state === 'error' ? (
+                    <Button
+                        className="shrink-0"
+                        onClick={status.state === 'ready' ? restart : retry}
+                        size="sm"
+                    >
+                        <RefreshCw aria-hidden />
+                        {status.state === 'ready' ? 'Restart to update' : 'Try again'}
+                    </Button>
+                ) : null}
             </div>
         </section>
     )

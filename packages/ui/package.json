@@ -11,7 +11,8 @@
     "exports": {
         ".": "./src/index.ts",
         "./styles.css": "./src/styles.css",
-        "./local-api": "./src/features/local-api/contract.ts"
+        "./local-api": "./src/features/local-api/contract.ts",
+        "./updates": "./src/features/updates/checker.ts"
     },
     "scripts": {
         "clean": "rimraf .turbo",

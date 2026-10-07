@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import { app, BrowserWindow, session, shell, type Event } from 'electron'
+import { app, autoUpdater, BrowserWindow, session, shell, type Event } from 'electron'
 
 import { trustRendererUrl } from './ipc-guard'
 import { registerLocalApiIpc } from './local-api'
@@ -19,6 +19,10 @@ const isDev = rendererDevServerUrl !== undefined
 let localApi: Awaited<ReturnType<typeof registerLocalApiIpc>> | undefined
 let quitting = false
 app.on('before-quit', () => {
+    quitting = true
+})
+// Squirrel closes windows before app's before-quit. Let the API window close too.
+autoUpdater.on('before-quit-for-update', () => {
     quitting = true
 })
 
