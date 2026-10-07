@@ -158,15 +158,6 @@ export async function generateOpenAiImages(request: EngineRequest): Promise<Blob
     return decodeResponse((await response.json()) as ImagesResponse)
 }
 
-/** Shared with the Sora module, which speaks the same API with the same key. */
-export {
-    API_ROOT as OPENAI_API_ROOT,
-    OFFLINE_MESSAGE as OPENAI_OFFLINE_MESSAGE,
-    WIRE_MODEL_IDS as OPENAI_WIRE_MODEL_IDS,
-    apiKeyOf as openAiKeyOf,
-    toGenerationError as toOpenAiError,
-}
-
 export type KeyVerification =
     | { readonly ok: true; readonly warning?: string }
     | { readonly ok: false; readonly message: string }

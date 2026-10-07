@@ -14,6 +14,7 @@ const API_ROOT = 'https://api.x.ai/v1'
 
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'grok-imagine-image-2': 'grok-imagine-image-2.0',
+    'grok-imagine-video-1-5-lite': 'grok-imagine-video-1.5-lite',
     'grok-imagine-video-1-5': 'grok-imagine-video-1.5',
 }
 
@@ -65,7 +66,7 @@ interface XaiImagesResponse {
 /** The images request body, shared by generation and editing. */
 async function imagesBody(request: EngineRequest): Promise<Record<string, unknown>> {
     const references = await Promise.all(
-        request.references.slice(0, 3).map(async (file) => ({
+        request.references.slice(0, 5).map(async (file) => ({
             url: await encodeDataUri(file),
             type: 'image_url',
         })),

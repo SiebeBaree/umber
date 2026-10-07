@@ -27,8 +27,26 @@ async function klingThreeContents(request: EngineRequest): Promise<Record<string
         )
     }
 
+    if (request.modelId === 'kling-3-0-turbo' && lastFrame !== undefined) {
+        throw new GenerationError('Kling 3.0 Turbo does not accept an end frame.')
+    }
+    if (
+        request.references.length +
+            Number(firstFrame !== undefined) +
+            Number(lastFrame !== undefined) >
+        7
+    ) {
+        throw new GenerationError('Kling accepts up to seven images, including frames.')
+    }
+
     return [
         { type: 'prompt', text: request.prompt },
+        ...(await Promise.all(
+            request.references.map(async (file) => ({
+                type: 'refer_image',
+                url: await encodeBase64(file),
+            })),
+        )),
         ...(firstFrame === undefined
             ? []
             : [{ type: 'first_frame', url: await encodeBase64(firstFrame) }]),
@@ -41,12 +59,17 @@ async function klingThreeContents(request: EngineRequest): Promise<Record<string
 /** Starts the run on the right endpoint for its grounding and returns its id. */
 async function createKlingThreeTask(request: EngineRequest): Promise<string> {
     const grounded = request.firstFrame !== undefined
-    const endpoint = grounded ? 'image-to-video/kling-3.0' : 'text-to-video/kling-3.0'
+    const omni = request.modelId === 'kling-3-0-omni'
+    const turbo = request.modelId === 'kling-3-0-turbo'
+    const model = turbo ? 'kling-3.0-turbo' : 'kling-3.0'
+    const endpoint = omni
+        ? 'omni-video/kling-3.0-omni'
+        : `${grounded ? 'image-to-video' : 'text-to-video'}/${model}`
+    const contents = await klingThreeContents(request)
 
     const settings = {
         // A composer prompt is one shot; multi-shot is a prompt-format feature.
-        multi_shot: false,
-        audio: 'off',
+        ...(turbo ? {} : { multi_shot: false, audio: 'off' }),
         // Kling writes its tiers lowercase, `4k` included.
         resolution: request.resolution.toLowerCase(),
         duration: request.durationSeconds,
@@ -58,9 +81,7 @@ async function createKlingThreeTask(request: EngineRequest): Promise<string> {
     try {
         created = await httpFetch(`${KLING_DOMAIN}/${endpoint}`, {
             headers: await klingHeadersOf(request),
-            json: grounded
-                ? { contents: await klingThreeContents(request), settings }
-                : { prompt: request.prompt, settings },
+            json: grounded || omni ? { contents, settings } : { prompt: request.prompt, settings },
         })
     } catch {
         throw offlineError('Kling')
@@ -108,7 +129,7 @@ function awaitKlingThreeTask(request: EngineRequest, taskId: string): Promise<Kl
 /** One Kling entry point for the engine: 3.0 runs on API 2.0, everything
  * else on the legacy surface, so the split happens here. */
 export function generateKlingVideo(request: EngineRequest): Promise<Blob[]> {
-    return request.modelId === 'kling-3-0'
+    return request.modelId.startsWith('kling-3-0')
         ? generateKlingThreeVideo(request)
         : generateKlingLegacyVideo(request)
 }

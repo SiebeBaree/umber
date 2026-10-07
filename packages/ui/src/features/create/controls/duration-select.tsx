@@ -123,12 +123,17 @@ export function DurationSelect({ modelName, onValueChange, rule, value }: Durati
     )
 
     if (options.length <= 1) {
+        const automatic = rule.kind === 'automatic'
         return (
             <LockedPill
-                ariaLabel={`Duration: ${value} seconds`}
+                ariaLabel={automatic ? 'Duration: automatic' : `Duration: ${value} seconds`}
                 icon={Clock}
-                tooltip={`${modelName} only generates ${value}-second clips`}
-                value={`${value}s`}
+                tooltip={
+                    automatic
+                        ? `${modelName} chooses the clip length`
+                        : `${modelName} only generates ${value}-second clips`
+                }
+                value={automatic ? 'Auto' : `${value}s`}
             />
         )
     }

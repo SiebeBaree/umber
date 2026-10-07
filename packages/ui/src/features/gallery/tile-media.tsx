@@ -99,7 +99,7 @@ export function DurationBadge({ seconds }: { readonly seconds: number }) {
     return (
         <span className="pointer-events-none absolute bottom-2.5 left-2.5 flex items-center gap-1 rounded-full bg-surface/90 px-2 py-0.5 text-[11px] font-medium text-ink/80 shadow-[0_4px_12px_-4px_var(--umber-glass-shadow)] backdrop-blur-md tabular-nums">
             <Play aria-hidden className="size-3" />
-            {formatDuration(seconds)}
+            {seconds > 0 ? formatDuration(seconds) : 'Video'}
         </span>
     )
 }

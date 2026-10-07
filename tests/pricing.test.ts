@@ -120,8 +120,11 @@ test('a model quoted at 720p is not marked up for choosing 720p', () => {
     // tier, so their cheapest resolution must cost exactly the quoted rate.
     for (const model of VIDEO_MODELS) {
         const cheapest = model.resolutions[0]
+        if (model.pricePerSecond === null) {
+            expect(estimateCost(model, { ...BASE, resolution: cheapest })).toBeNull()
+            continue
+        }
         const perSecond = costOf(model, { resolution: cheapest, durationSeconds: 1 })
-
         expect(perSecond).toBeGreaterThan(0)
 
         if (typeof model.pricePerSecond === 'number') {
@@ -132,12 +135,22 @@ test('a model quoted at 720p is not marked up for choosing 720p', () => {
     }
 })
 
-test('every catalog model prices its explicit high-quality setting', () => {
+test('catalog models return either a positive estimate or an explicitly unknown cost', () => {
     for (const model of [...IMAGE_MODELS, ...VIDEO_MODELS]) {
         for (const resolution of model.resolutions) {
             for (const aspectRatio of model.aspectRatios) {
                 const cost = estimateCost(model, { ...BASE, resolution, aspectRatio })
 
+                const price =
+                    model.kind === 'video'
+                        ? model.pricePerSecond
+                        : (model.quality?.pricePerImage[
+                              BASE.quality as keyof typeof model.quality.pricePerImage
+                          ] ?? model.pricePerImage)
+                if (price === null) {
+                    expect(cost).toBeNull()
+                    continue
+                }
                 expect(Number.isFinite(cost)).toBe(true)
                 expect(cost).toBeGreaterThan(0)
             }

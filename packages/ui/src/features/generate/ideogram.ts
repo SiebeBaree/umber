@@ -1,4 +1,5 @@
 import { httpFetch } from '../../lib/http'
+import { pixelSize } from '../create/catalog'
 import { GenerationError, offlineError, unexpectedError } from './errors'
 import type { EngineRequest } from './request'
 import { fanOut, fetchBinary, readJson } from './shared'
@@ -163,12 +164,43 @@ function generateV4(request: EngineRequest): Promise<Blob[]> {
     return fanOut(request, () => generateOneV4(request))
 }
 
+/** 4.5 accepts source images and explicit quality through its v2 multipart API. */
+async function generateV45(request: EngineRequest): Promise<readonly string[]> {
+    const form = new FormData()
+    form.set('prompt', request.prompt)
+    const edge = request.resolution === '2K' ? 2048 : 1024
+    const { width, height } = pixelSize(request.ratio, request.resolution, {
+        tiers: { [request.resolution]: edge ** 2 },
+        grid: 32,
+        minEdge: 256,
+        maxEdge: 8192,
+        maxPixels: edge ** 2,
+    })
+    form.set('size', `${width}x${height}`)
+    form.set('quality', request.quality)
+    form.set('num_images', String(request.count))
+    for (const reference of request.references) {
+        form.append('images', reference, reference.name)
+    }
+    let response: Response
+    try {
+        response = await httpFetch(`${API_ROOT}/v2/image/generate/ideogram-4-5`, {
+            headers: headersOf(request),
+            form,
+        })
+    } catch {
+        throw offlineError('Ideogram')
+    }
+    return urlsOf(response)
+}
+
 export async function generateIdeogramImages(request: EngineRequest): Promise<Blob[]> {
     if (request.modelId === 'ideogram-v4') {
         return generateV4(request)
     }
 
-    const urls = await generateV3(request)
+    const urls =
+        request.modelId === 'ideogram-v4-5' ? await generateV45(request) : await generateV3(request)
 
     return Promise.all(urls.map((url) => fetchBinary('Ideogram', url, 'image/png')))
 }

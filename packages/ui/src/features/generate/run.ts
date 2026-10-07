@@ -42,7 +42,9 @@ function toRecord(job: GenerationJob, media: Blob, generationMs: number): Creati
         ratio: job.ratio,
         resolution: job.resolution,
         quality: job.quality,
-        ...(job.kind === 'video' ? { durationSeconds: job.durationSeconds } : {}),
+        ...(job.kind === 'video' && job.durationSeconds > 0
+            ? { durationSeconds: job.durationSeconds }
+            : {}),
         generationMs,
         createdAt: Date.now(),
         image: media,

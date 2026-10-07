@@ -12,6 +12,7 @@ import { decodeBase64Blob, nearestSize, readJson } from './shared'
 const API_ROOT = 'https://external.api.recraft.ai/v1'
 
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
+    'recraft-v4-1-pro': 'recraftv4_1_pro',
     'recraft-v4-1': 'recraftv4_1',
     'recraft-v3': 'recraftv3',
 }
@@ -78,7 +79,11 @@ export async function generateRecraftImages(request: EngineRequest): Promise<Blo
             json: {
                 prompt: request.prompt,
                 model: WIRE_MODEL_IDS[request.modelId] ?? request.modelId,
-                size: nearestSize(request.ratio, sizes),
+                size:
+                    request.modelId === 'recraft-v4-1-pro'
+                        ? request.ratio
+                        : nearestSize(request.ratio, sizes),
+                image_format: 'png',
                 n: request.count,
                 response_format: 'b64_json',
             },

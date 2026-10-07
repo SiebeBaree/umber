@@ -3,13 +3,6 @@ import type { VideoAssetRule, VideoModel } from './types'
 /** What nearly every vendor documents: JPEG, PNG and WebP. */
 const COMMON_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
-/** A first frame and nothing else, which several vendors stop at. */
-const FIRST_FRAME_ONLY: VideoAssetRule = {
-    lastFrame: false,
-    referenceImages: 0,
-    types: COMMON_IMAGE_TYPES,
-}
-
 /** First and last frame, no reference images beyond them. */
 const BOTH_FRAMES: VideoAssetRule = {
     lastFrame: true,
@@ -24,20 +17,31 @@ const BOTH_FRAMES: VideoAssetRule = {
  * which for video it almost always does.
  */
 export const VIDEO_MODELS: readonly VideoModel[] = [
-    // Google's frontier video model is not marketed as one: it answers on the
-    // Gemini interactions API, renders 720p only, and picks its own clip
-    // length — the one duration below is the typical clip, priced per second.
+    // Omni chooses its own clip length. The duration here is a typical clip;
+    // token billing and model-chosen duration prevent a fixed cost estimate.
     {
         id: 'gemini-omni-flash',
-        name: 'Gemini Omni Flash',
+        name: 'Gemini Omni Flash 1.1',
         provider: 'google',
         kind: 'video',
-        releasedOn: '2026-06-30',
+        releasedOn: '2026-08-27',
         aspectRatios: ['16:9', '9:16'],
-        resolutions: ['720p'],
-        durations: { kind: 'list', seconds: [8] },
+        resolutions: ['720p', '1080p', '4K'],
+        durations: { kind: 'automatic', typicalSeconds: 8 },
         assets: { lastFrame: false, referenceImages: 6, types: COMMON_IMAGE_TYPES },
-        pricePerSecond: 0.1,
+        pricePerSecond: null,
+    },
+    {
+        id: 'veo-3-1-lite',
+        name: 'Veo 3.1 Lite',
+        provider: 'google',
+        kind: 'video',
+        releasedOn: '2026-03-31',
+        aspectRatios: ['16:9', '9:16'],
+        resolutions: ['720p', '1080p'],
+        durations: { kind: 'list', seconds: [4, 6, 8] },
+        assets: { lastFrame: true, referenceImages: 0, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: { '720p': 0.05, '1080p': 0.08 },
     },
     {
         id: 'veo-3-1',
@@ -63,30 +67,6 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         assets: { lastFrame: true, referenceImages: 3, types: COMMON_IMAGE_TYPES },
         pricePerSecond: { '720p': 0.1, '1080p': 0.12, '4K': 0.3 },
     },
-    {
-        id: 'sora-2-pro',
-        name: 'Sora 2 Pro',
-        provider: 'openai',
-        kind: 'video',
-        releasedOn: '2025-09-30',
-        aspectRatios: ['16:9', '9:16'],
-        resolutions: ['720p', '1080p'],
-        durations: { kind: 'list', seconds: [4, 8, 12] },
-        assets: FIRST_FRAME_ONLY,
-        pricePerSecond: { '720p': 0.3, '1080p': 0.7 },
-    },
-    {
-        id: 'sora-2',
-        name: 'Sora 2',
-        provider: 'openai',
-        kind: 'video',
-        releasedOn: '2025-09-30',
-        aspectRatios: ['16:9', '9:16'],
-        resolutions: ['720p'],
-        durations: { kind: 'list', seconds: [4, 8, 12] },
-        assets: FIRST_FRAME_ONLY,
-        pricePerSecond: 0.1,
-    },
     // BFL bands FLUX.3 output by pixels per frame: HD tops out at 1MP and FHD
     // at 2MP, which are the 720p and 1080p tiers by any other name.
     {
@@ -100,6 +80,30 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         durations: { kind: 'range', min: 5, max: 20, step: 1 },
         assets: { lastFrame: true, referenceImages: 0, types: COMMON_IMAGE_TYPES },
         pricePerSecond: { '720p': 0.17, '1080p': 0.29 },
+    },
+    {
+        id: 'kling-3-0-turbo',
+        name: 'Kling 3.0 Turbo',
+        provider: 'kuaishou',
+        kind: 'video',
+        releasedOn: '2026-10-07',
+        aspectRatios: ['16:9', '9:16', '1:1'],
+        resolutions: ['720p', '1080p'],
+        durations: { kind: 'range', min: 3, max: 15, step: 1 },
+        assets: { lastFrame: false, referenceImages: 0, types: ['image/jpeg', 'image/png'] },
+        pricePerSecond: { '720p': 0.112, '1080p': 0.14 },
+    },
+    {
+        id: 'kling-3-0-omni',
+        name: 'Kling 3.0 Omni',
+        provider: 'kuaishou',
+        kind: 'video',
+        releasedOn: '2026-02-05',
+        aspectRatios: ['16:9', '9:16', '1:1'],
+        resolutions: ['720p', '1080p', '4K'],
+        durations: { kind: 'range', min: 3, max: 15, step: 1 },
+        assets: { lastFrame: true, referenceImages: 7, types: ['image/jpeg', 'image/png'] },
+        pricePerSecond: { '720p': 0.084, '1080p': 0.112, '4K': 0.42 },
     },
     {
         id: 'kling-3-0',
@@ -155,6 +159,18 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         pricePerSecond: { '480p': 0.1, '720p': 0.23 },
     },
     {
+        id: 'seedance-2-0-fast',
+        name: 'Seedance 2.0 Fast',
+        provider: 'bytedance',
+        kind: 'video',
+        releasedOn: '2026-04-01',
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
+        resolutions: ['480p', '720p'],
+        durations: { kind: 'range', min: 4, max: 15, step: 1 },
+        assets: { lastFrame: true, referenceImages: 9, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: null,
+    },
+    {
         id: 'seedance-2-0',
         name: 'Seedance 2.0',
         provider: 'bytedance',
@@ -177,6 +193,30 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         durations: { kind: 'range', min: 2, max: 12, step: 1 },
         assets: BOTH_FRAMES,
         pricePerSecond: { '480p': 0.024, '720p': 0.052, '1080p': 0.122 },
+    },
+    {
+        id: 'wan-3',
+        name: 'Wan 3.0',
+        provider: 'alibaba',
+        kind: 'video',
+        releasedOn: '2026-08-20',
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+        resolutions: ['480p', '720p', '1080p'],
+        durations: { kind: 'range', min: 2, max: 30, step: 1 },
+        assets: { lastFrame: true, referenceImages: 10, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: { '480p': 0.05, '720p': 0.1, '1080p': 0.2 },
+    },
+    {
+        id: 'wan-3-prime',
+        name: 'Wan 3.0 Prime',
+        provider: 'alibaba',
+        kind: 'video',
+        releasedOn: '2026-08-20',
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+        resolutions: ['480p', '720p', '1080p'],
+        durations: { kind: 'range', min: 2, max: 30, step: 1 },
+        assets: { lastFrame: true, referenceImages: 10, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: { '480p': 0.068, '720p': 0.14, '1080p': 0.28 },
     },
     {
         id: 'wan-2-7',
@@ -238,6 +278,18 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
     // MiniMax's API refuses frames and reference images in the same request,
     // which the integration reports; the catalog declares the superset.
     {
+        id: 'minimax-h3-max',
+        name: 'MiniMax H3 Max',
+        provider: 'minimax',
+        kind: 'video',
+        releasedOn: '2026-10-07',
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
+        resolutions: ['480p', '768p'],
+        durations: { kind: 'range', min: 5, max: 15, step: 1 },
+        assets: { lastFrame: true, referenceImages: 9, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: null,
+    },
+    {
         id: 'minimax-h3',
         name: 'Hailuo 3',
         provider: 'minimax',
@@ -248,6 +300,18 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         durations: { kind: 'range', min: 4, max: 15, step: 1 },
         assets: { lastFrame: true, referenceImages: 9, types: COMMON_IMAGE_TYPES },
         pricePerSecond: { '768p': 0.09, '2K': 0.13 },
+    },
+    {
+        id: 'grok-imagine-video-1-5-lite',
+        name: 'Grok Imagine Video 1.5 Lite',
+        provider: 'xai',
+        kind: 'video',
+        releasedOn: '2026-10-07',
+        aspectRatios: ['16:9', '9:16', '1:1', '3:2', '2:3', '4:3', '3:4'],
+        resolutions: ['480p', '720p', '1080p'],
+        durations: { kind: 'range', min: 1, max: 15, step: 1 },
+        assets: { lastFrame: false, referenceImages: 0, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: { '480p': 0.02, '720p': 0.03, '1080p': 0.14 },
     },
     {
         id: 'grok-imagine-video-1-5',

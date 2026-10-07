@@ -35,7 +35,7 @@ interface JobBase {
     readonly quality: string
     /** How many outputs the run was asked for; sizes the skeleton grid. */
     readonly count: number
-    /** Clip length in seconds; zero for image runs. */
+    /** Clip length in seconds; zero for images or a model-selected duration. */
     readonly durationSeconds: number
     readonly startedAt: number
 }
@@ -98,7 +98,10 @@ export function newJob(input: StartInput): GenerationJob {
         quality: image && input.model.quality !== undefined ? input.settings.quality : '',
         // Video runs render one clip; the count stepper is an image control.
         count: image ? input.settings.outputCount : 1,
-        durationSeconds: image ? 0 : input.settings.durationSeconds,
+        durationSeconds:
+            image || input.model.durations.kind === 'automatic'
+                ? 0
+                : input.settings.durationSeconds,
         startedAt: Date.now(),
         status: 'running',
     }

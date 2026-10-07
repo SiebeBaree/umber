@@ -20,12 +20,12 @@ function unitPrice(model: Model, context: PriceContext): number | null {
     const fromImage = context.references > 0
 
     if (!isImageModel(model)) {
-        const rate: Price =
+        const rate: Price | null =
             fromImage && model.pricePerSecondFromImage !== undefined
                 ? model.pricePerSecondFromImage
                 : model.pricePerSecond
 
-        return priceAt(rate, context, cheapest)
+        return rate === null ? null : priceAt(rate, context, cheapest)
     }
 
     // A tiered model is priced off the chosen quality; `reconcileToModel`

@@ -1,9 +1,9 @@
 import { httpFetch } from '../../lib/http'
-import { FLUX_1_1_SIZE, FLUX_2_SIZE, pixelSize } from '../create/catalog'
+import { bflImagePayload } from './bfl-image-payload'
 import { GenerationError, moderationError, offlineError, unexpectedError } from './errors'
 import type { KeyVerification } from './openai'
 import type { EngineRequest } from './request'
-import { encodeBase64, encodeDataUri, fanOut, fetchBinary, poll, readJson } from './shared'
+import { encodeDataUri, fanOut, fetchBinary, poll, readJson } from './shared'
 
 /**
  * The Black Forest Labs API. Every model is async: POST returns a polling
@@ -48,53 +48,6 @@ function toGenerationError(response: Response): GenerationError {
     }
 
     return unexpectedError('Black Forest Labs', response.status)
-}
-
-/** The per-model request body, honouring each family's own size vocabulary. */
-async function payloadFor(request: EngineRequest): Promise<Record<string, unknown>> {
-    const base = { prompt: request.prompt, output_format: 'png' }
-    const references = request.references
-
-    if (request.modelId === 'flux-1-kontext-pro') {
-        const [first, second, third, fourth] = await Promise.all(
-            references.slice(0, 4).map((file) => encodeBase64(file)),
-        )
-
-        return {
-            ...base,
-            aspect_ratio: request.ratio,
-            ...(first === undefined ? {} : { input_image: first }),
-            ...(second === undefined ? {} : { input_image_2: second }),
-            ...(third === undefined ? {} : { input_image_3: third }),
-            ...(fourth === undefined ? {} : { input_image_4: fourth }),
-        }
-    }
-
-    if (request.modelId === 'flux-pro-1-1') {
-        const { height, width } = pixelSize(request.ratio, '1K', FLUX_1_1_SIZE)
-        const [imagePrompt] = await Promise.all(
-            references.slice(0, 1).map((file) => encodeBase64(file)),
-        )
-
-        return {
-            ...base,
-            width,
-            height,
-            ...(imagePrompt === undefined ? {} : { image_prompt: imagePrompt }),
-        }
-    }
-
-    // FLUX.2: free-form sizes, up to eight reference images.
-    const { height, width } = pixelSize(request.ratio, request.resolution, FLUX_2_SIZE)
-    const encoded = await Promise.all(references.slice(0, 8).map((file) => encodeBase64(file)))
-    const referenceFields = Object.fromEntries(
-        encoded.map((image, index) => [
-            index === 0 ? 'input_image' : `input_image_${index + 1}`,
-            image,
-        ]),
-    )
-
-    return { ...base, width, height, ...referenceFields }
 }
 
 /** Polls the task until `Ready` and hands back the signed sample URL. */
@@ -152,7 +105,7 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
     try {
         created = await httpFetch(`${API_ROOT}/${path}`, {
             headers,
-            json: await payloadFor(request),
+            json: await bflImagePayload(request),
         })
     } catch {
         throw offlineError('Black Forest Labs')

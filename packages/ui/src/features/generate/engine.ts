@@ -12,7 +12,6 @@ import { generateRecraftImages } from './recraft'
 import type { EngineRequest } from './request'
 import { generateReveImages } from './reve'
 import { generateRunwayImages, generateRunwayVideo } from './runway'
-import { generateOpenAiVideo } from './sora'
 import { generateGoogleVideo } from './veo'
 import { generateAlibabaVideo } from './wan'
 import { generateXaiImages, generateXaiVideo } from './xai'
@@ -43,7 +42,6 @@ const IMAGE_GENERATORS: Readonly<Record<string, Generator>> = {
 }
 
 const VIDEO_GENERATORS: Readonly<Record<string, Generator>> = {
-    openai: generateOpenAiVideo,
     google: generateGoogleVideo,
     runway: generateRunwayVideo,
     kuaishou: generateKlingVideo,
