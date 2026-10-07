@@ -128,3 +128,28 @@ test.each(MODEL_IDS)(
         }
     },
 )
+
+test.each([400, 403, 422, 429])('preserves OpenAI error details for HTTP %s', async (status) => {
+    const detail = 'The uploaded image could not be processed. Please verify the image format.'
+    vi.mocked(httpFetch).mockResolvedValueOnce(
+        Response.json({ error: { message: detail } }, { status }),
+    )
+
+    await expect(
+        generateOpenAiImages({
+            ...request('gpt-image-2.5-sunburst', 'high'),
+            references: [new File(['reference'], 'reference.jpg', { type: 'image/jpeg' })],
+        }),
+    ).rejects.toThrow(`OpenAI (${status}): ${detail}`)
+})
+
+test.each(['not JSON', '{"error":{"message":123}}', '{"error":{"message":"   "}}'])(
+    'falls back safely when OpenAI returns no usable error message: %s',
+    async (body) => {
+        vi.mocked(httpFetch).mockResolvedValueOnce(new Response(body, { status: 400 }))
+
+        await expect(
+            generateOpenAiImages(request('gpt-image-2.5-sunburst', 'high')),
+        ).rejects.toThrow('OpenAI could not work with this request.')
+    },
+)

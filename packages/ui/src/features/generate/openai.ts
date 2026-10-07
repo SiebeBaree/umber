@@ -1,6 +1,6 @@
 import { httpFetch } from '../../lib/http'
 import { GPT_IMAGE_2_SIZE, pixelSize, type AspectRatio } from '../create/catalog'
-import { GenerationError, moderationError, unexpectedError } from './errors'
+import { GenerationError, unexpectedError } from './errors'
 import type { EngineRequest } from './request'
 import { decodeBase64Blob, readJson } from './shared'
 
@@ -50,35 +50,25 @@ async function apiErrorMessage(response: Response): Promise<string | null> {
     const body = (await readJson(response)) as OpenAiErrorBody | null
     const message = body?.error?.message
 
-    return typeof message === 'string' && message !== '' ? message : null
+    return typeof message === 'string' && message.trim() !== '' ? message : null
 }
 
+/** Preserve the provider's explanation; status-only advice is a fallback. */
 async function toGenerationError(response: Response): Promise<GenerationError> {
     const detail = await apiErrorMessage(response)
+
+    if (detail !== null) {
+        return new GenerationError(`OpenAI (${response.status}): ${detail}`)
+    }
 
     if (response.status === 401) {
         return new GenerationError('OpenAI rejected the API key. Check it in Settings.')
     }
 
-    if (response.status === 403 || detail?.toLowerCase().includes('verif') === true) {
-        return new GenerationError(
-            'Your OpenAI organisation is not verified for this model yet. Verify it in the OpenAI console, then try again.',
-        )
-    }
-
     if (response.status === 429) {
         return new GenerationError(
-            detail?.toLowerCase().includes('quota') === true
-                ? 'Your OpenAI account is out of credit. Top up billing in the OpenAI console.'
-                : 'OpenAI is rate limiting this key. Give it a moment and try again.',
+            'OpenAI is rate limiting this key. Give it a moment and try again.',
         )
-    }
-
-    if (
-        detail?.toLowerCase().includes('moderation') === true ||
-        detail?.toLowerCase().includes('safety') === true
-    ) {
-        return moderationError('OpenAI')
     }
 
     return unexpectedError('OpenAI', response.status)
