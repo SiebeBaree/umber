@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { Bricolage_Grotesque } from "next/font/google";
 import {
   GITHUB_URL,
   SITE_DESCRIPTION,
@@ -7,24 +7,15 @@ import {
   SITE_TITLE,
   SITE_URL,
 } from "../lib/site";
-import { PerfGuard } from "./_components/perf-guard";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// One family for everything, self-hosted by next/font. Its optical size axis
+// follows the font size, so headings get the sharper display cut and body
+// text the calmer one.
+const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const instrumentSerif = Instrument_Serif({
-  variable: "--font-instrument-serif",
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
+  axes: ["opsz"],
+  variable: "--font-bricolage",
 });
 
 export const metadata: Metadata = {
@@ -43,6 +34,8 @@ export const metadata: Metadata = {
     "text to video",
     "AI studio desktop app",
     "no subscription AI",
+    "AI headshot generator",
+    "AI dating profile photos",
   ],
   authors: [{ name: "Siebe Baree", url: GITHUB_URL }],
   creator: "Siebe Baree",
@@ -78,16 +71,24 @@ export const viewport: Viewport = {
   themeColor: "#cbdaf2",
 };
 
+/*
+ * Marks every `.reveal` image as loaded the moment its file arrives (see
+ * the `reveal` utility). It runs from <head>, before anything else, so images
+ * fade in as they land instead of waiting for React to hydrate. Load events
+ * do not bubble and never reach window, hence capturing on document.
+ */
+const REVEAL_ON_LOAD = `document.addEventListener("load",function(e){var t=e.target;if(t.classList&&t.classList.contains("reveal"))t.setAttribute("data-loaded","")},true)`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-        <PerfGuard />
-        {children}
-      </body>
+    <html className={`h-full antialiased ${bricolage.variable}`} lang="en">
+      <head>
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed inline snippet, no input
+          dangerouslySetInnerHTML={{ __html: REVEAL_ON_LOAD }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

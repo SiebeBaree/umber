@@ -1,32 +1,36 @@
-import { DownloadButton } from "./download-button";
+import { GITHUB_URL } from "../../lib/site";
+import { DownloadButton, GitHubIcon } from "./buttons";
+import { Logo } from "./logo";
 
 const LINKS = [
-  { href: "#features", label: "Features" },
-  { href: "#models", label: "Models" },
-  { href: "#how-it-works", label: "How it works" },
+  { href: "#images", label: "Images" },
+  { href: "#video", label: "Video" },
+  { href: "#templates", label: "Templates" },
+  { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ];
 
+/*
+ * The app's header, as a site nav: the lockup on the left, a centred glass
+ * pill of links and round glass buttons on the right. The glass reads the
+ * same on every theme, so the bar needs no background of its own.
+ */
 export function Nav() {
   return (
     <header className="fixed inset-x-0 top-0 z-50">
-      <div className="glass-raised relative mx-auto mt-4 flex max-w-5xl items-center justify-between rounded-full py-2 pr-2 pl-5 max-lg:mx-4">
-        <a href="#top" className="flex items-center">
-          {/* biome-ignore lint/performance/noImgElement: static brand asset */}
-          <img
-            src="/brand/lockup.svg"
-            alt="Umber"
-            className="h-8 w-auto"
-            width={166}
-            height={64}
-          />
+      <div className="relative mx-auto flex h-18 max-w-[1400px] items-center justify-between px-5 sm:px-8">
+        <a
+          className="glass-bar flex h-11 shrink-0 items-center rounded-full px-4 text-ink"
+          href="#top"
+        >
+          <Logo className="h-7 w-auto" id="nav" />
         </a>
-        <nav className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-1 md:flex">
+        <nav className="glass-bar absolute left-1/2 hidden h-11 -translate-x-1/2 items-center gap-0.5 rounded-full p-1 text-[13px] font-medium text-ink md:flex">
           {LINKS.map((link) => (
             <a
-              key={link.href}
+              className="flex h-full items-center rounded-full px-4 text-ink/70 transition-colors hover:bg-ink/6 hover:text-ink"
               href={link.href}
-              className="tint-control rounded-full px-3.5 py-1.5 text-sm text-muted hover:text-ink"
+              key={link.href}
             >
               {link.label}
             </a>
@@ -34,20 +38,13 @@ export function Nav() {
         </nav>
         <div className="flex items-center gap-2">
           <a
-            href="https://github.com/SiebeBaree/umber"
-            target="_blank"
+            aria-label="Umber on GitHub"
+            className="glass-bar hidden size-10 place-items-center rounded-full text-ink transition-colors hover:bg-white sm:grid"
+            href={GITHUB_URL}
             rel="noopener noreferrer"
-            className="tint-control hidden items-center gap-2 rounded-full px-3.5 py-1.5 text-sm text-muted hover:text-ink sm:flex"
+            target="_blank"
           >
-            <svg
-              viewBox="0 0 16 16"
-              className="size-4"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
-            </svg>
-            GitHub
+            <GitHubIcon className="size-[18px]" />
           </a>
           <DownloadButton>Download</DownloadButton>
         </div>

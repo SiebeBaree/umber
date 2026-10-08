@@ -8,6 +8,8 @@ const POSTHOG_ASSETS = "https://eu-assets.i.posthog.com";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  // AVIF first: the same images at roughly a fifth less weight than WebP.
+  images: { formats: ["image/avif", "image/webp"] },
   // PostHog's ingestion endpoints keep their trailing slash (/e/, /flags/).
   // Without this Next redirects them and the events are dropped.
   skipTrailingSlashRedirect: true,

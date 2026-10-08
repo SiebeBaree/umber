@@ -1,385 +1,62 @@
 @import "tailwindcss";
 
 /*
- * The palette and surface language are copied from the Umber app's stylesheet
- * (packages/ui/src/styles.css) so the site and the app cannot drift visually.
+ * The palette and surfaces are the Umber app's own (packages/ui/src/
+ * styles.css): a cool blue canvas, white glass and one blue accent.
+ *
+ * Each top-level section names a theme with `data-theme`, which sets its own
+ * text colour. The scroll loop copies the theme of the section in the middle
+ * of the viewport onto <html>, and the fixed backdrop cross-fades to it by
+ * fading solid layers in and out. Only opacity animates, so a theme change
+ * costs the compositor a blend and never repaints the page.
  */
 :root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* A bouncy spring: overshoots by about a fifth, then settles. */
+  --spring: linear(
+    0,
+    0.046 2.1%,
+    0.195 4.6%,
+    0.436 7.5%,
+    0.811 11.5%,
+    1.073 15.2%,
+    1.205 19%,
+    1.221 20.8%,
+    1.205 23%,
+    1.153 25.4%,
+    1.026 30.9%,
+    0.947 37%,
+    0.938 39.2%,
+    0.965 47.4%,
+    1.009 57.8%,
+    1.012 61.5%,
+    0.999 75.5%,
+    1
+  );
   color-scheme: light;
+}
 
-  --umber-canvas: #cbdaf2;
-  --umber-surface: #ffffff;
-  --umber-line: #dde4f0;
-  --umber-ink: #1c2333;
-  --umber-muted: #5f6b83;
-  --umber-accent: #3164e4;
-  --umber-accent-strong: #2450c4;
-  --umber-accent-ink: #f6f9ff;
-
-  --umber-glass: rgb(255 255 255 / 0.52);
-  --umber-glass-strong: rgb(255 255 255 / 0.72);
-  --umber-glass-hover: rgb(255 255 255 / 0.92);
-  --umber-glass-edge: rgb(255 255 255 / 0.65);
-  --umber-glass-edge-strong: rgb(255 255 255 / 0.95);
-  --umber-glass-shadow: rgb(28 41 90 / 0.1);
-
-  --umber-hover-tint: rgb(28 35 51 / 0.06);
-  --umber-control-transition:
-    background-color 200ms ease-out, border-color 200ms ease-out,
-    color 200ms ease-out, box-shadow 200ms ease-out, transform 150ms ease-out;
+:root[data-theme="night"] {
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-canvas: var(--umber-canvas);
-  --color-surface: var(--umber-surface);
-  --color-line: var(--umber-line);
-  --color-ink: var(--umber-ink);
-  --color-muted: var(--umber-muted);
-  --color-accent: var(--umber-accent);
-  --color-accent-strong: var(--umber-accent-strong);
-  --color-accent-ink: var(--umber-accent-ink);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-instrument-serif);
-}
-
-@utility glass {
-  border: 1px solid var(--umber-glass-edge);
-  background-color: var(--umber-glass);
-  backdrop-filter: blur(24px) saturate(170%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.85),
-    0 12px 32px -16px var(--umber-glass-shadow),
-    0 2px 8px -4px var(--umber-glass-shadow);
-}
-
-@utility glass-raised {
-  border: 1px solid var(--umber-glass-edge);
-  background-color: var(--umber-glass-strong);
-  backdrop-filter: blur(24px) saturate(170%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.9),
-    0 16px 40px -20px var(--umber-glass-shadow),
-    0 2px 10px -6px var(--umber-glass-shadow);
-}
-
-@utility glass-control {
-  border: 1px solid var(--umber-glass-edge);
-  background-color: var(--umber-glass-strong);
-  backdrop-filter: blur(24px) saturate(170%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.9),
-    0 16px 40px -20px var(--umber-glass-shadow),
-    0 2px 10px -6px var(--umber-glass-shadow);
-  transition: var(--umber-control-transition);
-
-  &:hover {
-    border-color: var(--umber-glass-edge-strong);
-    background-color: var(--umber-glass-hover);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 1),
-      0 18px 44px -20px var(--umber-glass-shadow),
-      0 4px 14px -6px var(--umber-glass-shadow);
-  }
-}
-
-@utility tint-control {
-  transition: var(--umber-control-transition);
-
-  &:hover {
-    background-color: var(--umber-hover-tint);
-  }
-}
-
-/* The segmented control's squash-and-stretch settle, from the app. */
-@keyframes umber-segment-settle {
-  0% {
-    transform: scaleX(1.24) scaleY(0.82);
-  }
-
-  45% {
-    transform: scaleX(0.95) scaleY(1.06);
-  }
-
-  75% {
-    transform: scaleX(1.02) scaleY(0.98);
-  }
-
-  100% {
-    transform: scaleX(1) scaleY(1);
-  }
-}
-
-@utility segment-settle {
-  animation: umber-segment-settle 480ms cubic-bezier(0.32, 0.72, 0.35, 1);
-}
-
-/* The living canvas blob paths, copied from the app. */
-@keyframes umber-drift-a {
-  0%,
-  100% {
-    transform: translate3d(-8%, 0, 0) scale(1);
-  }
-
-  30% {
-    transform: translate3d(14%, -7%, 0) scale(1.12);
-  }
-
-  55% {
-    transform: translate3d(30%, 5%, 0) scale(0.94);
-  }
-
-  80% {
-    transform: translate3d(10%, 9%, 0) scale(1.06);
-  }
-}
-
-@keyframes umber-drift-b {
-  0%,
-  100% {
-    transform: translate3d(6%, 4%, 0) scale(1.04);
-  }
-
-  35% {
-    transform: translate3d(-12%, -6%, 0) scale(0.92);
-  }
-
-  60% {
-    transform: translate3d(-26%, 6%, 0) scale(1.14);
-  }
-
-  85% {
-    transform: translate3d(-5%, 11%, 0) scale(0.98);
-  }
-}
-
-@keyframes umber-drift-c {
-  0%,
-  100% {
-    transform: translate3d(0, -3%, 0) scale(0.96);
-  }
-
-  25% {
-    transform: translate3d(18%, 8%, 0) scale(1.1);
-  }
-
-  50% {
-    transform: translate3d(6%, 16%, 0) scale(0.9);
-  }
-
-  75% {
-    transform: translate3d(-14%, 5%, 0) scale(1.08);
-  }
-}
-
-/*
- * A backdrop blob as a pre-computed glow: the radial gradient reproduces the
- * app's solid-circle-behind-gaussian-blur look without paying for the blur
- * on every composited frame. The gradient lives on a pseudo-element scaled
- * past the box (a blur bleeds outside its element too); the element itself
- * stays free for the drift animation's transform.
- */
-@utility canvas-glow {
-  --glow-o: 0.8;
-
-  &::before {
-    content: "";
-    position: absolute;
-    inset: -32%;
-    border-radius: 9999px;
-    background: radial-gradient(
-      circle closest-side,
-      rgb(255 255 255 / var(--glow-o)) 0%,
-      rgb(255 255 255 / calc(var(--glow-o) * 0.82)) 32%,
-      rgb(255 255 255 / calc(var(--glow-o) * 0.45)) 58%,
-      rgb(255 255 255 / calc(var(--glow-o) * 0.14)) 79%,
-      transparent 100%
-    );
-  }
-}
-
-@utility drift-a {
-  animation: umber-drift-a 47s ease-in-out infinite;
-}
-
-@utility drift-b {
-  animation: umber-drift-b 61s ease-in-out infinite;
-}
-
-@utility drift-c {
-  animation: umber-drift-c 73s ease-in-out infinite;
-}
-
-/* Film grain, generated inline by an SVG turbulence filter. From the app. */
-@utility film-grain {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.35 0 0 0 0 0.38 0 0 0 0 0.48 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
-}
-
-/* A hero tile being born: tiny in the middle, snapping up to size. */
-@keyframes hero-tile-in {
-  from {
-    opacity: 0;
-    scale: 0.2;
-  }
-
-  to {
-    opacity: 1;
-    scale: 1;
-  }
-}
-
-@utility hero-tile-in {
-  animation: hero-tile-in 550ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* A model tile rising into the grid when the modality switches. */
-@keyframes tile-rise {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.97);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@utility tile-rise {
-  animation: tile-rise 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* --- The model constellation ------------------------------------------ */
-
-/* A packet of data gliding along its wire's exact curve. */
-@keyframes packet-run {
-  from {
-    offset-distance: 0%;
-  }
-
-  to {
-    offset-distance: 100%;
-  }
-}
-
-@utility packet-run {
-  offset-rotate: 0deg;
-  animation: packet-run 950ms cubic-bezier(0.45, 0.05, 0.35, 1) both;
-}
-
-/* The providers breathing gently in place, staggered per node. */
-@keyframes node-bob {
-  0%,
-  100% {
-    transform: translateY(-2.5%);
-  }
-
-  50% {
-    transform: translateY(2.5%);
-  }
-}
-
-@utility node-bob {
-  animation: node-bob 5.5s ease-in-out infinite;
-}
-
-/* The loading arc orbiting the Umber mark. */
-@keyframes spinner-turn {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@utility spinner-turn {
-  animation: spinner-turn 900ms linear infinite;
-  transform-origin: center;
-}
-
-/* The result developing from a blur, like a print in a tray. */
-@keyframes art-reveal {
-  0% {
-    opacity: 0;
-    transform: scale(1.06);
-    filter: blur(26px) saturate(1.5);
-  }
-
-  35% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1);
-    filter: blur(0) saturate(1);
-  }
-}
-
-@utility art-reveal {
-  animation: art-reveal 1500ms cubic-bezier(0.32, 0.72, 0.35, 1) both;
-}
-
-/* And dissolving back out the way it came: softening, then gone. */
-@keyframes art-dissolve {
-  from {
-    opacity: 1;
-    transform: scale(1);
-    filter: blur(0);
-  }
-
-  to {
-    opacity: 0;
-    transform: scale(1.04);
-    filter: blur(20px);
-  }
-}
-
-@utility art-dissolve {
-  animation: art-dissolve 1350ms cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
-}
-
-/* The empty canvas breathing softly while it waits for an image. */
-@keyframes canvas-wait {
-  0%,
-  100% {
-    opacity: 0.2;
-  }
-
-  50% {
-    opacity: 0.5;
-  }
-}
-
-@utility canvas-wait {
-  animation: canvas-wait 3s ease-in-out infinite;
-}
-
-/* The full-catalogue lanes under the constellation. */
-@keyframes marquee-left {
-  from {
-    transform: translateX(0);
-  }
-
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-@keyframes marquee-right {
-  from {
-    transform: translateX(-50%);
-  }
-
-  to {
-    transform: translateX(0);
-  }
-}
-
-@utility marquee-left {
-  animation: marquee-left 52s linear infinite;
-}
-
-@utility marquee-right {
-  animation: marquee-right 52s linear infinite;
+  --font-sans: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  /* Strong enough for WCAG AA on every theme: 72% of the text colour on the
+     light ones, near full strength on the accent blue. */
+  --color-dim: color-mix(in oklab, currentColor var(--dim, 72%), transparent);
+  --color-hair: color-mix(in oklab, currentColor 16%, transparent);
+  --color-ink: #1c2333;
+  /* The app's #5f6b83 is tuned for white; one step darker holds AA on the
+     blue canvas. */
+  --color-muted: #4a5468;
+  --color-surface: #ffffff;
+  --color-canvas: #cbdaf2;
+  --color-mist: #e2eaf7;
+  --color-night: #0b1120;
+  --color-accent: #3164e4;
+  --color-accent-strong: #2450c4;
+  --color-accent-ink: #f6f9ff;
 }
 
 html {
@@ -387,83 +64,315 @@ html {
 }
 
 body {
-  background-color: var(--umber-canvas);
-  color: var(--umber-ink);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
 }
 
+body [data-theme="night"],
+body [data-theme="accent"] {
+  color: var(--color-accent-ink);
+}
+
+body [data-theme="accent"] {
+  --dim: 92%;
+}
+
+body [data-theme="canvas"],
+body [data-theme="mist"] {
+  color: var(--color-ink);
+}
+
 ::selection {
-  background: color-mix(in srgb, var(--umber-accent) 25%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+/* In the base layer, so a utility like `outline-none` can turn it off. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Big headings: bold and tracked in tight. */
+@utility display {
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+}
+
+/*
+ * A headline word that changes: it springs in when it mounts with
+ * `data-enter` and pops out while an ancestor has `data-leaving`. `--i` is
+ * its place in the stagger. Only transform and opacity move, and only during
+ * a swap.
+ */
+@keyframes word-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.45em) scale(0.4) rotate(-10deg);
+  }
+}
+
+@keyframes word-out {
+  to {
+    opacity: 0;
+    transform: translateY(-0.3em) scale(0.5) rotate(6deg);
+  }
+}
+
+@utility word {
+  display: inline-block;
+  transform-origin: 50% 70%;
+
+  &[data-enter] {
+    animation: word-in 900ms var(--spring) both;
+    animation-delay: calc(var(--i, 0) * 55ms);
+  }
+
+  [data-leaving] & {
+    animation: word-out 200ms cubic-bezier(0.5, 0, 0.75, 0) both;
+    animation-delay: calc(var(--i, 0) * 25ms);
+  }
+}
+
+/* --- The page backdrop ------------------------------------------------ */
+
+/*
+ * The app's living canvas, held still: soft white light and film grain on
+ * the blue. The app drifts it; here it stays put, so nothing repaints while
+ * the page is idle. The other themes are solid layers on top.
+ */
+@utility backdrop-glow {
+  background:
+    radial-gradient(
+      34rem 30rem at 4% 0%,
+      rgb(255 255 255 / 0.8),
+      transparent 70%
+    ),
+    radial-gradient(
+      38rem 32rem at 100% 100%,
+      rgb(255 255 255 / 0.66),
+      transparent 70%
+    ),
+    radial-gradient(
+      26rem 24rem at 58% 46%,
+      rgb(255 255 255 / 0.45),
+      transparent 70%
+    );
+}
+
+@utility grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.35 0 0 0 0 0.38 0 0 0 0 0.48 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/* A backdrop layer that shows only while its theme is on. */
+@utility theme-layer {
+  opacity: 0;
+  transition: opacity 700ms ease;
+  will-change: opacity;
+
+  :root[data-theme="mist"] &[data-for="mist"],
+  :root[data-theme="night"] &[data-for="night"],
+  :root[data-theme="accent"] &[data-for="accent"] {
+    opacity: 1;
+  }
+}
+
+/* --- Glass ------------------------------------------------------------ */
+
+/*
+ * The app's glass, minus its backdrop blur. Here glass sits on the soft
+ * backdrop, where blurring changes nothing you can see, while every blurred
+ * surface over moving content has to be filtered again on each frame.
+ */
+@utility glass {
+  border: 1px solid rgb(255 255 255 / 0.65);
+  background-color: rgb(255 255 255 / 0.52);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.85),
+    0 12px 32px -16px rgb(28 41 90 / 0.1),
+    0 2px 8px -4px rgb(28 41 90 / 0.1);
+}
+
+@utility glass-raised {
+  border: 1px solid rgb(255 255 255 / 0.65);
+  background-color: rgb(255 255 255 / 0.72);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 16px 40px -20px rgb(28 41 90 / 0.1),
+    0 2px 10px -6px rgb(28 41 90 / 0.1);
+}
+
+@utility glass-control {
+  border: 1px solid rgb(255 255 255 / 0.65);
+  background-color: rgb(255 255 255 / 0.72);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 16px 40px -20px rgb(28 41 90 / 0.1),
+    0 2px 10px -6px rgb(28 41 90 / 0.1);
+  transition:
+    background-color 200ms ease-out,
+    border-color 200ms ease-out,
+    box-shadow 200ms ease-out,
+    scale 150ms ease-out;
+
+  &:hover {
+    border-color: rgb(255 255 255 / 0.95);
+    background-color: rgb(255 255 255 / 0.92);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 1),
+      0 18px 44px -20px rgb(28 41 90 / 0.1),
+      0 4px 14px -6px rgb(28 41 90 / 0.1);
+  }
+}
+
+/* The fixed nav floats over images too, so it is a little more solid. */
+@utility glass-bar {
+  border: 1px solid rgb(255 255 255 / 0.7);
+  background-color: rgb(255 255 255 / 0.86);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 16px 40px -20px rgb(28 41 90 / 0.18),
+    0 2px 10px -6px rgb(28 41 90 / 0.14);
+}
+
+/* The app's recessed track, behind segmented controls. */
+@utility recessed {
+  border: 1px solid rgb(28 35 51 / 0.04);
+  background-color: rgb(28 35 51 / 0.07);
+  box-shadow: inset 0 1px 2px rgb(28 35 51 / 0.09);
+}
+
+/* On the accent theme the accent button would vanish, so it turns white. */
+:root[data-theme="accent"] .on-accent {
+  background-color: var(--color-surface);
+  color: var(--color-accent);
+  box-shadow: 0 8px 20px -10px rgb(28 41 90 / 0.5);
+}
+
+/*
+ * An image that stays invisible until its file has arrived, then settles in.
+ * This is what keeps empty frames from ever animating: nothing moves until
+ * there is something to show. A script in the root layout sets
+ * `data-loaded` on load.
+ */
+@utility reveal {
+  opacity: 0;
+  scale: 1.04;
+  transition:
+    opacity 900ms ease-out,
+    scale 1400ms var(--ease-out);
+
+  &[data-loaded] {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+/* The app's dialog entrance: the scrim fades, the panel settles in. */
+@keyframes dialog-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-settle {
+  from {
+    opacity: 0;
+    transform: translateY(1.5%) scale(0.97);
+  }
+}
+
+@utility dialog-scrim {
+  animation: dialog-fade 220ms ease-out both;
+}
+
+@utility dialog-panel {
+  animation: dialog-settle 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* --- Video reel ------------------------------------------------------- */
+
+/*
+ * The track is a title panel (`--lead`), `--n` frames of `--fw` with `--gap`
+ * between them and a `--tail` that lets the last frame reach the centre.
+ * Everything is in vw, so CSS knows how far the track travels (`--dist`)
+ * and can size the section to match. Dividing by 1.4 makes the track move a
+ * little faster than the page scrolls.
+ */
+@utility reel {
+  --lead: 92vw;
+  --fw: 84vw;
+  --gap: 4vw;
+  --tail: 8vw;
+  --dist: calc(
+    var(--lead) +
+    var(--n) *
+    var(--fw) +
+    (var(--n) - 1) *
+    var(--gap) +
+    var(--tail) -
+    100vw
+  );
+  height: calc(100svh + var(--dist) / 1.4);
+
+  @media (width >= 64rem) {
+    --lead: 40vw;
+    --fw: 56vw;
+    --tail: 22vw;
+  }
+}
+
+/* The receipt's torn top edge, the first thing out of the printer. */
+@utility receipt {
+  --tooth: 14px;
+  mask:
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) 50%
+    / var(--tooth) 100%;
+}
+
+/* --- Models index: a fill that wipes in behind a hovered row ----------- */
+
+@utility wipe {
+  position: relative;
+  isolation: isolate;
+  transition: color 300ms ease-out;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--color-accent);
+    transform: scaleY(0);
+    transform-origin: bottom;
+    transition: transform 450ms var(--ease-out);
+  }
+
+  @media (hover: hover) {
+    &:hover::before {
+      transform: scaleY(1);
+    }
+
+    &:hover {
+      color: var(--color-accent-ink);
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-/*
- * --- The lite tier -----------------------------------------------------
- *
- * PerfGuard measures the real frame rate shortly after load and adds
- * `perf-lite` to <html> on devices that cannot hold it. The choreography
- * all stays; what goes is the per-frame GPU work that old phones choke on:
- * backdrop-filter (every glass surface re-filters its backdrop each frame
- * while anything moves behind it) and the blur() animations. Glass falls
- * back to a more opaque solid that reads the same against the canvas.
- */
-.perf-lite .glass,
-.perf-lite .glass-raised,
-.perf-lite .glass-control {
-  backdrop-filter: none;
-  background-color: rgb(255 255 255 / 0.84);
-}
-
-.perf-lite .backdrop-blur-xl {
-  backdrop-filter: none;
-  background-color: rgb(255 255 255 / 0.8);
-}
-
-/* The idle sways are pure garnish; parking them frees whole layers. */
-.perf-lite .drift-a,
-.perf-lite .drift-b,
-.perf-lite .drift-c,
-.perf-lite .node-bob {
-  animation: none;
-}
-
-/* The develop/dissolve keeps its timing but drops the animated blur. */
-@keyframes art-reveal-lite {
-  0% {
-    opacity: 0;
-    transform: scale(1.06);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes art-dissolve-lite {
-  from {
-    opacity: 1;
-  }
-
-  to {
-    opacity: 0;
-  }
-}
-
-.perf-lite .art-reveal {
-  animation-name: art-reveal-lite;
-}
-
-.perf-lite .art-dissolve {
-  animation-name: art-dissolve-lite;
 }
