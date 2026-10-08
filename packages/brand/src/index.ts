@@ -12,9 +12,9 @@
  * Which to use:
  *   • `UMBER_LOCKUP` — mark plus wordmark. The default for app chrome.
  *   • `UMBER_LOCKUP_DARK` — the same, lettered light, for dark surfaces.
- *   • `UMBER_MARK` — the ring alone, where the name is already nearby.
+ *   • `UMBER_MARK` — the koi alone, where the name is already nearby.
  *   • `UMBER_MARK_MONO` — single colour, for one-colour contexts.
- *   • `UMBER_ICON` — the ring on its plate. The installed app's icon; not for
+ *   • `UMBER_ICON` — the koi on its blue plate. The installed app's icon; not for
  *     use inside the interface.
  */
 
@@ -24,11 +24,11 @@ export const UMBER_MARK = new URL('../assets/mark.svg', import.meta.url).href
 export const UMBER_MARK_MONO = new URL('../assets/mark-mono.svg', import.meta.url).href
 export const UMBER_ICON = new URL('../assets/icon.svg', import.meta.url).href
 
-/** The gradient the mark is drawn in, for surfaces that need to sit beside it. */
+/** The colours the mark is drawn in, for surfaces that need to sit beside it. */
 export const UMBER_BRAND_COLOURS = {
-    highlight: '#e8a24c',
-    mid: '#9a5b2c',
-    shadow: '#3a2419',
-    plate: '#f7f1e7',
-    ink: '#1e1512',
+    highlight: '#f2902f',
+    mid: '#c9581b',
+    shadow: '#7e3f1a',
+    plate: '#4c7bef',
+    ink: '#1c2333',
 } as const
