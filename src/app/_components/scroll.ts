@@ -153,7 +153,7 @@ export function watchThemes() {
 
 const written = new WeakMap<HTMLElement, Partial<Record<StyleProp, string>>>();
 
-type StyleProp = "transform" | "opacity";
+type StyleProp = "transform" | "opacity" | "visibility";
 
 /** Sets an inline style, skipping the write when nothing changed. */
 export function setStyle(
@@ -167,4 +167,13 @@ export function setStyle(
   cache[prop] = value;
   written.set(el, cache);
   el.style[prop] = value;
+}
+
+/**
+ * Sets opacity, and hides the element outright at zero, so the browser
+ * stops painting and compositing a layer that shows nothing anyway.
+ */
+export function setOpacity(el: HTMLElement | null | undefined, value: number) {
+  setStyle(el, "opacity", value.toFixed(3));
+  setStyle(el, "visibility", value > 0 ? "" : "hidden");
 }

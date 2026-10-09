@@ -262,8 +262,8 @@ body [data-theme="mist"] {
   opacity: 0;
   scale: 1.04;
   transition:
-    opacity 900ms ease-out,
-    scale 1400ms var(--ease-out);
+    opacity 500ms ease-out,
+    scale 900ms var(--ease-out);
 
   &[data-loaded] {
     opacity: 1;

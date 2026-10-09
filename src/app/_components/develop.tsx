@@ -243,14 +243,16 @@ export function Develop() {
     show(canvasRef.current, canvasState.current, next.shown, next.level);
   });
 
-  // Fetch the three images once the section is getting close, and keep the
-  // canvas backing store matched to its size on screen.
+  // Fetch the three images, at the canvas's own size, once the section is
+  // getting close, and keep the canvas backing store matched to its size on
+  // screen.
   useEffect(() => {
     const section = sectionRef.current;
     const canvas = canvasRef.current;
     const state = canvasState.current;
     if (!section || !canvas) return;
 
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const repaintCurrent = () =>
       show(canvas, state, state.shown, state.level, true);
 
@@ -262,7 +264,7 @@ export function Develop() {
           const img = new window.Image();
           img.decoding = "async";
           img.onload = repaintCurrent;
-          img.src = optimizedSrc(g.image, 1600);
+          img.src = optimizedSrc(g.image, canvas.clientWidth * dpr);
           return img;
         });
       },
@@ -271,7 +273,6 @@ export function Develop() {
     loader.observe(section);
 
     const sizer = new ResizeObserver(() => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(canvas.clientWidth * dpr);
       canvas.height = Math.round(canvas.clientHeight * dpr);
       repaintCurrent();

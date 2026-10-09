@@ -6,7 +6,7 @@ import { DownloadButton, GitHubButton } from "./buttons";
 import { Headline } from "./headline";
 import { Manifesto } from "./manifesto";
 import { media } from "./media";
-import { clamp01, setStyle, watch } from "./scroll";
+import { clamp01, setOpacity, setStyle, watch } from "./scroll";
 
 /*
  * The opening: the headline in a pale sky, over a sea of clouds at dawn.
@@ -104,9 +104,7 @@ function cardStyle(
   const depth = card.z + fly * card.travel;
   return {
     transform: `translate(-50%, -50%) translate3d(${(mx * PARALLAX).toFixed(1)}px, ${(my * PARALLAX).toFixed(1)}px, ${depth.toFixed(1)}px)`,
-    opacity: clamp01(
-      Math.min((NEAR - depth) / 320, (depth - FAR) / 900),
-    ).toFixed(3),
+    opacity: clamp01(Math.min((NEAR - depth) / 320, (depth - FAR) / 900)),
   };
 }
 
@@ -140,7 +138,7 @@ export function Hero({ releaseLine }: { releaseLine: React.ReactNode }) {
       PLACED.forEach((card, i) => {
         const style = cardStyle(card, travel, state.mx, state.my);
         setStyle(cardRefs.current[i], "transform", style.transform);
-        setStyle(cardRefs.current[i], "opacity", style.opacity);
+        setOpacity(cardRefs.current[i], style.opacity);
       });
 
       // The sea of clouds drops away as the camera leaves it behind.
@@ -149,11 +147,7 @@ export function Hero({ releaseLine }: { releaseLine: React.ReactNode }) {
         "transform",
         `translate3d(0, 0, ${(travel * 500).toFixed(1)}px)`,
       );
-      setStyle(
-        horizonRef.current,
-        "opacity",
-        clamp01(1 - fly * 2.4).toFixed(3),
-      );
+      setOpacity(horizonRef.current, clamp01(1 - fly * 2.4));
 
       const finaleDepth = reduced ? 0 : FINALE_Z + fly * FINALE_TRAVEL;
       setStyle(
@@ -161,29 +155,21 @@ export function Hero({ releaseLine }: { releaseLine: React.ReactNode }) {
         "transform",
         `translate3d(0, 0, ${finaleDepth.toFixed(1)}px)`,
       );
-      setStyle(
-        finaleRef.current,
-        "opacity",
-        clamp01((fly - 0.6) * 4).toFixed(3),
-      );
+      setOpacity(finaleRef.current, clamp01((fly - 0.6) * 4));
 
       setStyle(
         copyRef.current,
         "transform",
         `translate3d(0, 0, ${(travel * 700).toFixed(1)}px)`,
       );
-      setStyle(copyRef.current, "opacity", clamp01(1 - fly * 2.6).toFixed(3));
+      setOpacity(copyRef.current, clamp01(1 - fly * 2.6));
       // Once the copy has faded out it should not catch clicks or focus.
       const hidden = fly > 0.35;
       if (copyRef.current && copyRef.current.inert !== hidden) {
         copyRef.current.inert = hidden;
       }
 
-      setStyle(
-        readRef.current,
-        "opacity",
-        clamp01((state.p - FLY_END) * 18).toFixed(3),
-      );
+      setOpacity(readRef.current, clamp01((state.p - FLY_END) * 18));
       const read = clamp01((state.p - READ_FROM) / READ_LENGTH);
       words.forEach((word, i) => {
         const lit = (read * (words.length + 10) - i - 2) / 8;
@@ -272,12 +258,16 @@ export function Hero({ releaseLine }: { releaseLine: React.ReactNode }) {
           style={{
             transform: `translate3d(0, 0, ${FINALE_Z}px)`,
             opacity: 0,
+            visibility: "hidden",
           }}
         >
           <Image
             alt=""
             className="reveal size-full rounded-[2vmax] object-cover"
             fetchPriority="low"
+            // Not lazy: Safari's lazy loading fetches images inside the 3D
+            // stage late, and some never.
+            loading="eager"
             placeholder="empty"
             sizes="100vw"
             // `data-loaded` is set by the layout script before hydration.
@@ -286,35 +276,41 @@ export function Hero({ releaseLine }: { releaseLine: React.ReactNode }) {
           />
         </div>
 
-        {PLACED.map((card, i) => (
-          <div
-            aria-hidden="true"
-            className="absolute will-change-[transform,opacity]"
-            key={card.img.src}
-            ref={(el) => {
-              cardRefs.current[i] = el;
-            }}
-            style={{
-              left: card.left,
-              top: card.top,
-              width: `${SIZE}vmax`,
-              zIndex: Math.round(card.z + 10000),
-              ...cardStyle(card, 0, 0, 0),
-            }}
-          >
-            <Image
-              alt=""
-              className="reveal w-full rounded-[0.7vmax] shadow-[0_16px_40px_-18px_rgb(28_41_90/0.35)]"
-              // Out of sight until scrolling starts, so they load last.
-              fetchPriority="low"
-              placeholder="empty"
-              sizes={`${SIZE * 2}vmax`}
-              // `data-loaded` is set by the layout script before hydration.
-              suppressHydrationWarning
-              src={card.img}
-            />
-          </div>
-        ))}
+        {PLACED.map((card, i) => {
+          const rest = cardStyle(card, 0, 0, 0);
+          return (
+            <div
+              aria-hidden="true"
+              className="absolute will-change-[transform,opacity]"
+              key={card.img.src}
+              ref={(el) => {
+                cardRefs.current[i] = el;
+              }}
+              style={{
+                left: card.left,
+                top: card.top,
+                width: `${SIZE}vmax`,
+                zIndex: Math.round(card.z + 10000),
+                ...rest,
+                visibility: rest.opacity > 0 ? undefined : "hidden",
+              }}
+            >
+              <Image
+                alt=""
+                className="reveal w-full rounded-[0.7vmax] shadow-[0_16px_40px_-18px_rgb(28_41_90/0.35)]"
+                // Out of sight until scrolling starts, so they load last. Not
+                // lazy, for the same reason as the finale.
+                fetchPriority="low"
+                loading="eager"
+                placeholder="empty"
+                sizes={`${SIZE * 2}vmax`}
+                // `data-loaded` is set by the layout script before hydration.
+                suppressHydrationWarning
+                src={card.img}
+              />
+            </div>
+          );
+        })}
 
         <div
           className="absolute inset-0 z-[20000] flex flex-col items-center justify-center px-6 pb-[8svh] text-center"
@@ -337,7 +333,7 @@ export function Hero({ releaseLine }: { releaseLine: React.ReactNode }) {
         <div
           className="pointer-events-none absolute inset-0 z-[30000] flex items-center justify-center bg-[radial-gradient(ellipse_at_center,rgb(11_17_32/0.6),rgb(11_17_32/0.15)_75%)] px-6 text-accent-ink will-change-[opacity]"
           ref={readRef}
-          style={{ opacity: 0 }}
+          style={{ opacity: 0, visibility: "hidden" }}
         >
           <Manifesto />
         </div>

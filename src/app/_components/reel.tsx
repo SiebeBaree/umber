@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef } from "react";
 import { setStyle, useScrollFrame } from "./scroll";
 
@@ -147,13 +148,12 @@ export function Reel() {
           <div className="relative mt-3 overflow-hidden rounded-md">
             <div className="flex h-7 gap-1 sm:h-9">
               {SHOTS.map((shot) => (
-                // biome-ignore lint/performance/noImgElement: a 200px poster strip, already small
-                <img
+                <Image
                   alt=""
                   className="min-w-0 flex-1 rounded-[3px] object-cover"
                   height={36}
                   key={shot.name}
-                  loading="lazy"
+                  sizes="14vw"
                   src={`/video/${shot.name}.jpg`}
                   width={64}
                 />
@@ -175,8 +175,10 @@ export function Reel() {
 }
 
 /**
- * One clip: a poster until it scrolls into view, then a muted loop. It
- * pauses again once it leaves, so only the clips on screen ever decode.
+ * One clip: a still until it scrolls into view, then a muted loop over it.
+ * It pauses again once it leaves, so only the clips on screen ever decode.
+ * The still is a lazy, resized image instead of the video's `poster`, which
+ * browsers fetch at full size as soon as the page loads.
  */
 function Clip({ shot }: { shot: Shot }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -198,16 +200,24 @@ function Clip({ shot }: { shot: Shot }) {
   }, []);
 
   return (
-    <video
-      aria-label={shot.prompt}
-      className="absolute inset-0 size-full object-cover"
-      loop
-      muted
-      playsInline
-      poster={`/video/${shot.name}.jpg`}
-      preload="none"
-      ref={ref}
-      src={`/video/${shot.name}.mp4`}
-    />
+    <>
+      <Image
+        alt=""
+        className="object-cover"
+        fill
+        sizes="(min-width: 64rem) 56vw, 84vw"
+        src={`/video/${shot.name}.jpg`}
+      />
+      <video
+        aria-label={shot.prompt}
+        className="absolute inset-0 size-full object-cover"
+        loop
+        muted
+        playsInline
+        preload="none"
+        ref={ref}
+        src={`/video/${shot.name}.mp4`}
+      />
+    </>
   );
 }
