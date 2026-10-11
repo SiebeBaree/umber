@@ -312,8 +312,11 @@ export function Hero({ releaseLine }: { releaseLine: React.ReactNode }) {
           );
         })}
 
+        {/* `will-change` keeps the copy on one layer drawn once. Without it,
+            the browser redraws all its text on every frame as it flies at
+            the camera, which stutters the start of the scroll on phones. */}
         <div
-          className="absolute inset-0 z-[20000] flex flex-col items-center justify-center px-6 pb-[8svh] text-center"
+          className="absolute inset-0 z-[20000] flex flex-col items-center justify-center px-6 pb-[8svh] text-center will-change-[transform,opacity]"
           ref={copyRef}
         >
           <Headline />
