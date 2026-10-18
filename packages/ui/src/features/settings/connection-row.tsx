@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { Tooltip } from '../../components/ui/tooltip'
-import { ProviderMark } from '../create/catalog'
+import { ProviderMark } from '../create/catalog/provider-mark'
 import type { VaultConnection } from '../keys/vault'
 import type { KeyProvider } from './key-providers'
 import type { RemoveKeyTarget } from './remove-key-dialog'

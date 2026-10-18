@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../../components/ui/dialog'
-import { ProviderMark } from '../create/catalog'
+import { ProviderMark } from '../create/catalog/provider-mark'
 import type { VaultConnection } from '../keys/vault'
 import type { KeyProvider } from './key-providers'
 

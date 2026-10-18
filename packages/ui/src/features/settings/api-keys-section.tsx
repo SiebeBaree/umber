@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { cn } from '../../lib/cn'
-import { ProviderMark } from '../create/catalog'
+import { ProviderMark } from '../create/catalog/provider-mark'
 import { useKeys } from '../keys/keys-context'
 import { AddProviderDialog } from './add-provider-dialog'
 import { ConnectionRow } from './connection-row'
