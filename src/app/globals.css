@@ -325,14 +325,6 @@ body [data-theme="mist"] {
   }
 }
 
-/* The receipt's torn top edge, the first thing out of the printer. */
-@utility receipt {
-  --tooth: 14px;
-  mask:
-    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) 50%
-    / var(--tooth) 100%;
-}
-
 /* --- Models index: a fill that wipes in behind a hovered row ----------- */
 
 @utility wipe {
