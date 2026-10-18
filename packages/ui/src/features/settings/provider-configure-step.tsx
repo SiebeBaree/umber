@@ -10,7 +10,7 @@ import { useCallback, useState, type FormEvent } from 'react'
 
 import { Button } from '../../components/ui/button'
 import { cn } from '../../lib/cn'
-import { ProviderMark } from '../create/catalog'
+import { ProviderMark } from '../create/catalog/provider-mark'
 import { CredentialFieldControl } from './credential-fields'
 import type { KeyProvider, NewConnection, SetupStep } from './key-providers'
 import { StepDescription, StepTitle, type StepPresentation } from './step-heading'

@@ -1,0 +1,24 @@
+{
+    "extends": "@umber/tsconfig/react-library.json",
+    "compilerOptions": {
+        "allowJs": true,
+        "incremental": true,
+        // The site predates the shared config and indexes freely in its canvas and
+        // scroll code. Everything else in the shared strict set applies.
+        "noUncheckedIndexedAccess": false,
+        "types": ["node"],
+        "plugins": [{ "name": "next" }],
+        "paths": {
+            "@/*": ["./src/*"]
+        }
+    },
+    "include": [
+        "next-env.d.ts",
+        "**/*.ts",
+        "**/*.tsx",
+        ".next/types/**/*.ts",
+        ".next/dev/types/**/*.ts",
+        "**/*.mts"
+    ],
+    "exclude": ["node_modules", ".next"]
+}

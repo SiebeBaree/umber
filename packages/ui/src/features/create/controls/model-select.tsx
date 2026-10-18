@@ -14,14 +14,8 @@ import {
 import { Tooltip } from '../../../components/ui/tooltip'
 import { cn } from '../../../lib/cn'
 import { useKeys } from '../../keys/keys-context'
-import {
-    groupModels,
-    ProviderMark,
-    PROVIDERS,
-    starredModels,
-    type GenerationMode,
-    type Model,
-} from '../catalog'
+import { groupModels, PROVIDERS, starredModels, type GenerationMode, type Model } from '../catalog'
+import { ProviderMark } from '../catalog/provider-mark'
 
 const ROW_MOTION: Transition = { type: 'spring', stiffness: 620, damping: 44, mass: 0.6 }
 

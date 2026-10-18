@@ -39,6 +39,7 @@ Git hooks are installed automatically on `pnpm install` (see [`lefthook.yml`](le
 ```
 apps/
   desktop/      Electron shell: electron-vite + electron-builder. Mounts @umber/ui and nothing else.
+  web/          The website (Next.js). Reads the model catalog from @umber/ui/catalog.
 packages/
   ui/           The actual application UI: every screen, plus the Tailwind theme.
   brand/        Umber's logo assets, and the only place to get them from.
@@ -55,6 +56,7 @@ The shell and the UI are **deliberately separate**: `apps/desktop` owns windows,
 | Command                                | What it does                                     |
 | -------------------------------------- | ------------------------------------------------ |
 | `pnpm dev`                             | Start the app in watch mode                      |
+| `pnpm dev:web`                         | Start the website only                           |
 | `pnpm build`                           | Build all packages (Turborepo, cached)           |
 | `pnpm test` / `pnpm test:watch`        | Run the test suite in `tests/`                   |
 | `pnpm typecheck`                       | Root `tsc` + per-package typecheck               |
@@ -73,7 +75,7 @@ The shell and the UI are **deliberately separate**: `apps/desktop` owns windows,
 - **oxlint + oxfmt.** No ESLint/Prettier. VS Code is pre-configured to use the oxc extension (`.vscode/`); other editors get `.editorconfig`. Pre-commit hooks (lefthook) run both on staged files.
 - **Tailwind CSS 4, CSS-first.** No `tailwind.config.*`. The theme, the `glass` utilities and the canvas live in `packages/ui/src/styles.css`; the app's entry CSS declares its own `@source` so the UI package never references app paths.
 - **TanStack Router.** Routes are defined in code (`packages/ui/src/router.tsx`), not by file convention, because the UI package is a library rather than a route directory. History is hash-based so routing survives the packaged `file://` renderer.
-- **Strict TypeScript.** All packages extend `packages/tsconfig/base.json` (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, ...).
+- **Strict TypeScript.** All packages extend `packages/tsconfig/base.json` (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, ...). `apps/web` turns off `noUncheckedIndexedAccess` only.
 - **Desktop dependency layout.** `apps/desktop` keeps everything (including react) in `devDependencies` on purpose; see the comment in `apps/desktop/electron.vite.config.ts`.
 - `electron-vite@6.0.0-beta.1` is a prerelease. It is the only release compatible with Vite 8. Renovate will propose the stable 6.0.0 when it ships.
 

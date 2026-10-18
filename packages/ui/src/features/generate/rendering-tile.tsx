@@ -1,7 +1,8 @@
 import { useMemo, type CSSProperties } from 'react'
 
 import { cn } from '../../lib/cn'
-import { ProviderMark, ratioToCss, type AspectRatio, type ProviderId } from '../create/catalog'
+import { ratioToCss, type AspectRatio, type ProviderId } from '../create/catalog'
+import { ProviderMark } from '../create/catalog/provider-mark'
 
 export interface RenderingTileProps {
     readonly ratio: AspectRatio

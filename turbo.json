@@ -6,7 +6,8 @@
     "tasks": {
         "build": {
             "dependsOn": ["^build"],
-            "outputs": ["dist/**", "out/**"]
+            "env": ["GITHUB_TOKEN", "NEXT_PUBLIC_*"],
+            "outputs": ["dist/**", "out/**", ".next/**", "!.next/cache/**"]
         },
         "dev": {
             "dependsOn": ["^build"],

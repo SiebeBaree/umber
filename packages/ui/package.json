@@ -11,6 +11,7 @@
     "exports": {
         ".": "./src/index.ts",
         "./styles.css": "./src/styles.css",
+        "./catalog": "./src/features/create/catalog/index.ts",
         "./local-api": "./src/features/local-api/contract.ts",
         "./updates": "./src/features/updates/checker.ts"
     },

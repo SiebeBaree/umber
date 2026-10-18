@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState, type ChangeEvent } from 'react'
 
 import { TextInput } from '../../components/ui/text-input'
 import { cn } from '../../lib/cn'
-import { ProviderMark } from '../create/catalog'
+import { ProviderMark } from '../create/catalog/provider-mark'
 import { KEY_PROVIDERS, type KeyProvider, type KeyProviderId } from './key-providers'
 import { StepDescription, StepTitle, type StepPresentation } from './step-heading'
 

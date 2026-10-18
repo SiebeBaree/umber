@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
-import { ProviderMark, type ProviderId } from '../create/catalog'
+import { type ProviderId } from '../create/catalog'
+import { ProviderMark } from '../create/catalog/provider-mark'
 import { formatCost } from '../create/pricing'
 import type { ImageDetails } from './image-detail-dialog'
 

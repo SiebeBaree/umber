@@ -6,7 +6,6 @@ export * from './types'
 export * from './output-size'
 export { IMAGE_MODELS } from './image-models'
 export { VIDEO_MODELS } from './video-models'
-export { ProviderMark, type ProviderMarkProps } from './provider-mark'
 
 export const PROVIDERS: Readonly<Record<ProviderId, Provider>> = {
     google: { id: 'google', name: 'Google' },

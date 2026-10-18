@@ -3,7 +3,7 @@ import { motion, type Transition } from 'motion/react'
 import { useMemo, type CSSProperties } from 'react'
 
 import { Button } from '../../components/ui/button'
-import { ProviderMark } from '../create/catalog'
+import { ProviderMark } from '../create/catalog/provider-mark'
 import type { KeyProviderId } from '../settings/key-providers'
 
 /**
