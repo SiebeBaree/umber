@@ -56,6 +56,24 @@
             "env": { "node": true, "browser": false }
         },
         {
+            "files": ["apps/web/**"],
+            "env": { "node": true },
+            "rules": {
+                // The site builds with the React Compiler, which memoizes props for us.
+                "react-perf/jsx-no-new-object-as-prop": "off",
+                "react-perf/jsx-no-new-array-as-prop": "off",
+                "react-perf/jsx-no-new-function-as-prop": "off",
+                "react-perf/jsx-no-jsx-as-prop": "off",
+                // Each page section is one long, scroll-driven component on purpose.
+                "eslint/max-lines": "off",
+                "eslint/max-lines-per-function": "off",
+                "import/max-dependencies": "off",
+                // Labelled <svg>, <canvas> and composite figures need role="img";
+                // there is no tag to swap them for.
+                "jsx-a11y/prefer-tag-over-role": "off"
+            }
+        },
+        {
             "files": ["**/scripts/**"],
             "env": { "node": true, "browser": false },
             "rules": {

@@ -1,20 +1,20 @@
-import { countOf, MODELS } from "../../lib/catalog";
+import { countOf, MODELS } from '../../lib/catalog'
 import {
-  GITHUB_URL,
-  LICENSE_URL,
-  listOf,
-  PROVIDERS,
-  SITE_DESCRIPTION,
-  SITE_URL,
-} from "../../lib/site";
+    GITHUB_URL,
+    LICENSE_URL,
+    listOf,
+    PROVIDERS,
+    SITE_DESCRIPTION,
+    SITE_URL,
+} from '../../lib/site'
 
 /*
  * llms.txt (llmstxt.org): a plain-markdown summary served for AI crawlers
  * and assistants, so answers about Umber come from these facts instead of
  * guesses. Built from the same constants as the rest of the site.
  */
-const image = countOf("image");
-const video = countOf("video");
+const image = countOf('image')
+const video = countOf('video')
 
 const BODY = `# Umber
 
@@ -57,12 +57,12 @@ Key facts:
   computer.
 - Do I need a key for every lab? No, one is enough. The model picker shows
   what each key unlocks.
-`;
+`
 
-export const dynamic = "force-static";
+export const dynamic = 'force-static'
 
 export function GET() {
-  return new Response(BODY, {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
-  });
+    return new Response(BODY, {
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    })
 }

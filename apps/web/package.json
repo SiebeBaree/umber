@@ -1,29 +1,33 @@
 {
-  "name": "umber-website",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "biome check",
-    "format": "biome format --write"
-  },
-  "dependencies": {
-    "next": "16.3.1",
-    "posthog-js": "^1.417.1",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.4.2",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "1.0.0",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  },
-  "packageManager": "pnpm@10.27.0"
+    "name": "@umber/web",
+    "version": "0.0.0",
+    "private": true,
+    "description": "The Umber website and download page.",
+    "license": "MIT",
+    "type": "module",
+    "scripts": {
+        "build": "next build",
+        "clean": "rimraf .next .turbo",
+        "dev": "next dev",
+        "start": "next start",
+        "typecheck": "next typegen && tsc --noEmit"
+    },
+    "dependencies": {
+        "@umber/ui": "workspace:*",
+        "next": "16.3.1",
+        "posthog-js": "1.417.1",
+        "react": "catalog:",
+        "react-dom": "catalog:"
+    },
+    "devDependencies": {
+        "@tailwindcss/postcss": "4.3.3",
+        "@types/node": "24.13.3",
+        "@types/react": "catalog:",
+        "@types/react-dom": "catalog:",
+        "@umber/tsconfig": "workspace:*",
+        "babel-plugin-react-compiler": "1.0.0",
+        "rimraf": "catalog:",
+        "tailwindcss": "catalog:",
+        "typescript": "catalog:"
+    }
 }

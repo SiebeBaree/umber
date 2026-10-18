@@ -29,11 +29,13 @@ catalog:
 #   electron-winstaller only matters when building a Windows installer on Windows.
 #   lefthook            also resolves its binary through optionalDependencies;
 #                       hook installation happens via the root `prepare` script.
+#   core-js             (pulled in by posthog-js) only prints a funding banner.
 allowBuilds:
     electron: true
     esbuild: false
     electron-winstaller: false
     lefthook: false
+    core-js: false
 
 # Backport https://github.com/electron-userland/electron-builder/pull/10101.
 # Remove when electron-builder includes the macOS keychain password fix.

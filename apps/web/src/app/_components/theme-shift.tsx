@@ -1,7 +1,8 @@
-"use client";
+'use client'
 
-import { useEffect } from "react";
-import { watchThemes } from "./scroll";
+import { useEffect } from 'react'
+
+import { watchThemes } from './scroll'
 
 /*
  * Makes <html> carry the theme of the top-level section in the middle of
@@ -9,6 +10,6 @@ import { watchThemes } from "./scroll";
  * globals.css). The work happens in the shared scroll loop.
  */
 export function ThemeShift() {
-  useEffect(() => watchThemes(), []);
-  return null;
+    useEffect(() => watchThemes(), [])
+    return null
 }
