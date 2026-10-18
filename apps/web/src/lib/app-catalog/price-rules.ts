@@ -1,0 +1,204 @@
+import { FLUX_2_SIZE, GPT_IMAGE_2_SIZE, pixelSize } from "./output-size";
+import type { AspectRatio, ImageQuality, PriceContext } from "./types";
+
+/**
+ * Published output-cost formulas for GPT Image models and FLUX.2.
+ */
+
+type LegacyImageQuality = "low" | "medium" | "high";
+
+/** USD per million output tokens, per GPT Image model. */
+const GPT_IMAGE_TOKEN_RATES: Readonly<Record<string, number>> = {
+  "gpt-image-2": 30,
+  "gpt-image-1-5": 32,
+  "gpt-image-1": 40,
+  "gpt-image-1-mini": 8,
+};
+
+/** The grid OpenAI lays over the image, per quality tier. */
+const GPT_IMAGE_2_BASE: Readonly<Record<LegacyImageQuality, number>> = {
+  low: 16,
+  medium: 48,
+  high: 96,
+};
+
+/**
+ * OpenAI's own published calculation for GPT Image 2: a quality-sized grid
+ * scaled by the shape, then weighted by the pixel count. It reproduces every
+ * figure in OpenAI's per-image table exactly, including the fact that a wide
+ * 4K frame costs less than a 2K square.
+ */
+function gptImage2Tokens(
+  quality: LegacyImageQuality,
+  width: number,
+  height: number,
+): number {
+  const base = GPT_IMAGE_2_BASE[quality];
+  const longest = Math.max(width, height);
+  const shortest = Math.min(width, height);
+  const across = Math.round((base * shortest) / longest);
+  const gridArea = width >= height ? base * across : across * base;
+
+  return Math.ceil((gridArea * (2e6 + width * height)) / 4e6);
+}
+
+/**
+ * The models before GPT Image 2 render three fixed sizes, and OpenAI publishes
+ * the output tokens for each. Keyed by the composer's ratios.
+ */
+const LEGACY_TOKENS: Readonly<
+  Record<LegacyImageQuality, Readonly<Partial<Record<AspectRatio, number>>>>
+> = {
+  low: { "1:1": 272, "2:3": 408, "3:2": 400 },
+  medium: { "1:1": 1056, "2:3": 1584, "3:2": 1568 },
+  high: { "1:1": 4160, "2:3": 6240, "3:2": 6208 },
+};
+
+/**
+ * What one GPT Image render costs at a quality tier. `gpt-image-1-mini` comes
+ * out under OpenAI's own quoted figures, which appear to fold in a fixed
+ * prompt cost; billing follows the tokens, so the tokens are what is used.
+ */
+export function gptImagePrice(modelId: string, quality: LegacyImageQuality) {
+  const rate = GPT_IMAGE_TOKEN_RATES[modelId] ?? 30;
+
+  return (context: PriceContext): number => {
+    if (modelId === "gpt-image-2") {
+      const { height, width } = pixelSize(
+        context.ratio,
+        context.resolution,
+        GPT_IMAGE_2_SIZE,
+      );
+
+      return (gptImage2Tokens(quality, width, height) * rate) / 1e6;
+    }
+
+    const tokens =
+      LEGACY_TOKENS[quality][context.ratio] ??
+      LEGACY_TOKENS[quality]["1:1"] ??
+      0;
+
+    return (tokens * rate) / 1e6;
+  };
+}
+
+const GPT_IMAGE_25_BASE = {
+  low: 16,
+  medium: 24,
+  high: 48,
+  xhigh: 64,
+  max: 96,
+} as const;
+
+/**
+ * OpenAI's calculator for both 2.5 models, including round-half-to-even.
+ * Estimates output only; prompt and reference-image tokens are billed separately.
+ * https://developers.openai.com/api/docs/guides/image-generation#cost-and-latency
+ */
+export function gptImage25Price(quality: Exclude<ImageQuality, "auto">) {
+  return (context: PriceContext): number => {
+    const { width, height } = pixelSize(
+      context.ratio,
+      context.resolution,
+      GPT_IMAGE_2_SIZE,
+    );
+    const base = GPT_IMAGE_25_BASE[quality];
+    const scaled = base / (Math.max(width, height) / Math.min(width, height));
+    const floor = Math.floor(scaled);
+    const across =
+      scaled - floor === 0.5 ? floor + (floor % 2) : Math.round(scaled);
+    const tokens = Math.ceil((base * across * (2e6 + width * height)) / 4e6);
+
+    return (tokens * 30) / 1e6;
+  };
+}
+
+const MEGAPIXEL = 1024 * 1024;
+
+/** BFL rounds every image up to a whole megapixel, and caps output at four. */
+function billedMegapixels(pixels: number): number {
+  return Math.min(4, Math.max(1, Math.ceil(pixels / MEGAPIXEL)));
+}
+
+/**
+ * FLUX.2 [pro]: the first megapixel of output costs $0.03 and each one after
+ * it $0.015, with every reference image charged as a further megapixel.
+ */
+export function fluxTwoPrice(context: PriceContext): number {
+  const { height, width } = pixelSize(
+    context.ratio,
+    context.resolution,
+    FLUX_2_SIZE,
+  );
+  const output = billedMegapixels(width * height);
+
+  return 0.03 + 0.015 * (output - 1) + 0.015 * context.references;
+}
+
+/**
+ * FLUX.2 [max]: $0.07 for the first output megapixel, $0.03 for each one
+ * after, and $0.03 per reference image — BFL's own calculator figures.
+ */
+export function fluxTwoMaxPrice(context: PriceContext): number {
+  const { height, width } = pixelSize(
+    context.ratio,
+    context.resolution,
+    FLUX_2_SIZE,
+  );
+  const output = billedMegapixels(width * height);
+
+  return 0.07 + 0.03 * (output - 1) + 0.03 * context.references;
+}
+
+/** FLUX.2 [flex]: a flat $0.05 per megapixel, output and references alike. */
+export function fluxTwoFlexPrice(context: PriceContext): number {
+  const { height, width } = pixelSize(
+    context.ratio,
+    context.resolution,
+    FLUX_2_SIZE,
+  );
+  const output = billedMegapixels(width * height);
+
+  return 0.05 * (output + context.references);
+}
+
+/**
+ * Seedream 5.0 Pro: $0.045 per image at 1.5K and below, $0.09 above, with the
+ * first reference image free and each further one $0.003 — ModelArk's own
+ * price list, which draws its line at 2.61 megapixels rather than at a tier.
+ */
+export function seedreamFiveProPrice(context: PriceContext): number {
+  const base = context.resolution === "2K" ? 0.09 : 0.045;
+
+  return base + 0.003 * Math.max(0, context.references - 1);
+}
+
+/**
+ * Qwen-Image-3.0-Pro: per image by output tier, plus a small charge per input
+ * image, both straight off Model Studio's Singapore price list.
+ */
+export function qwenImageThreeProPrice(context: PriceContext): number {
+  const base = context.resolution === "2K" ? 0.075 : 0.04;
+
+  return base + 0.003 * context.references;
+}
+
+/** Singapore list price for Qwen Image 3.0, including reference inputs. */
+export function qwenImageThreePrice(context: PriceContext): number {
+  return 0.03 + 0.003 * context.references;
+}
+
+/** Klein bills the first output megapixel, then each additional megapixel. */
+export function fluxKleinPrice(variant: "4b" | "9b") {
+  return (context: PriceContext): number => {
+    const { width, height } = pixelSize(
+      context.ratio,
+      context.resolution,
+      FLUX_2_SIZE,
+    );
+    const additional = billedMegapixels(width * height) - 1;
+    return variant === "4b"
+      ? 0.014 + 0.001 * additional
+      : 0.015 + 0.002 * additional;
+  };
+}
