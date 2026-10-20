@@ -24,15 +24,12 @@ catalog:
 #
 #   electron            downloads its prebuilt binary from a postinstall script,
 #                       so it genuinely needs to run one.
-#   esbuild             resolves its platform binary through optionalDependencies
-#                       under pnpm, making its install script a no-op.
 #   electron-winstaller only matters when building a Windows installer on Windows.
-#   lefthook            also resolves its binary through optionalDependencies;
+#   lefthook            resolves its binary through optionalDependencies;
 #                       hook installation happens via the root `prepare` script.
 #   core-js             (pulled in by posthog-js) only prints a funding banner.
 allowBuilds:
     electron: true
-    esbuild: false
     electron-winstaller: false
     lefthook: false
     core-js: false
