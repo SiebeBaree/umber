@@ -1,6 +1,6 @@
 export const LOCAL_API_CHANNELS = {
     status: 'umber:local-api:status',
-    enable: 'umber:local-api:enable',
+    update: 'umber:local-api:update',
     reset: 'umber:local-api:reset',
     changed: 'umber:local-api:changed',
     ready: 'umber:local-api:ready',

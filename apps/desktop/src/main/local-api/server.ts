@@ -1,15 +1,21 @@
 import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server } from 'node:http'
 
-import type { LocalApiResponse } from '@umber/ui/local-api'
+import type { LocalApiKind, LocalApiResponse, LocalApiSettings } from '@umber/ui/local-api'
 
 import { failure, HttpError, readBody, requireLocalClient, send } from './http'
 import { ApiJobs, type Dispatch } from './jobs'
+import { kindsOf } from './preferences'
+import type { SpendLedger } from './spend'
 
 export interface ApiServerOptions {
     readonly port: number
     readonly docs: string
     readonly dispatch: Dispatch
+    readonly ledger: SpendLedger
+    /** Read per request, so a settings change applies to the very next call. */
+    readonly settings: () => LocalApiSettings
+    readonly settled: () => void
 }
 
 /** A single Node HTTP listener inside Electron's existing main process. */
@@ -19,7 +25,12 @@ export class LocalApiServer {
     private readonly jobs: ApiJobs
 
     constructor(private readonly options: ApiServerOptions) {
-        this.jobs = new ApiJobs(options.dispatch)
+        this.jobs = new ApiJobs({
+            dispatch: options.dispatch,
+            ledger: options.ledger,
+            limits: () => options.settings().limits,
+            settled: options.settled,
+        })
     }
 
     async start(): Promise<number> {
@@ -78,8 +89,11 @@ export class LocalApiServer {
             }
         }
         if (request.method === 'GET') return this.get(path)
-        if (request.method === 'POST' && path === '/v1/images/generations') {
+        const post = /^\/v1\/(images|videos)\/(generations|estimate)$/u.exec(path)
+        if (request.method === 'POST' && post?.[1] !== undefined) {
+            const kind = this.allowed(post[1])
             const body = await readBody(request)
+            if (post[2] === 'estimate') return this.estimate(kind, body)
             const key = request.headers['idempotency-key']
             if (Array.isArray(key))
                 throw new HttpError(
@@ -87,35 +101,56 @@ export class LocalApiServer {
                     'invalid_idempotency_key',
                     'Send one Idempotency-Key header.',
                 )
-            return { status: 202, body: this.jobs.submit(body, key) }
+            return this.jobs.submit(kind, body, key)
         }
-        if (request.method === 'POST' && path === '/v1/images/estimate') {
-            return this.options.dispatch({
-                id: randomUUID(),
-                action: 'estimate',
-                body: await readBody(request),
-            })
-        }
-        throw new HttpError(
-            404,
-            'not_found',
-            'Unknown endpoint. Read GET /llms.txt. Only image models are supported.',
-        )
+        throw new HttpError(404, 'not_found', 'Unknown endpoint. Read GET /llms.txt.')
     }
 
     private get(path: string): Promise<LocalApiResponse> | LocalApiResponse {
         if (path === '/v1/models')
-            return this.options.dispatch({ id: randomUUID(), action: 'models', body: null })
-        const job = /^\/v1\/generations\/([\w-]+)$/u.exec(path)
-        if (job?.[1] !== undefined) return { status: 200, body: this.jobs.get(job[1]) }
-        const image = /^\/v1\/images\/([\w-]+)(\/file)?$/u.exec(path)
-        if (image?.[1] !== undefined) {
             return this.options.dispatch({
                 id: randomUUID(),
-                action: image[2] === undefined ? 'image' : 'file',
-                body: image[1],
+                action: 'models',
+                body: { kinds: kindsOf(this.options.settings().access) },
+            })
+        const job = /^\/v1\/generations\/([\w-]+)$/u.exec(path)
+        if (job?.[1] !== undefined) return { status: 200, body: this.jobs.get(job[1]) }
+        const creation = /^\/v1\/(images|videos)\/([\w-]+)(\/file)?$/u.exec(path)
+        if (creation?.[1] !== undefined && creation[2] !== undefined) {
+            return this.options.dispatch({
+                id: randomUUID(),
+                action: creation[3] === undefined ? 'read' : 'file',
+                kind: this.allowed(creation[1]),
+                body: creation[2],
             })
         }
         throw new HttpError(404, 'not_found', 'Unknown endpoint. Read GET /llms.txt.')
+    }
+
+    /** The kind a route serves, or a 403 when the settings turn it off. */
+    private allowed(segment: string): LocalApiKind {
+        const kind: LocalApiKind = segment === 'videos' ? 'video' : 'image'
+        if (!kindsOf(this.options.settings().access).includes(kind))
+            throw new HttpError(
+                403,
+                'feature_disabled',
+                `${kind === 'image' ? 'Images are' : 'Videos are'} turned off for the local API. Allow them in Umber Settings.`,
+            )
+        return kind
+    }
+
+    /** The renderer's estimate, plus what each spending limit still allows. */
+    private async estimate(kind: LocalApiKind, body: unknown): Promise<LocalApiResponse> {
+        const response = await this.options.dispatch({
+            id: randomUUID(),
+            action: 'estimate',
+            kind,
+            body,
+        })
+        if (response.status !== 200 || !('body' in response)) return response
+        const limits = this.options.ledger.remaining(this.options.settings().limits)
+        return typeof response.body === 'object' && response.body !== null
+            ? { status: 200, body: { ...response.body, limits } }
+            : response
     }
 }

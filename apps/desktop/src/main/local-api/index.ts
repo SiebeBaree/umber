@@ -7,15 +7,17 @@ import docs from '../../../../../docs/LOCAL_API.md?raw'
 import { LOCAL_API_CHANNELS } from '../../shared/local-api'
 import { rendererOnly } from '../ipc-guard'
 import { ApiController } from './controller'
-import { readPreferences } from './preferences'
+import { readSettings } from './preferences'
 import { ApiRenderer } from './renderer'
+import { SpendLedger } from './spend'
 
 export async function registerLocalApiIpc() {
     const path = join(app.getPath('userData'), 'local-api.json')
     const renderer = new ApiRenderer()
     const controller = new ApiController(
         path,
-        await readPreferences(path),
+        await readSettings(path),
+        await SpendLedger.open(join(app.getPath('userData'), 'local-api-spend.json')),
         docs,
         renderer.dispatch,
         (status) => {
@@ -24,7 +26,7 @@ export async function registerLocalApiIpc() {
         },
     )
     ipcMain.handle(LOCAL_API_CHANNELS.status, rendererOnly(controller.status))
-    ipcMain.handle(LOCAL_API_CHANNELS.enable, rendererOnly(controller.setEnabled))
+    ipcMain.handle(LOCAL_API_CHANNELS.update, rendererOnly(controller.update))
     ipcMain.handle(LOCAL_API_CHANNELS.reset, rendererOnly(controller.reset))
     ipcMain.handle(LOCAL_API_CHANNELS.ready, (event, ready: unknown) =>
         rendererOnly(() => {
