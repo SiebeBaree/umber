@@ -9,7 +9,7 @@ import { UpdateSection } from './update-section'
 
 /**
  * The settings page: any waiting update, the name the app greets, the provider
- * keys you generate with, the local image API, shortcuts and data reset.
+ * keys you generate with, the local API, shortcuts and data reset.
  *
  * The update notice leads because it is the only section that arrives
  * unannounced, and the version it would replace closes the page.

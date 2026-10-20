@@ -11,7 +11,7 @@ import {
 
 import { useGeneration } from '../generate/generation-context'
 import { useKeys } from '../keys/keys-context'
-import type { LocalApiBridge, LocalApiStatus } from './contract'
+import type { LocalApiBridge, LocalApiSettings, LocalApiStatus } from './contract'
 import { serveLocalApi } from './service'
 
 interface LocalApiContextValue {
@@ -19,7 +19,7 @@ interface LocalApiContextValue {
     readonly status: LocalApiStatus | null
     readonly busy: boolean
     readonly error: string | null
-    readonly toggle: () => void
+    readonly update: (patch: Partial<LocalApiSettings>) => void
     readonly reset: () => Promise<void>
 }
 
@@ -41,17 +41,10 @@ function useApiHandler(bridge: LocalApiBridge | undefined) {
     )
 }
 
-export function LocalApiProvider({
-    bridge,
-    children,
-}: {
-    readonly bridge: LocalApiBridge | undefined
-    readonly children: ReactNode
-}) {
+/** The shell's status, read once and then pushed on every change. */
+function useBridgeStatus(bridge: LocalApiBridge | undefined) {
     const [status, setStatus] = useState<LocalApiStatus | null>(null)
-    const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    useApiHandler(bridge)
     useEffect(() => {
         if (bridge === undefined) return
         let active = true
@@ -70,22 +63,38 @@ export function LocalApiProvider({
             unsubscribe()
         }
     }, [bridge])
-    const toggle = useCallback(() => {
-        if (bridge === undefined || status === null || busy) return
-        setBusy(true)
-        setError(null)
-        void bridge
-            .setEnabled(!status.enabled)
-            .then(setStatus)
-            .catch(() => setError('Could not change the local API settings. Try again.'))
-            .finally(() => setBusy(false))
-    }, [bridge, status, busy])
+    return { status, setStatus, error, setError }
+}
+
+export function LocalApiProvider({
+    bridge,
+    children,
+}: {
+    readonly bridge: LocalApiBridge | undefined
+    readonly children: ReactNode
+}) {
+    const { error, setError, setStatus, status } = useBridgeStatus(bridge)
+    const [busy, setBusy] = useState(false)
+    useApiHandler(bridge)
+    const update = useCallback(
+        (patch: Partial<LocalApiSettings>) => {
+            if (bridge === undefined || busy) return
+            setBusy(true)
+            setError(null)
+            void bridge
+                .update(patch)
+                .then(setStatus)
+                .catch(() => setError('Could not change the local API settings. Try again.'))
+                .finally(() => setBusy(false))
+        },
+        [bridge, busy, setError, setStatus],
+    )
     const reset = useCallback(async () => {
         if (bridge !== undefined) setStatus(await bridge.reset())
-    }, [bridge])
+    }, [bridge, setStatus])
     const value = useMemo(
-        () => ({ available: bridge !== undefined, status, busy, error, toggle, reset }),
-        [bridge, status, busy, error, toggle, reset],
+        () => ({ available: bridge !== undefined, status, busy, error, update, reset }),
+        [bridge, status, busy, error, update, reset],
     )
     return <LocalApiContext.Provider value={value}>{children}</LocalApiContext.Provider>
 }

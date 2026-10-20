@@ -1,8 +1,9 @@
-import type { LocalApiStatus } from '@umber/ui/local-api'
+import type { LocalApiSettings, LocalApiStatus } from '@umber/ui/local-api'
 
 import type { Dispatch } from './jobs'
-import { writePreferences, type ApiPreferences } from './preferences'
+import { DEFAULT_SETTINGS, parseSettingsPatch, writeJson } from './preferences'
 import { LocalApiServer } from './server'
+import type { SpendLedger } from './spend'
 
 const PORT = 19432
 
@@ -15,16 +16,26 @@ export class ApiController {
 
     constructor(
         private readonly path: string,
-        private preferences: ApiPreferences,
+        private settings: LocalApiSettings,
+        private readonly ledger: SpendLedger,
         docs: string,
         dispatch: Dispatch,
         private readonly changed: (status: LocalApiStatus) => void,
     ) {
-        this.server = new LocalApiServer({ port: PORT, docs, dispatch })
+        this.server = new LocalApiServer({
+            port: PORT,
+            docs,
+            dispatch,
+            ledger,
+            settings: () => this.settings,
+            // Spend moved, so the settings page's limits should too.
+            settled: () => this.changed(this.status()),
+        })
     }
 
     status = (): LocalApiStatus => ({
-        ...this.preferences,
+        ...this.settings,
+        limits: this.ledger.usage(this.settings.limits),
         listening: this.listening,
         baseUrl: `http://127.0.0.1:${PORT}`,
         error: this.error,
@@ -32,12 +43,11 @@ export class ApiController {
 
     ready = () => this.serialize(() => this.synchronize())
 
-    setEnabled = (enabled: unknown) =>
+    update = (patch: unknown) =>
         this.serialize(async () => {
-            if (typeof enabled !== 'boolean') throw new Error('Enabled must be a boolean')
-            const next = { ...this.preferences, enabled }
-            await writePreferences(this.path, next)
-            this.preferences = next
+            const next = { ...this.settings, ...parseSettingsPatch(patch) }
+            await writeJson(this.path, next)
+            this.settings = next
             return this.synchronize()
         })
 
@@ -50,10 +60,10 @@ export class ApiController {
             try {
                 if (this.server.busy)
                     throw new Error('Wait for the API generation to finish before erasing data.')
-                const next = { enabled: false }
-                await writePreferences(this.path, next)
+                await writeJson(this.path, DEFAULT_SETTINGS)
+                await this.ledger.clear()
                 this.server.clearJobs()
-                this.preferences = next
+                this.settings = DEFAULT_SETTINGS
             } catch (error: unknown) {
                 await this.synchronize()
                 throw error
@@ -75,7 +85,7 @@ export class ApiController {
 
     private async synchronize(): Promise<LocalApiStatus> {
         this.error = null
-        if (this.preferences.enabled) {
+        if (this.settings.enabled) {
             try {
                 await this.server.start()
                 this.listening = true

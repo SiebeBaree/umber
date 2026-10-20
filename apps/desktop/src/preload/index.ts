@@ -23,7 +23,7 @@ import { LOCAL_API_CHANNELS } from '../shared/local-api'
 const bridge: UmberBridge = {
     localApi: {
         status: () => ipcRenderer.invoke(LOCAL_API_CHANNELS.status),
-        setEnabled: (enabled) => ipcRenderer.invoke(LOCAL_API_CHANNELS.enable, enabled),
+        update: (patch) => ipcRenderer.invoke(LOCAL_API_CHANNELS.update, patch),
         reset: () => ipcRenderer.invoke(LOCAL_API_CHANNELS.reset),
         onStatus: (listener) => {
             const receive = (_event: IpcRendererEvent, status: LocalApiStatus) => listener(status)
