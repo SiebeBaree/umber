@@ -159,6 +159,18 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         pricePerSecond: { '480p': 0.1, '720p': 0.23 },
     },
     {
+        id: 'seedance-2-0-mini',
+        name: 'Seedance 2.0 Mini',
+        provider: 'bytedance',
+        kind: 'video',
+        releasedOn: '2026-06-15',
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
+        resolutions: ['480p', '720p'],
+        durations: { kind: 'range', min: 4, max: 15, step: 1 },
+        assets: { lastFrame: true, referenceImages: 9, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: null,
+    },
+    {
         id: 'seedance-2-0-fast',
         name: 'Seedance 2.0 Fast',
         provider: 'bytedance',

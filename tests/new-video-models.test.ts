@@ -159,6 +159,12 @@ test.each([
         { status: 'succeeded', content: { video_url: url } },
     ],
     [
+        'seedance-2-0-mini',
+        'dreamina-seedance-2-0-mini-260615',
+        { id: 'task' },
+        { status: 'succeeded', content: { video_url: url } },
+    ],
+    [
         'minimax-h3-max',
         'MiniMax-H3-Max',
         { task_id: 'task' },

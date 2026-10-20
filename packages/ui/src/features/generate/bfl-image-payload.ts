@@ -3,7 +3,8 @@ import type { EngineRequest } from './request'
 import { encodeBase64 } from './shared'
 
 export function bflImagePayload(request: EngineRequest): Promise<Record<string, unknown>> {
-    return request.modelId === 'flux-3-image'
+    // Klein takes the same body as FLUX 3 Image on its own endpoint.
+    return request.modelId.startsWith('flux-3-image')
         ? fluxThreePayload(request)
         : legacyImagePayload(request)
 }
