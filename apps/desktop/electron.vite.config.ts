@@ -29,7 +29,7 @@ export const rendererConfig: UserConfig = {
         // electron-vite ships with minification off. The main and preload bundles
         // are a few kB and are worth keeping readable in a crash report, but the
         // renderer carries React, so it gets minified like the web build does.
-        minify: 'esbuild',
+        minify: 'oxc',
     },
 }
 
