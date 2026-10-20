@@ -49,7 +49,7 @@ test('Nano Banana 2.1 uses Interactions and decodes image output among text step
     })
 })
 
-test.each(['flux-3-image', 'flux-2-klein-4b', 'flux-2-klein-9b'])(
+test.each(['flux-3-image', 'flux-3-image-klein', 'flux-2-klein-4b', 'flux-2-klein-9b'])(
     '%s sends its own endpoint and reference format, polls and downloads',
     async (modelId) => {
         vi.mocked(httpFetch)
@@ -61,7 +61,7 @@ test.each(['flux-3-image', 'flux-2-klein-4b', 'flux-2-klein-9b'])(
         const payload = vi.mocked(httpFetch).mock.calls[0]?.[1]?.json
         expect(vi.mocked(httpFetch).mock.calls[0]?.[0]).toBe(`https://api.bfl.ai/v1/${modelId}`)
         expect(payload).toMatchObject(
-            modelId === 'flux-3-image'
+            modelId.startsWith('flux-3-image')
                 ? { images: [btoa('reference')], resolution: '2k', aspect_ratio: '1:1' }
                 : { input_image: btoa('reference'), width: 2048, height: 2048 },
         )
@@ -72,6 +72,8 @@ test.each(['flux-3-image', 'flux-2-klein-4b', 'flux-2-klein-9b'])(
 
 test.each([
     ['qwen-image-3', 'qwen-image-3.0'],
+    ['qwen-image-2-1-pro', 'qwen-image-2.1-pro'],
+    ['qwen-image-2-1-turbo', 'qwen-image-2.1-turbo'],
     ['wan-2-7-image', 'wan2.7-image'],
     ['wan-2-7-image-pro', 'wan2.7-image-pro'],
 ])('%s preserves reference images and native output count', async (modelId, wireId) => {
@@ -185,6 +187,7 @@ test('Ideogram 4.5 sends source files, size, count and quality as multipart', as
 test.each([
     ['seedream-5-flash', 'dola-seedream-5-0-flash-260915'],
     ['recraft-v4-1-pro', 'recraftv4_1_pro'],
+    ['recraft-v4-1-flash', 'recraftv4_1_flash'],
 ])('%s sends its provider model ID and decodes the image', async (modelId, wireId) => {
     vi.mocked(httpFetch).mockResolvedValueOnce(Response.json({ data: [{ b64_json: b64 }] }))
     const images = await runGeneration(modelRequest(modelId))

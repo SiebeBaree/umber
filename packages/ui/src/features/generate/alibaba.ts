@@ -160,7 +160,7 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
     return fetchBinary('Alibaba', url, 'image/png')
 }
 
-/** Qwen 3 and Wan Image share the synchronous multimodal message format. */
+/** Qwen 3, Qwen 2.1 and Wan Image share the synchronous multimodal message format. */
 async function multimodalBody(request: EngineRequest): Promise<Record<string, unknown>> {
     const wan = request.modelId.startsWith('wan-2-7-image')
     const zimage = request.modelId === 'z-image-turbo'
@@ -173,6 +173,8 @@ async function multimodalBody(request: EngineRequest): Promise<Record<string, un
     const wireIds: Readonly<Record<string, string>> = {
         'qwen-image-3-pro': 'qwen-image-3.0-pro',
         'qwen-image-3': 'qwen-image-3.0',
+        'qwen-image-2-1-pro': 'qwen-image-2.1-pro',
+        'qwen-image-2-1-turbo': 'qwen-image-2.1-turbo',
         'wan-2-7-image': 'wan2.7-image',
         'wan-2-7-image-pro': 'wan2.7-image-pro',
         'z-image-turbo': 'z-image-turbo',

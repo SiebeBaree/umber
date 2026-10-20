@@ -14,6 +14,7 @@ const API_ROOT = 'https://external.api.recraft.ai/v1'
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'recraft-v4-1-pro': 'recraftv4_1_pro',
     'recraft-v4-1': 'recraftv4_1',
+    'recraft-v4-1-flash': 'recraftv4_1_flash',
     'recraft-v3': 'recraftv3',
 }
 
