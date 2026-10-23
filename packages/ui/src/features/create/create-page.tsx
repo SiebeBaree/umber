@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, type Transition } from 'motion/react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import { cn } from '../../lib/cn'
 import { scrollParentOf } from '../../lib/scroll-parent'
@@ -152,8 +152,15 @@ function Stage({ jobs }: { readonly jobs: readonly GenerationJob[] }) {
     )
 }
 
-export function CreatePage() {
+/** The runs this stage shows. Templates shows its own. */
+function useCreateJobs(): readonly GenerationJob[] {
     const { jobs } = useGeneration()
+
+    return useMemo(() => jobs.filter((job) => job.origin === 'create'), [jobs])
+}
+
+export function CreatePage() {
+    const jobs = useCreateJobs()
     const idle = jobs.length === 0
 
     return (

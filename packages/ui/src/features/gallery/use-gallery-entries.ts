@@ -26,7 +26,8 @@ export function isCreation(entry: GalleryEntry): entry is CreationEntry {
     return entry.kind === 'creation'
 }
 
-function toGalleryImage(record: CreationRecord): GalleryImage {
+/** A stored creation as a tile shows it. The caller owns the object URL. */
+export function toGalleryImage(record: CreationRecord): GalleryImage {
     return {
         id: record.id,
         modelId: record.modelId,

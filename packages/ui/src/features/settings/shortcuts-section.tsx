@@ -29,6 +29,7 @@ const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
         shortcuts: [
             { label: 'Go to Create', keys: ['⌘', '1'] },
             { label: 'Go to Gallery', keys: ['⌘', '2'] },
+            { label: 'Go to Templates', keys: ['⌘', '3'] },
             { label: 'Open Settings', keys: ['⌘', ','] },
         ],
     },

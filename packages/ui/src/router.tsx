@@ -11,6 +11,7 @@ import { Button } from './components/ui/button'
 import { CreatePage } from './features/create/create-page'
 import { GalleryPage } from './features/gallery/gallery-page'
 import { SettingsPage } from './features/settings/settings-page'
+import { TemplatesPage } from './features/templates/templates-page'
 import { UsagePage } from './features/usage/usage-page'
 
 /**
@@ -61,6 +62,12 @@ const settingsRoute = createRoute({
     component: SettingsPage,
 })
 
+const templatesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/templates',
+    component: TemplatesPage,
+})
+
 const usageRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/usage',
@@ -69,6 +76,7 @@ const usageRoute = createRoute({
 const routeTree = rootRoute.addChildren([
     createRouteDefinition,
     galleryRoute,
+    templatesRoute,
     settingsRoute,
     usageRoute,
 ])

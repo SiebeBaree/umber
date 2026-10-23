@@ -42,38 +42,45 @@ function CountBubble({ value }: { readonly value: number }) {
 export interface OutputCountStepperProps {
     readonly value: number
     readonly max: number
+    readonly min?: number | undefined
     readonly onValueChange: (value: number) => void
+    /** What is being counted, singular; announced on every control. */
+    readonly noun?: string | undefined
+    readonly tooltip?: string | undefined
 }
+
+const IMAGE_COUNT_TOOLTIP = 'How many images to generate in one run'
 
 /**
  * How many images one run should produce. A stepper rather than a menu — the
- * range is tiny, and −/+ is one click per change instead of three.
+ * range is tiny, and −/+ is one click per change instead of three. Templates
+ * reuses it to size a set of photos.
  */
-export function OutputCountStepper({ max, onValueChange, value }: OutputCountStepperProps) {
-    const limit = Math.min(max, 4)
+export function OutputCountStepper(props: OutputCountStepperProps) {
+    const { max, min = 1, noun = 'image', onValueChange, tooltip, value } = props
 
     const decrease = useCallback(() => {
-        onValueChange(Math.max(1, value - 1))
-    }, [onValueChange, value])
+        onValueChange(Math.max(min, value - 1))
+    }, [min, onValueChange, value])
 
     const increase = useCallback(() => {
-        onValueChange(Math.min(limit, value + 1))
-    }, [limit, onValueChange, value])
+        onValueChange(Math.min(max, value + 1))
+    }, [max, onValueChange, value])
 
     return (
-        <Tooltip label="How many images to generate in one run">
+        <Tooltip label={tooltip ?? IMAGE_COUNT_TOOLTIP}>
             {/* `select-none` is the point of the wrapper: without it, hammering
                 the + button double-clicks the count and leaves it highlighted. */}
             <fieldset
-                aria-label={`Number of images: ${value}`}
+                aria-label={`Number of ${noun}s: ${value}`}
                 className="glass-control flex h-9 items-center gap-0.5 rounded-full ps-2 pe-1 select-none"
             >
                 <Images aria-hidden className="me-1 size-4 shrink-0 text-muted" />
 
                 <button
-                    aria-label="One fewer image"
+                    aria-label={`One fewer ${noun}`}
                     className={STEP_CLASSES}
-                    disabled={value <= 1}
+                    disabled={value <= min}
                     onClick={decrease}
                     type="button"
                 >
@@ -83,9 +90,9 @@ export function OutputCountStepper({ max, onValueChange, value }: OutputCountSte
                 <CountBubble value={value} />
 
                 <button
-                    aria-label="One more image"
+                    aria-label={`One more ${noun}`}
                     className={STEP_CLASSES}
-                    disabled={value >= limit}
+                    disabled={value >= max}
                     onClick={increase}
                     type="button"
                 >

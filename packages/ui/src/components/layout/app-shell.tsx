@@ -10,11 +10,12 @@ import { AppHeader } from './app-header'
 import { CanvasBackdrop } from './canvas-backdrop'
 
 /**
- * The three places one can be, on the keys next to them. All three fire while
+ * The pages, on the keys next to them, in the header's order. All fire while
  * typing: reaching Settings mid-prompt is exactly when it is wanted.
  */
 const GO_TO_CREATE: Shortcut = { key: '1', meta: true, whileTyping: true }
 const GO_TO_GALLERY: Shortcut = { key: '2', meta: true, whileTyping: true }
+const GO_TO_TEMPLATES: Shortcut = { key: '3', meta: true, whileTyping: true }
 const OPEN_SETTINGS: Shortcut = { key: ',', meta: true, whileTyping: true }
 
 /** The navigation shortcuts, live for as long as the app is on screen. */
@@ -26,6 +27,9 @@ function useNavigationShortcuts() {
     })
     useShortcut(GO_TO_GALLERY, () => {
         void navigate({ to: '/gallery' })
+    })
+    useShortcut(GO_TO_TEMPLATES, () => {
+        void navigate({ to: '/templates' })
     })
     useShortcut(OPEN_SETTINGS, () => {
         void navigate({ to: '/settings' })

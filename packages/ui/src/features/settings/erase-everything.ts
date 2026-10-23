@@ -7,11 +7,12 @@ import { useGeneration } from '../generate/generation-context'
 import { useKeys } from '../keys/keys-context'
 import { useLocalApi } from '../local-api/local-api-context'
 import { useProfile } from '../profile/profile-context'
+import { useTemplates } from '../templates/templates-context'
 
 /**
  * Everything Umber keeps on this device, erased in one go: the gallery, the
- * provider keys, the composer's remembered choices, and the name from
- * onboarding. Nothing is sent anywhere and nothing is kept elsewhere, so this
+ * provider keys, the composer's remembered choices, the photos and choices
+ * Templates keeps, and the name from onboarding. Nothing is sent anywhere and nothing is kept elsewhere, so this
  * really is the whole of it.
  *
  * Stop API admission before clearing storage, so an API request cannot refill
@@ -24,10 +25,12 @@ export function useEraseEverything(): () => Promise<void> {
     const keys = useKeys()
     const generation = useGeneration()
     const profile = useProfile()
+    const templates = useTemplates()
 
     return useCallback(async () => {
         await localApi.reset()
         await clearCreations()
+        await templates.erase()
 
         // One provider at a time: the vault rewrites its whole file per
         // removal, so two in flight together would each write back a copy
@@ -44,5 +47,5 @@ export function useEraseEverything(): () => Promise<void> {
         generation.clear()
 
         profile.clear()
-    }, [keys, generation, profile, localApi])
+    }, [keys, generation, profile, localApi, templates])
 }

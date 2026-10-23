@@ -16,12 +16,13 @@ import { launchRun } from './run'
 
 /**
  * Every generation of this session and its outcome, shared app-wide: the
- * create page stacks them oldest to newest above the composer, and the gallery
- * mirrors the ones still working as pending tiles. Runs are independent —
+ * create page stacks its own oldest to newest above the composer, and the
+ * gallery mirrors every one still working as pending tiles. Templates runs pass
+ * through while they render and leave once they land. Runs are independent —
  * sending a prompt never waits on the run before it.
  */
 
-export type { GeneratedOutput, GenerationJob, StartInput } from './job'
+export type { GeneratedOutput, GenerationJob, JobOrigin, StartInput } from './job'
 
 export interface GenerationApi {
     /** Every run of this session still on the stage, oldest first. */
@@ -139,10 +140,14 @@ function useStart({ adopt, commit, jobsRef }: Omit<ReturnType<typeof useJobs>, '
                 // The run may have been cleared off the stage while it worked;
                 // a result with no place to land is simply dropped.
                 settle: (outcome, failures) => {
+                    // Templates keeps the files it was handed and shows them
+                    // itself, so its runs leave the store once they land.
                     commit(
-                        jobsRef.current.map((current) =>
-                            current.id === outcome.id ? outcome : current,
-                        ),
+                        outcome.origin === 'templates'
+                            ? jobsRef.current.filter((current) => current.id !== outcome.id)
+                            : jobsRef.current.map((current) =>
+                                  current.id === outcome.id ? outcome : current,
+                              ),
                     )
 
                     // Some of what was asked for landed and some did not. The
