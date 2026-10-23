@@ -83,20 +83,25 @@ function requestFor(
  * The clock is read once, the moment the files are in hand, so every output of
  * a run reports the same figure — which is the truth: they rendered together.
  * A failed write must not eat a finished render, so it is reported rather than
- * thrown: the pictures still show, they just won't survive a restart.
+ * thrown: the pictures still show, they just won't survive a restart. A run
+ * nobody wants any more (Erase all data ran while it rendered) is not written
+ * at all, so it can't put part of the gallery back.
  */
 async function land(
     job: GenerationJob,
     blobs: readonly Blob[],
+    wanted: RunEffects['wanted'],
 ): Promise<Pick<RunResult, 'outcome' | 'persisted' | 'records'>> {
     const generationMs = Date.now() - job.startedAt
     let records: readonly CreationRecord[] = blobs.map((blob) => toRecord(job, blob, generationMs))
 
-    let persisted = true
-    try {
-        records = await saveCreations(records)
-    } catch {
-        persisted = false
+    let persisted = wanted()
+    if (persisted) {
+        try {
+            records = await saveCreations(records)
+        } catch {
+            persisted = false
+        }
     }
 
     const outputs = records.map((record) => ({
@@ -122,6 +127,7 @@ async function performRun(
     job: GenerationJob,
     input: StartInput,
     credentialsOf: CredentialsOf,
+    wanted: RunEffects['wanted'],
 ): Promise<RunResult> {
     const credentials = await credentialsOf(input.model.provider)
 
@@ -152,7 +158,7 @@ async function performRun(
         failures.push(`${job.modelName} sent back fewer images than you asked for.`)
     }
 
-    const { outcome, persisted, records } = await land(job, blobs)
+    const { outcome, persisted, records } = await land(job, blobs, wanted)
 
     return { outcome, persisted, failures, records }
 }
@@ -165,6 +171,8 @@ export interface RunEffects {
     /** The run made nothing at all, for this reason. */
     readonly fail: (reason: string) => void
     readonly onPersisted: () => void
+    /** Whether the run still has somewhere to land. Checked right before its files are saved. */
+    readonly wanted: () => boolean
 }
 
 /** Runs the job and routes its outcome back into whatever state owns it. */
@@ -175,7 +183,7 @@ export async function launchRun(
     effects: RunEffects,
 ): Promise<RunResult | { readonly error: string }> {
     try {
-        const result = await performRun(job, input, credentialsOf)
+        const result = await performRun(job, input, credentialsOf, effects.wanted)
         const { failures, outcome, persisted } = result
 
         if (persisted) {

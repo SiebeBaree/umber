@@ -23,7 +23,7 @@ export interface YouPhotosApi {
     /** False until storage has answered, so nothing claims there are no photos yet. */
     readonly ready: boolean
     readonly photos: readonly YouPhotoView[]
-    /** Why the last add left something out, if it did. */
+    /** Why loading, the last add or the last removal went wrong, if one did. */
     readonly error: string | null
     readonly add: (files: readonly File[]) => Promise<void>
     readonly remove: (id: string) => void
@@ -72,8 +72,14 @@ function usePhotoList() {
 
 type PhotoList = ReturnType<typeof usePhotoList>
 
-/** Reads the stored photos once, and says when that has happened. */
-function useStoredPhotos(commit: PhotoList['commit']): boolean {
+/**
+ * Reads the stored photos once, and says when that has happened. A failed read
+ * never turns ready, so an empty list can't pass for "no photos yet".
+ */
+function useStoredPhotos(
+    commit: PhotoList['commit'],
+    setError: (error: string | null) => void,
+): boolean {
     const [ready, setReady] = useState(false)
 
     useEffect(() => {
@@ -85,10 +91,11 @@ function useStoredPhotos(commit: PhotoList['commit']): boolean {
 
                 if (!cancelled) {
                     commit(stored.map((photo) => toView(photo)))
-                }
-            } finally {
-                if (!cancelled) {
                     setReady(true)
+                }
+            } catch {
+                if (!cancelled) {
+                    setError('Umber couldn’t read your photos. Restart Umber and try again.')
                 }
             }
         }
@@ -98,7 +105,7 @@ function useStoredPhotos(commit: PhotoList['commit']): boolean {
         return () => {
             cancelled = true
         }
-    }, [commit])
+    }, [commit, setError])
 
     return ready
 }
@@ -135,8 +142,8 @@ function useAddOne({ commit, photosRef }: PhotoList, setError: (error: string | 
 export function useYouPhotos(): YouPhotosApi {
     const list = usePhotoList()
     const { commit, photos, photosRef } = list
-    const ready = useStoredPhotos(commit)
     const [error, setError] = useState<string | null>(null)
+    const ready = useStoredPhotos(commit, setError)
     const addOne = useAddOne(list, setError)
 
     // One file at a time, so the cap counts each photo that actually landed.
@@ -151,11 +158,21 @@ export function useYouPhotos(): YouPhotosApi {
         [addOne],
     )
 
+    // Off the screen only once it's out of storage, or it would come back on
+    // the next launch.
     const remove = useCallback(
         (id: string) => {
+            const run = async () => {
+                try {
+                    await deleteYouPhoto(id)
+                    commit(photosRef.current.filter((photo) => photo.id !== id))
+                } catch {
+                    setError('Umber couldn’t remove this photo. Try again.')
+                }
+            }
+
             setError(null)
-            commit(photosRef.current.filter((photo) => photo.id !== id))
-            void deleteYouPhoto(id)
+            void run()
         },
         [commit, photosRef],
     )

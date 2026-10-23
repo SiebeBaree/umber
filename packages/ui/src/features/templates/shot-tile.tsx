@@ -58,6 +58,10 @@ function DownloadAction({ shot }: { readonly shot: Shot }) {
     )
 }
 
+/**
+ * What a shot offers in its current state. Make again needs the user's photos,
+ * so it hides while there are none and the bar asks for them instead.
+ */
 function ShotActions({ shot }: { readonly shot: Shot }) {
     const templates = useTemplates()
 
@@ -68,12 +72,14 @@ function ShotActions({ shot }: { readonly shot: Shot }) {
     if (!showsPrompt(shot)) {
         return (
             <>
-                <ShotAction
-                    icon={RotateCw}
-                    label="Make again"
-                    onAct={templates.redo}
-                    shotId={shot.id}
-                />
+                {templates.you.photos.length === 0 ? null : (
+                    <ShotAction
+                        icon={RotateCw}
+                        label="Make again"
+                        onAct={templates.redo}
+                        shotId={shot.id}
+                    />
+                )}
                 <ShotAction
                     icon={Pencil}
                     label="Edit prompt"

@@ -34,7 +34,7 @@ export interface GenerationApi {
     readonly start: (input: StartInput) => ReturnType<typeof launchRun>
     /** Clears every run that has landed, leaving the ones still working. */
     readonly clearFinished: () => void
-    /** Clears the whole stage, in flight or not. */
+    /** Clears the whole stage, in flight or not. Runs still in flight then finish without saving. */
     readonly clear: () => void
 }
 
@@ -166,6 +166,7 @@ function useStart({ adopt, commit, jobsRef }: Omit<ReturnType<typeof useJobs>, '
                 onPersisted: () => {
                     setCompletions((current) => current + 1)
                 },
+                wanted: () => jobsRef.current.some((current) => current.id === job.id),
             })
         },
         [adopt, commit, jobsRef, keys, notify],
