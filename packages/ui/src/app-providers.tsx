@@ -7,6 +7,7 @@ import type { LocalApiBridge } from './features/local-api/contract'
 import { LocalApiProvider } from './features/local-api/local-api-context'
 import { NotificationsProvider } from './features/notifications/notifications-context'
 import { ProfileProvider } from './features/profile/profile-context'
+import { TemplatesProvider } from './features/templates/templates-context'
 import { UpdatesProvider, type UpdateChecker } from './features/updates/updates-context'
 
 /**
@@ -14,8 +15,9 @@ import { UpdatesProvider, type UpdateChecker } from './features/updates/updates-
  *
  * Nesting is the point of this file, so it is worth stating: keys come first
  * because a run needs one, notifications wrap generation because a run that
- * fails has nowhere else to say so, and updates sit innermost because nothing
- * else depends on them.
+ * fails has nowhere else to say so, Templates sits inside generation because
+ * its photos render there, and updates sit innermost because nothing else
+ * depends on them.
  */
 export function AppProviders({
     children,
@@ -33,9 +35,11 @@ export function AppProviders({
             <ProfileProvider>
                 <NotificationsProvider>
                     <GenerationProvider>
-                        <LocalApiProvider bridge={localApi}>
-                            <UpdatesProvider checker={updates}>{children}</UpdatesProvider>
-                        </LocalApiProvider>
+                        <TemplatesProvider>
+                            <LocalApiProvider bridge={localApi}>
+                                <UpdatesProvider checker={updates}>{children}</UpdatesProvider>
+                            </LocalApiProvider>
+                        </TemplatesProvider>
                     </GenerationProvider>
                 </NotificationsProvider>
             </ProfileProvider>

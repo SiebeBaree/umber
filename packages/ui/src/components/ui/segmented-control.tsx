@@ -46,6 +46,7 @@ export interface SegmentedControlProps<Value extends string> {
     readonly value: Value
     readonly onValueChange: (value: Value) => void
     readonly className?: string | undefined
+    readonly disabled?: boolean | undefined
 }
 
 /**
@@ -57,6 +58,7 @@ export interface SegmentedControlProps<Value extends string> {
 export function SegmentedControl<Value extends string>({
     'aria-label': ariaLabel,
     className,
+    disabled = false,
     onValueChange,
     options,
     value,
@@ -83,8 +85,10 @@ export function SegmentedControl<Value extends string>({
             // pill or there is nothing to tell selected from unselected.
             className={cn(
                 'flex h-9 items-center rounded-full border border-ink/[0.04] bg-ink/[0.07] p-[3px] shadow-[inset_0_1px_2px_rgb(28_35_51/0.09)]',
+                disabled && 'pointer-events-none opacity-45',
                 className,
             )}
+            disabled={disabled}
             onValueChange={handleValueChange}
             type="single"
             value={value}

@@ -34,11 +34,13 @@ const APPEAR = { opacity: 0, scale: 0.9 }
 const SETTLED = { opacity: 1, scale: 1 }
 
 export function ClearStageButton() {
-    const { clearFinished, jobs, running } = useGeneration()
+    const { clearFinished, jobs } = useGeneration()
     const onCreatePage = useRouterState({ select: (state) => state.location.pathname === '/' })
 
     // The gallery has its own delete, and a run still rendering is not clutter.
-    const available = onCreatePage && jobs.length > running
+    // Templates runs are never finished here: they leave the store as they land.
+    const available =
+        onCreatePage && jobs.some((job) => job.origin === 'create' && job.status === 'done')
 
     useShortcut(CLEAR_STAGE, clearFinished, available)
 

@@ -54,7 +54,8 @@ function OutputControl({ composer }: ControlProps) {
 
     return isImageModel(model) ? (
         <OutputCountStepper
-            max={model.maxOutputs}
+            // The remembered count is stored with a ceiling of four.
+            max={Math.min(model.maxOutputs, 4)}
             onValueChange={setOutputCount}
             value={settings.outputCount}
         />

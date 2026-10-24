@@ -16,7 +16,14 @@ export interface GeneratedOutput {
     readonly mediaType: string
 }
 
+/**
+ * Which page started a run and shows its results. Create's stage shows its own
+ * runs; Templates shows its photos itself, so its runs never reach the stage.
+ */
+export type JobOrigin = 'create' | 'templates'
+
 interface JobBase {
+    readonly origin: JobOrigin
     readonly parentId?: string | undefined
     readonly rootId?: string | undefined
     readonly version?: number | undefined
@@ -60,6 +67,8 @@ export type GenerationJob =
 export type FinishedJob = Extract<GenerationJob, { readonly status: 'done' }>
 
 export interface StartInput {
+    /** Defaults to Create, which is where every run came from before Templates. */
+    readonly origin?: JobOrigin
     readonly parentId?: string
     readonly rootId?: string
     readonly version?: number
@@ -78,6 +87,7 @@ export function newJob(input: StartInput): GenerationJob {
 
     return {
         id: crypto.randomUUID(),
+        origin: input.origin ?? 'create',
         parentId: input.parentId,
         rootId: input.rootId,
         version: input.version,

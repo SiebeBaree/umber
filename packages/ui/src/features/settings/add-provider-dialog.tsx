@@ -16,6 +16,8 @@ export interface AddProviderDialogProps {
     readonly onOpenChange: (open: boolean) => void
     readonly connected: ReadonlySet<KeyProviderId>
     readonly onConnect: (connection: NewConnection) => Promise<void>
+    /** Opens straight on this provider's form, for a page that needs one key in particular. */
+    readonly provider?: KeyProviderId | undefined
 }
 
 export function AddProviderDialog({
@@ -23,16 +25,18 @@ export function AddProviderDialog({
     onConnect,
     onOpenChange,
     open,
+    provider,
 }: AddProviderDialogProps) {
     const [picked, setPicked] = useState<KeyProviderId | null>(null)
 
-    // A fresh open always starts at the picker; resetting on open rather than
-    // on close keeps the panel's content stable during the exit animation.
+    // A fresh open starts at the picker, or at the provider asked for; resetting
+    // on open rather than on close keeps the panel's content stable during the
+    // exit animation.
     useEffect(() => {
         if (open) {
-            setPicked(null)
+            setPicked(provider ?? null)
         }
-    }, [open])
+    }, [open, provider])
 
     const back = useCallback(() => {
         setPicked(null)

@@ -286,3 +286,15 @@ test('a run that makes some of what was asked keeps them and accounts for the re
 
     expect(notices().notifications[0]?.title).toBe('1 of 2 images came out')
 })
+
+test('a run still rendering when Erase all data clears the stage is never saved', async () => {
+    mount()
+    start('a lighthouse')
+    act(() => {
+        api().clear()
+    })
+    await land('a lighthouse', (call) => {
+        call.resolve([png()])
+    })
+    expect(api().completions).toBe(0)
+})

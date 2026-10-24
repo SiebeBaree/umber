@@ -15,7 +15,13 @@ import { serveLocalApi } from '../packages/ui/src/features/local-api/service'
 
 vi.mock('../packages/ui/src/features/generate/engine', () => ({ runGeneration: vi.fn() }))
 
-const effects = { adopt: vi.fn(), settle: vi.fn(), fail: vi.fn(), onPersisted: vi.fn() }
+const effects = {
+    adopt: vi.fn(),
+    settle: vi.fn(),
+    fail: vi.fn(),
+    onPersisted: vi.fn(),
+    wanted: () => true,
+}
 const credentials = vi.fn(() => Promise.resolve({ apiKey: 'private-provider-key' }))
 const keys: KeysApi = {
     ready: true,

@@ -1,6 +1,13 @@
 import { Link, useRouteContext, useRouterState } from '@tanstack/react-router'
 import { UMBER_LOCKUP } from '@umber/brand'
-import { ChartNoAxesCombined, Images, Settings, WandSparkles, type LucideIcon } from 'lucide-react'
+import {
+    ChartNoAxesCombined,
+    Images,
+    LayoutTemplate,
+    Settings,
+    WandSparkles,
+    type LucideIcon,
+} from 'lucide-react'
 
 import { ClearStageButton } from '../../features/create/clear-stage'
 import { useUpdates } from '../../features/updates/updates-context'
@@ -9,7 +16,7 @@ import { SlidingIndicator } from '../ui/sliding-indicator'
 import { Tooltip } from '../ui/tooltip'
 
 interface NavItem {
-    readonly to: '/' | '/gallery'
+    readonly to: '/' | '/gallery' | '/templates'
     readonly label: string
     readonly icon: LucideIcon
 }
@@ -17,6 +24,7 @@ interface NavItem {
 const NAV_ITEMS: readonly NavItem[] = [
     { to: '/', label: 'Create', icon: WandSparkles },
     { to: '/gallery', label: 'Gallery', icon: Images },
+    { to: '/templates', label: 'Templates', icon: LayoutTemplate },
 ]
 
 // The nav pill is shared across a route change, so its id is a constant rather
@@ -29,7 +37,7 @@ const NAV_LINK_CLASSES = cn(
     'data-[status=active]:text-ink',
 )
 
-/** The Create/Gallery switcher, with the pill sliding between the two. */
+/** The page switcher, with the pill sliding between them. */
 function PrimaryNav() {
     const pathname = useRouterState({ select: (state) => state.location.pathname })
 
@@ -93,7 +101,7 @@ function SettingsButton({ updateWaiting }: { readonly updateWaiting: boolean }) 
 }
 
 /**
- * The app header: wordmark on the left, the Create/Gallery switcher floating in
+ * The app header: wordmark on the left, the page switcher floating in
  * the centre, usage and settings on the right. It doubles as the window's drag handle,
  * which is why every control inside it opts out of the drag region.
  *
