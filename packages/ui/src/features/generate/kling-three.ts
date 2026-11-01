@@ -5,10 +5,18 @@ import type { EngineRequest } from './request'
 import { encodeBase64, fetchBinary, poll } from './shared'
 
 /**
- * Kling 3.0 on the API 2.0 surface, split from the legacy module because the
- * wire format changed underneath it: typed `contents`, a `settings` object,
- * and one shared `/tasks` query endpoint instead of per-endpoint polling.
+ * Kling 3.0 and 4.0 on the API 2.0 surface, split from the legacy module
+ * because the wire format changed underneath it: typed `contents`, a
+ * `settings` object, and one shared `/tasks` query endpoint instead of
+ * per-endpoint polling.
  */
+
+const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
+    'kling-4-0': 'kling-4.0',
+    'kling-3-0-turbo': 'kling-3.0-turbo',
+    'kling-3-0-omni': 'kling-3.0-omni',
+    'kling-3-0': 'kling-3.0',
+}
 
 interface KlingV2Task {
     readonly id?: string
@@ -30,13 +38,15 @@ async function klingThreeContents(request: EngineRequest): Promise<Record<string
     if (request.modelId === 'kling-3-0-turbo' && lastFrame !== undefined) {
         throw new GenerationError('Kling 3.0 Turbo does not accept an end frame.')
     }
+    const imageLimit = request.modelId === 'kling-4-0' ? 10 : 7
+
     if (
         request.references.length +
             Number(firstFrame !== undefined) +
             Number(lastFrame !== undefined) >
-        7
+        imageLimit
     ) {
-        throw new GenerationError('Kling accepts up to seven images, including frames.')
+        throw new GenerationError(`Kling accepts up to ${imageLimit} images, including frames.`)
     }
 
     return [
@@ -59,17 +69,19 @@ async function klingThreeContents(request: EngineRequest): Promise<Record<string
 /** Starts the run on the right endpoint for its grounding and returns its id. */
 async function createKlingThreeTask(request: EngineRequest): Promise<string> {
     const grounded = request.firstFrame !== undefined
-    const omni = request.modelId === 'kling-3-0-omni'
-    const turbo = request.modelId === 'kling-3-0-turbo'
-    const model = turbo ? 'kling-3.0-turbo' : 'kling-3.0'
-    const endpoint = omni
-        ? 'omni-video/kling-3.0-omni'
-        : `${grounded ? 'image-to-video' : 'text-to-video'}/${model}`
+    const kling4 = request.modelId === 'kling-4-0'
+    // Kling 4.0 takes reference images only on its Omni endpoint.
+    const omni = request.modelId === 'kling-3-0-omni' || (kling4 && request.references.length > 0)
+    const model = WIRE_MODEL_IDS[request.modelId] ?? 'kling-3.0'
+    const endpoint = `${omni ? 'omni-video' : grounded ? 'image-to-video' : 'text-to-video'}/${model}`
     const contents = await klingThreeContents(request)
 
     const settings = {
         // A composer prompt is one shot; multi-shot is a prompt-format feature.
-        ...(turbo ? {} : { multi_shot: false, audio: 'off' }),
+        // Turbo and 4.0 always render audio and take neither switch.
+        ...(request.modelId === 'kling-3-0-turbo' || kling4
+            ? {}
+            : { multi_shot: false, audio: 'off' }),
         // Kling writes its tiers lowercase, `4k` included.
         resolution: request.resolution.toLowerCase(),
         duration: request.durationSeconds,
@@ -126,10 +138,10 @@ function awaitKlingThreeTask(request: EngineRequest, taskId: string): Promise<Kl
     })
 }
 
-/** One Kling entry point for the engine: 3.0 runs on API 2.0, everything
- * else on the legacy surface, so the split happens here. */
+/** One Kling entry point for the engine: 3.0 and 4.0 run on API 2.0,
+ * everything else on the legacy surface, so the split happens here. */
 export function generateKlingVideo(request: EngineRequest): Promise<Blob[]> {
-    return request.modelId.startsWith('kling-3-0')
+    return Object.hasOwn(WIRE_MODEL_IDS, request.modelId)
         ? generateKlingThreeVideo(request)
         : generateKlingLegacyVideo(request)
 }
@@ -137,7 +149,7 @@ export function generateKlingVideo(request: EngineRequest): Promise<Blob[]> {
 async function generateKlingThreeVideo(request: EngineRequest): Promise<Blob[]> {
     if ((request.credentials['apiKey'] ?? '') === '') {
         throw new GenerationError(
-            'Kling 3.0 needs an API key, not the older key pair. Reconnect Kling in Settings with a key from the developer console.',
+            'Kling 3.0 and 4.0 need an API key, not the older key pair. Reconnect Kling in Settings with a key from the developer console.',
         )
     }
 

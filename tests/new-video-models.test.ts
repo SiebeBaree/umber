@@ -66,6 +66,7 @@ test.each(['wan-3', 'minimax-h3-max'])(
 test.each([
     ['kling-3-0-turbo', 'image-to-video/kling-3.0-turbo'],
     ['kling-3-0-omni', 'omni-video/kling-3.0-omni'],
+    ['kling-4-0', 'image-to-video/kling-4.0'],
 ])('%s creates and retrieves an API 2.0 task', async (modelId, endpoint) => {
     vi.mocked(httpFetch)
         .mockResolvedValueOnce(Response.json({ code: 0, data: { id: 'task' } }))
@@ -84,22 +85,48 @@ test.each([
             { type: 'first_frame', url: btoa('reference') },
         ],
     })
-    if (modelId.endsWith('turbo')) {
+    if (modelId !== 'kling-3-0-omni') {
         expect(create?.[1]?.json).not.toHaveProperty('settings.audio')
         expect(create?.[1]?.json).not.toHaveProperty('settings.multi_shot')
     }
     expect(vi.mocked(httpFetch).mock.calls[1]?.[0]).toContain('/tasks?task_ids=task')
 })
 
-test('Kling Omni enforces the combined seven-image limit', async () => {
+test('Kling 4.0 sends reference images through its Omni endpoint', async () => {
+    vi.mocked(httpFetch)
+        .mockResolvedValueOnce(Response.json({ code: 0, data: { id: 'task' } }))
+        .mockResolvedValueOnce(
+            Response.json({
+                code: 0,
+                data: [{ status: 'succeeded', outputs: [{ type: 'video', url }] }],
+            }),
+        )
+    await runGeneration(
+        modelRequest('kling-4-0', { references: [referenceImage()], durationSeconds: 30 }),
+    )
+    const create = vi.mocked(httpFetch).mock.calls[0]
+    expect(create?.[0]).toBe('https://api-singapore.klingai.com/omni-video/kling-4.0')
+    expect(create?.[1]?.json).toEqual({
+        contents: [
+            { type: 'prompt', text: 'A lighthouse' },
+            { type: 'refer_image', url: btoa('reference') },
+        ],
+        settings: { resolution: '720p', duration: 30, aspect_ratio: '16:9' },
+    })
+})
+
+test.each([
+    ['kling-3-0-omni', 7],
+    ['kling-4-0', 10],
+])('%s enforces its combined image limit', async (modelId, limit) => {
     await expect(
         runGeneration(
-            modelRequest('kling-3-0-omni', {
+            modelRequest(modelId, {
                 firstFrame: referenceImage(),
-                references: Array.from({ length: 7 }, referenceImage),
+                references: Array.from({ length: limit }, referenceImage),
             }),
         ),
-    ).rejects.toThrow('seven images')
+    ).rejects.toThrow(`${limit} images`)
     expect(httpFetch).not.toHaveBeenCalled()
 })
 
