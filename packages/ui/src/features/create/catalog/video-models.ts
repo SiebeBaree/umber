@@ -81,6 +81,21 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         assets: { lastFrame: true, referenceImages: 0, types: COMMON_IMAGE_TYPES },
         pricePerSecond: { '720p': 0.17, '1080p': 0.29 },
     },
+    // Priced without an input video, which Umber never sends. Kling takes ten
+    // images in total, so eight references leave room for both frames.
+    // References route the run through Omni.
+    {
+        id: 'kling-4-0',
+        name: 'Kling 4.0',
+        provider: 'kuaishou',
+        kind: 'video',
+        releasedOn: '2026-10-28',
+        aspectRatios: ['16:9', '9:16', '1:1', '21:9'],
+        resolutions: ['720p', '1080p'],
+        durations: { kind: 'range', min: 3, max: 30, step: 1 },
+        assets: { lastFrame: true, referenceImages: 8, types: ['image/jpeg', 'image/png'] },
+        pricePerSecond: { '720p': 0.157, '1080p': 0.235 },
+    },
     {
         id: 'kling-3-0-turbo',
         name: 'Kling 3.0 Turbo',

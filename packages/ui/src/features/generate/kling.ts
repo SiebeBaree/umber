@@ -7,7 +7,7 @@ import { encodeBase64, fetchBinary, poll, readJson } from './shared'
  * The Kling open platform (international endpoint), spanning two API
  * generations. Legacy models live under `/v1` and answer to either a console
  * API key or a short-lived JWT built from the old access/secret key pair;
- * Kling 3.0 lives on the API 2.0 endpoints, which take the API key only.
+ * Kling 3.0 and 4.0 live on the API 2.0 endpoints, which take the API key only.
  * Everything answers in the same `{code, message, data}` envelope.
  */
 
@@ -239,5 +239,5 @@ export async function generateKlingImages(request: EngineRequest): Promise<Blob[
     return Promise.all(urls.map((url) => fetchBinary('Kling', url, 'image/png')))
 }
 
-/** Shared with the Kling 3.0 module, which speaks API 2.0 with the same key. */
+/** Shared with the Kling 3.0 and 4.0 module, which speaks API 2.0 with the same key. */
 export { DOMAIN as KLING_DOMAIN, headersOf as klingHeadersOf, unwrap as unwrapKling }

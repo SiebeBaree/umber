@@ -206,8 +206,8 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
         ],
         fields: [apiKeyField('Your Kling API key')],
         // Connections made before API 2.0 stored an access/secret key pair;
-        // those keep working for the older models, but Kling 3.0 needs a key.
-        note: 'Kling 3.0 only answers to an API key, not the older access/secret key pair.',
+        // those keep working for the older models, but Kling 3.0 and 4.0 need a key.
+        note: 'Kling 3.0 and 4.0 only answer to an API key, not the older access/secret key pair.',
     },
     {
         id: 'bytedance',

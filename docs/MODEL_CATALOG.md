@@ -26,6 +26,12 @@ Verified against provider documentation on 2026-10-07. This audit updates models
 | Recraft           | Add V4.1 Flash at $0.007 per 1K raster image. It takes no references.                             | [V4.1 Flash](https://www.recraft.ai/docs/api-reference/models/recraft-v4-1-flash), [pricing](https://www.recraft.ai/docs/api-reference/pricing)                                                |
 | ByteDance         | Add Seedance 2.0 Mini, which the October 7 audit missed. It bills by token and shows Cost varies. | [Seedance](https://docs.byteplus.com/en/docs/ModelArk/seedance-2-5), [pricing](https://docs.byteplus.com/en/docs/ModelArk/model-pricing)                                                       |
 
+## 2026-11-01 update
+
+| Provider | Change                                                                                                                                                                                                                       | Source                                                                                                                                                                                                                                                              |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kling    | Add Kling 4.0 with 3 to 30 second clips at 720p or 1080p and 21:9. Runs with only frames go to image-to-video. Runs with reference images go to Omni, ten images in total, frames included. Priced at $0.157/s and $0.235/s. | [API updates](https://kling.ai/document-api/updates/api), [image-to-video](https://kling.ai/document-api/api/video/4-0/image-to-video), [Omni](https://kling.ai/document-api/api/video/4-0/video-omni), [pricing](https://kling.ai/document-api/pricing/base/video) |
+
 ## Integration limits
 
 - Wan 3 video and Wan 2.7 images require a workspace ID alongside the regional API key. Existing Qwen and Wan connections continue using their existing endpoints. Wan Pro 4K is text-to-image only; editing requests above 2K fail before submission.
