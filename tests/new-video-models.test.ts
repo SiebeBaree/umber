@@ -92,6 +92,24 @@ test.each([
     expect(vi.mocked(httpFetch).mock.calls[1]?.[0]).toContain('/tasks?task_ids=task')
 })
 
+test('Kling 4.0 sends a bare prompt to text-to-video', async () => {
+    vi.mocked(httpFetch)
+        .mockResolvedValueOnce(Response.json({ code: 0, data: { id: 'task' } }))
+        .mockResolvedValueOnce(
+            Response.json({
+                code: 0,
+                data: [{ status: 'succeeded', outputs: [{ type: 'video', url }] }],
+            }),
+        )
+    await runGeneration(modelRequest('kling-4-0'))
+    const create = vi.mocked(httpFetch).mock.calls[0]
+    expect(create?.[0]).toBe('https://api-singapore.klingai.com/text-to-video/kling-4.0')
+    expect(create?.[1]?.json).toEqual({
+        prompt: 'A lighthouse',
+        settings: { resolution: '720p', duration: 8, aspect_ratio: '16:9' },
+    })
+})
+
 test('Kling 4.0 sends reference images through its Omni endpoint', async () => {
     vi.mocked(httpFetch)
         .mockResolvedValueOnce(Response.json({ code: 0, data: { id: 'task' } }))
