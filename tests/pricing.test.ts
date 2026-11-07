@@ -209,6 +209,16 @@ test.each(['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'])(
                 tokens: { low: 823, medium: 1449, high: 1756, xhigh: 3122, max: 7024 },
             },
             {
+                resolution: '2K',
+                aspectRatio: '1:1',
+                tokens: { low: 1667, medium: 2944, high: 3568, xhigh: 6343, max: 14272 },
+            },
+            {
+                resolution: '2K',
+                aspectRatio: '21:9',
+                tokens: { low: 735, medium: 1231, high: 1567, xhigh: 2685, max: 6116 },
+            },
+            {
                 resolution: '4K',
                 aspectRatio: '9:16',
                 tokens: { low: 1558, medium: 2855, high: 3336, xhigh: 5930, max: 13342 },
