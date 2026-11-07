@@ -5,11 +5,11 @@ import {
     fluxTwoMaxPrice,
     fluxTwoPrice,
     gptImagePrice,
-    gptImage25Price,
+    gptImageFlarePrice,
     qwenImageThreeProPrice,
     seedreamFiveProPrice,
 } from './price-rules'
-import type { ImageModel, ImageReferenceRule } from './types'
+import type { ImageModel, ImageQuality, ImageReferenceRule } from './types'
 
 /** What nearly every vendor documents: JPEG, PNG and WebP. */
 const COMMON_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
@@ -19,6 +19,42 @@ const GOOGLE_IMAGE_TYPES = [...COMMON_IMAGE_TYPES, 'image/heic', 'image/heif'] a
 
 /** For models whose generation endpoint takes no image input at all. */
 const NO_REFERENCES: ImageReferenceRule = { max: 0, types: [] }
+
+/**
+ * GPT Image 2.5 and 2.6 come as Flare and Sunburst, which share every
+ * capability and the same price rule within a version.
+ */
+function gptImageFlareModel(
+    version: '2.5' | '2.6',
+    variant: 'Flare' | 'Sunburst',
+    releasedOn: string,
+): ImageModel {
+    const price = (quality: Exclude<ImageQuality, 'auto'>) => gptImageFlarePrice(version, quality)
+
+    return {
+        id: `gpt-image-${version}-${variant.toLowerCase()}`,
+        name: `GPT Image ${version} ${variant}`,
+        provider: 'openai',
+        kind: 'image',
+        releasedOn,
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        resolutions: ['1K', '2K', '4K'],
+        maxOutputs: 4,
+        references: { max: 16, types: COMMON_IMAGE_TYPES },
+        // Auto quality depends on the generated image, so it has no fixed estimate.
+        pricePerImage: null,
+        quality: {
+            options: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
+            pricePerImage: {
+                low: price('low'),
+                medium: price('medium'),
+                high: price('high'),
+                xhigh: price('xhigh'),
+                max: price('max'),
+            },
+        },
+    }
+}
 
 /**
  * The image models Umber can drive.
@@ -92,52 +128,10 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         references: { max: 3, types: GOOGLE_IMAGE_TYPES },
         pricePerImage: 0.039,
     },
-    {
-        id: 'gpt-image-2.5-flare',
-        name: 'GPT Image 2.5 Flare',
-        provider: 'openai',
-        kind: 'image',
-        releasedOn: '2026-09-08',
-        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
-        resolutions: ['1K', '2K', '4K'],
-        maxOutputs: 4,
-        references: { max: 16, types: COMMON_IMAGE_TYPES },
-        // Auto quality depends on the generated image, so it has no fixed estimate.
-        pricePerImage: null,
-        quality: {
-            options: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
-            pricePerImage: {
-                low: gptImage25Price('low'),
-                medium: gptImage25Price('medium'),
-                high: gptImage25Price('high'),
-                xhigh: gptImage25Price('xhigh'),
-                max: gptImage25Price('max'),
-            },
-        },
-    },
-    {
-        id: 'gpt-image-2.5-sunburst',
-        name: 'GPT Image 2.5 Sunburst',
-        provider: 'openai',
-        kind: 'image',
-        releasedOn: '2026-09-08',
-        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
-        resolutions: ['1K', '2K', '4K'],
-        maxOutputs: 4,
-        references: { max: 16, types: COMMON_IMAGE_TYPES },
-        // Auto quality depends on the generated image, so it has no fixed estimate.
-        pricePerImage: null,
-        quality: {
-            options: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
-            pricePerImage: {
-                low: gptImage25Price('low'),
-                medium: gptImage25Price('medium'),
-                high: gptImage25Price('high'),
-                xhigh: gptImage25Price('xhigh'),
-                max: gptImage25Price('max'),
-            },
-        },
-    },
+    gptImageFlareModel('2.6', 'Flare', '2026-11-04'),
+    gptImageFlareModel('2.6', 'Sunburst', '2026-11-04'),
+    gptImageFlareModel('2.5', 'Flare', '2026-09-08'),
+    gptImageFlareModel('2.5', 'Sunburst', '2026-09-08'),
     {
         id: 'gpt-image-2',
         name: 'GPT Image 2',

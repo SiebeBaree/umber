@@ -67,6 +67,7 @@ test.each([
     ['kling-3-0-turbo', 'image-to-video/kling-3.0-turbo'],
     ['kling-3-0-omni', 'omni-video/kling-3.0-omni'],
     ['kling-4-0', 'image-to-video/kling-4.0'],
+    ['kling-4-0-flash', 'image-to-video/kling-4.0-flash'],
 ])('%s creates and retrieves an API 2.0 task', async (modelId, endpoint) => {
     vi.mocked(httpFetch)
         .mockResolvedValueOnce(Response.json({ code: 0, data: { id: 'task' } }))
@@ -110,7 +111,10 @@ test('Kling 4.0 sends a bare prompt to text-to-video', async () => {
     })
 })
 
-test('Kling 4.0 sends reference images through its Omni endpoint', async () => {
+test.each([
+    ['kling-4-0', 'kling-4.0'],
+    ['kling-4-0-flash', 'kling-4.0-flash'],
+])('%s sends reference images through its Omni endpoint', async (modelId, wireId) => {
     vi.mocked(httpFetch)
         .mockResolvedValueOnce(Response.json({ code: 0, data: { id: 'task' } }))
         .mockResolvedValueOnce(
@@ -120,22 +124,35 @@ test('Kling 4.0 sends reference images through its Omni endpoint', async () => {
             }),
         )
     await runGeneration(
-        modelRequest('kling-4-0', { references: [referenceImage()], durationSeconds: 30 }),
+        modelRequest(modelId, { references: [referenceImage()], durationSeconds: 20 }),
     )
     const create = vi.mocked(httpFetch).mock.calls[0]
-    expect(create?.[0]).toBe('https://api-singapore.klingai.com/omni-video/kling-4.0')
+    expect(create?.[0]).toBe(`https://api-singapore.klingai.com/omni-video/${wireId}`)
     expect(create?.[1]?.json).toEqual({
         contents: [
             { type: 'prompt', text: 'A lighthouse' },
             { type: 'refer_image', url: btoa('reference') },
         ],
-        settings: { resolution: '720p', duration: 30, aspect_ratio: '16:9' },
+        settings: { resolution: '720p', duration: 20, aspect_ratio: '16:9' },
     })
+})
+
+test('Kling 4.0 Flash rejects an end frame before sending a request', async () => {
+    await expect(
+        runGeneration(
+            modelRequest('kling-4-0-flash', {
+                firstFrame: referenceImage(),
+                lastFrame: referenceImage(),
+            }),
+        ),
+    ).rejects.toThrow('does not accept an end frame')
+    expect(httpFetch).not.toHaveBeenCalled()
 })
 
 test.each([
     ['kling-3-0-omni', 7],
     ['kling-4-0', 10],
+    ['kling-4-0-flash', 10],
 ])('%s enforces its combined image limit', async (modelId, limit) => {
     await expect(
         runGeneration(
@@ -168,7 +185,7 @@ test('Veo Lite uses its own model and operation response', async () => {
     })
 })
 
-test('Omni 1.1 assigns independent reference tags and lets the model choose duration', async () => {
+test('Omni 1.2 names image roles in the prompt and sends the clip length', async () => {
     vi.mocked(httpFetch).mockResolvedValueOnce(
         Response.json({ steps: [{ content: [{ type: 'video', uri: url }] }] }),
     )
@@ -176,24 +193,22 @@ test('Omni 1.1 assigns independent reference tags and lets the model choose dura
         modelRequest('gemini-omni-flash', {
             resolution: '4K',
             firstFrame: referenceImage(),
-            references: [referenceImage()],
+            references: [referenceImage(), referenceImage()],
         }),
     )
     expect(vi.mocked(httpFetch).mock.calls[0]?.[1]?.json).toMatchObject({
-        model: 'gemini-omni-1.1-flash',
-        response_format: { type: 'video', resolution: '4k', delivery: 'uri' },
+        model: 'gemini-omni-1.2-flash',
+        response_format: { type: 'video', resolution: '4k', duration: '8s', delivery: 'uri' },
         input: [
+            { type: 'image' },
             { type: 'image' },
             { type: 'image' },
             {
                 type: 'text',
-                text: expect.stringContaining(
-                    '[# Sources <FIRST_FRAME>@Image1] [# References <IMAGE_REF_0>@Image2]',
-                ),
+                text: 'A lighthouse\n\nUse image 1 as the first frame. Use images 2 to 3 as references.',
             },
         ],
     })
-    expect(vi.mocked(httpFetch).mock.calls[0]?.[1]?.json).not.toHaveProperty('duration')
 })
 
 test.each([

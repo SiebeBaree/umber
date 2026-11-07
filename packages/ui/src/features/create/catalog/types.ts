@@ -114,13 +114,11 @@ export function priceAt(price: Price, context: PriceContext, cheapest: string): 
  * lengths, others any whole second inside a range, so both are expressible.
  */
 export type DurationRule =
-    | { readonly kind: 'automatic'; readonly typicalSeconds: number }
     | { readonly kind: 'list'; readonly seconds: readonly [number, ...number[]] }
     | { readonly kind: 'range'; readonly min: number; readonly max: number; readonly step: number }
 
 /** Every allowed length, ascending — the single way callers read a rule. */
 export function durationOptions(rule: DurationRule): readonly number[] {
-    if (rule.kind === 'automatic') return [rule.typicalSeconds]
     if (rule.kind === 'list') {
         return rule.seconds
     }

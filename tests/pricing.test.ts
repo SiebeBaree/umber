@@ -196,3 +196,31 @@ test.each(['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst'])(
         ).toBeCloseTo(0.02595, 8)
     },
 )
+
+// 2.6 bills more tokens at low and medium quality than 2.5 at the same size.
+test.each(['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'])(
+    '%s matches the official calculator at every explicit quality',
+    (id) => {
+        const model = image(id)
+        const fixtures = [
+            {
+                resolution: '1K',
+                aspectRatio: '1:1',
+                tokens: { low: 823, medium: 1449, high: 1756, xhigh: 3122, max: 7024 },
+            },
+            {
+                resolution: '4K',
+                aspectRatio: '9:16',
+                tokens: { low: 1558, medium: 2855, high: 3336, xhigh: 5930, max: 13342 },
+            },
+        ]
+        for (const { resolution, aspectRatio, tokens } of fixtures) {
+            for (const [quality, count] of Object.entries(tokens)) {
+                expect(costOf(model, { resolution, aspectRatio, quality })).toBeCloseTo(
+                    (count * 30) / 1e6,
+                    8,
+                )
+            }
+        }
+    },
+)

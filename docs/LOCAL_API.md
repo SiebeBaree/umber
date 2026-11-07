@@ -102,12 +102,12 @@ Both video POST endpoints accept the same JSON:
 | `prompt`          | string | Required, nonblank, at most 32,000 characters                                |
 | `aspectRatio`     | string | Optional, a listed ratio such as `16:9`                                      |
 | `resolution`      | string | Optional, a listed resolution such as `720p`                                 |
-| `durationSeconds` | number | Optional, one of the model's `durations`; omit it when that list is empty    |
+| `durationSeconds` | number | Optional, one of the model's `durations`                                     |
 | `firstFrame`      | object | Optional still the clip starts from, in the reference format above           |
 | `lastFrame`       | object | Optional still the clip ends on; needs `firstFrame` and `lastFrame: true`    |
 | `references`      | array  | Optional, defaults to `[]`; respect the model's `references.max` and `types` |
 
-Each video entry in `/v1/models` includes `id`, `name`, `providerId`, `kind`, `connected`, `aspectRatios`, `resolutions`, `durations`, `lastFrame`, `references` and `defaults`. An empty `durations` list means the model picks its own clip length and has no fixed price. Some providers accept frames or references but not both; such a request fails with 502 before anything is charged.
+Each video entry in `/v1/models` includes `id`, `name`, `providerId`, `kind`, `connected`, `aspectRatios`, `resolutions`, `durations`, `lastFrame`, `references` and `defaults`. Some providers accept frames or references but not both; such a request fails with 502 before anything is charged.
 
 ## Generate and retrieve
 

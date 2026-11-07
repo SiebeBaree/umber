@@ -45,11 +45,9 @@ const model =
     IMAGE_MODELS.find((candidate) => candidate.id === 'gpt-image-2.5-flare') ?? IMAGE_MODELS[0]
 if (model === undefined) throw new Error('No image model in catalog')
 const request = { model: model.id, prompt: 'A blue vase', count: 2 }
-/** A video model with fixed durations and an end frame, so every video control applies. */
-const videoModel = VIDEO_MODELS.find(
-    (candidate) => candidate.durations.kind !== 'automatic' && candidate.assets.lastFrame,
-)
-if (videoModel === undefined) throw new Error('No video model with fixed durations')
+/** A video model with an end frame, so every video control applies. */
+const videoModel = VIDEO_MODELS.find((candidate) => candidate.assets.lastFrame)
+if (videoModel === undefined) throw new Error('No video model with an end frame')
 const videoRequest = { model: videoModel.id, prompt: 'A vase turning slowly' }
 const frame = { mediaType: 'image/png', base64: 'aW1hZ2U=' }
 
@@ -210,14 +208,6 @@ test.each([
         status: 400,
     })
     expect(runGeneration).not.toHaveBeenCalled()
-})
-
-test('a model that picks its own clip length refuses durationSeconds', () => {
-    const automatic = VIDEO_MODELS.find((candidate) => candidate.durations.kind === 'automatic')
-    if (automatic === undefined) return
-    expect(() =>
-        parseVideoRequest({ model: automatic.id, prompt: 'A clip', durationSeconds: 8 }),
-    ).toThrow('picks its own clip length')
 })
 
 test('video frames map to the composer slots and clips download from the video routes', async () => {

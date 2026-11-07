@@ -46,7 +46,6 @@ function imageModels(keys: KeysApi) {
 function videoModels(keys: KeysApi) {
     return VIDEO_MODELS.map((model) => {
         const settings = defaultSettings(model)
-        const automatic = model.durations.kind === 'automatic'
         return {
             id: model.id,
             name: model.name,
@@ -55,14 +54,13 @@ function videoModels(keys: KeysApi) {
             connected: keys.connectedProviders.has(model.provider),
             aspectRatios: model.aspectRatios,
             resolutions: model.resolutions,
-            // Empty when the model picks its own clip length.
-            durations: automatic ? [] : durationOptions(model.durations),
+            durations: durationOptions(model.durations),
             lastFrame: model.assets.lastFrame,
             references: { max: model.assets.referenceImages, types: model.assets.types },
             defaults: {
                 aspectRatio: settings.aspectRatio,
                 resolution: settings.resolution,
-                durationSeconds: automatic ? null : settings.durationSeconds,
+                durationSeconds: settings.durationSeconds,
             },
         }
     })
