@@ -200,12 +200,6 @@ function videoSettings(request: z.output<typeof videoRequestSchema>, model: Vide
         throw new ApiError(400, 'invalid_aspect_ratio', 'Use an aspect ratio from GET /v1/models.')
     shared(request, model, settings)
     if (request.durationSeconds !== undefined) {
-        if (model.durations.kind === 'automatic')
-            throw new ApiError(
-                400,
-                'invalid_duration',
-                `${model.name} picks its own clip length. Omit durationSeconds.`,
-            )
         if (!durationOptions(model.durations).includes(request.durationSeconds))
             throw new ApiError(400, 'invalid_duration', 'Use a duration from GET /v1/models.')
         settings.durationSeconds = request.durationSeconds

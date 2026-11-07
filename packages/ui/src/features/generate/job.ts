@@ -108,10 +108,7 @@ export function newJob(input: StartInput): GenerationJob {
         quality: image && input.model.quality !== undefined ? input.settings.quality : '',
         // Video runs render one clip; the count stepper is an image control.
         count: image ? input.settings.outputCount : 1,
-        durationSeconds:
-            image || input.model.durations.kind === 'automatic'
-                ? 0
-                : input.settings.durationSeconds,
+        durationSeconds: image ? 0 : input.settings.durationSeconds,
         startedAt: Date.now(),
         status: 'running',
     }

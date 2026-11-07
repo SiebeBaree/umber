@@ -9,7 +9,6 @@ import {
     defaultModeSettings,
     reconcileToModel,
 } from '../packages/ui/src/features/create/settings/reconcile'
-import { newJob } from '../packages/ui/src/features/generate/job'
 
 function model(mode: 'image' | 'video', id: string): Model {
     const found = findModel(mode, id)
@@ -151,12 +150,4 @@ test('the estimate follows the settings that drive cost', () => {
 
     expect(two).toBeCloseTo(one * 2)
     expect(higher).toBeGreaterThan(one)
-})
-
-test('automatic video duration is not recorded as a measured clip length', () => {
-    const omni = model('video', 'gemini-omni-flash')
-    const settings = reconcileToModel(defaultModeSettings('video'), omni)
-    const job = newJob({ model: omni, settings, prompt: 'A lighthouse', references: [] })
-    expect(job.durationSeconds).toBe(0)
-    expect(job.estimatedCost).toBeNull()
 })

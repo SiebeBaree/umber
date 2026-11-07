@@ -20,7 +20,12 @@ beforeEach(() => {
     )
 })
 
-const MODEL_IDS = ['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst'] as const
+const MODEL_IDS = [
+    'gpt-image-2.6-flare',
+    'gpt-image-2.6-sunburst',
+    'gpt-image-2.5-flare',
+    'gpt-image-2.5-sunburst',
+] as const
 
 function request(modelId: string, quality: string): EngineRequest {
     return {

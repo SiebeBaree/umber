@@ -17,19 +17,19 @@ const BOTH_FRAMES: VideoAssetRule = {
  * which for video it almost always does.
  */
 export const VIDEO_MODELS: readonly VideoModel[] = [
-    // Omni chooses its own clip length. The duration here is a typical clip;
-    // token billing and model-chosen duration prevent a fixed cost estimate.
+    // Omni bills output tokens at $12 per million; Google publishes the tokens
+    // each second costs per resolution, which gives these rates.
     {
         id: 'gemini-omni-flash',
-        name: 'Gemini Omni Flash 1.1',
+        name: 'Gemini Omni Flash 1.2',
         provider: 'google',
         kind: 'video',
-        releasedOn: '2026-08-27',
+        releasedOn: '2026-11-05',
         aspectRatios: ['16:9', '9:16'],
         resolutions: ['720p', '1080p', '4K'],
-        durations: { kind: 'automatic', typicalSeconds: 8 },
+        durations: { kind: 'range', min: 3, max: 15, step: 1 },
         assets: { lastFrame: false, referenceImages: 6, types: COMMON_IMAGE_TYPES },
-        pricePerSecond: null,
+        pricePerSecond: { '720p': 0.069504, '1080p': 0.104256, '4K': 0.208512 },
     },
     {
         id: 'veo-3-1-lite',
@@ -95,6 +95,20 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         durations: { kind: 'range', min: 3, max: 30, step: 1 },
         assets: { lastFrame: true, referenceImages: 8, types: ['image/jpeg', 'image/png'] },
         pricePerSecond: { '720p': 0.157, '1080p': 0.235 },
+    },
+    // 720p only and no end frame. Ten images in total, so nine references
+    // leave room for the first frame. References route the run through Omni.
+    {
+        id: 'kling-4-0-flash',
+        name: 'Kling 4.0 Flash',
+        provider: 'kuaishou',
+        kind: 'video',
+        releasedOn: '2026-11-04',
+        aspectRatios: ['16:9', '9:16', '1:1', '21:9'],
+        resolutions: ['720p'],
+        durations: { kind: 'range', min: 3, max: 20, step: 1 },
+        assets: { lastFrame: false, referenceImages: 9, types: ['image/jpeg', 'image/png'] },
+        pricePerSecond: 0.094,
     },
     {
         id: 'kling-3-0-turbo',

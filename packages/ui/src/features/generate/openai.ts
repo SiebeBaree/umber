@@ -28,11 +28,8 @@ const FIXED_SIZES: Readonly<Partial<Record<AspectRatio, string>>> = {
 }
 
 function sizeFor(modelId: string, ratio: AspectRatio, resolution: string): string {
-    if (
-        modelId === 'gpt-image-2' ||
-        modelId === 'gpt-image-2.5-flare' ||
-        modelId === 'gpt-image-2.5-sunburst'
-    ) {
+    // GPT Image 2 and its 2.5 and 2.6 successors take free-form sizes.
+    if (modelId.startsWith('gpt-image-2')) {
         const { height, width } = pixelSize(ratio, resolution, GPT_IMAGE_2_SIZE)
 
         return `${width}x${height}`

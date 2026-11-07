@@ -9,12 +9,11 @@ import { encodeBase64, fetchBinary, poll, readJson } from './shared'
  * lifecycle: one synchronous `interactions` call renders the whole clip, and
  * only the finished file may need a short poll before it can be downloaded.
  *
- * The model reads stills through prompt tags — `<FIRST_FRAME>` marks the
- * opening frame and `<IMAGE_REF_N>` the Nth attached image — and it picks the
- * clip length itself; there is no duration parameter to send.
+ * Google deprecated the old `<FIRST_FRAME>` and `<IMAGE_REF_N>` prompt tags,
+ * so the prompt names each attached image's role in plain words instead.
  */
 
-const OMNI_WIRE_MODEL_ID = 'gemini-omni-1.1-flash'
+const OMNI_WIRE_MODEL_ID = 'gemini-omni-1.2-flash'
 
 interface InteractionContent {
     readonly type?: string
@@ -34,7 +33,21 @@ interface OmniFile {
     readonly error?: { readonly message?: string }
 }
 
-/** The input array: every still inline, then the prompt with its tags. */
+/** Which image is which, in the plain words Omni reads instead of tags. */
+function imageRoles(firstFrame: boolean, references: number): string {
+    const first = firstFrame ? 2 : 1
+    const last = first + references - 1
+
+    return [
+        firstFrame ? 'Use image 1 as the first frame.' : '',
+        references === 1 ? `Use image ${first} as a reference.` : '',
+        references > 1 ? `Use images ${first} to ${last} as references.` : '',
+    ]
+        .filter((sentence) => sentence !== '')
+        .join(' ')
+}
+
+/** The input array: every still inline, then the prompt with their roles. */
 async function omniInput(request: EngineRequest): Promise<unknown> {
     const { firstFrame } = request
     const references = request.references.slice(0, 6)
@@ -52,17 +65,9 @@ async function omniInput(request: EngineRequest): Promise<unknown> {
         })),
     )
 
-    const offset = firstFrame === undefined ? 1 : 2
-    const tags = [
-        ...(firstFrame === undefined ? [] : ['[# Sources <FIRST_FRAME>@Image1]']),
-        ...(references.length === 0
-            ? []
-            : [
-                  `[# References ${references.map((_, index) => `<IMAGE_REF_${index}>@Image${index + offset}`).join(' ')}]`,
-              ]),
-    ]
+    const roles = imageRoles(firstFrame !== undefined, references.length)
 
-    return [...images, { type: 'text', text: `${request.prompt}\n${tags.join(' ')}` }]
+    return [...images, { type: 'text', text: `${request.prompt}\n\n${roles}` }]
 }
 
 /** The finished clip's part, wherever the interaction put it. */
@@ -128,6 +133,7 @@ async function startOmniInteraction(request: EngineRequest): Promise<Interaction
                     type: 'video',
                     aspect_ratio: request.ratio,
                     resolution: request.resolution.toLowerCase(),
+                    duration: `${request.durationSeconds}s`,
                     delivery: 'uri',
                 },
             },

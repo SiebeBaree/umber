@@ -12,6 +12,7 @@ import { encodeBase64, fetchBinary, poll } from './shared'
  */
 
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
+    'kling-4-0-flash': 'kling-4.0-flash',
     'kling-4-0': 'kling-4.0',
     'kling-3-0-turbo': 'kling-3.0-turbo',
     'kling-3-0-omni': 'kling-3.0-omni',
@@ -23,6 +24,11 @@ interface KlingV2Task {
     readonly status?: string
     readonly message?: string
     readonly outputs?: readonly { readonly type?: string; readonly url?: string }[]
+}
+
+/** Kling 4.0 and 4.0 Flash: ten images, references only through Omni, audio always on. */
+function isKlingFour(modelId: string): boolean {
+    return modelId === 'kling-4-0' || modelId === 'kling-4-0-flash'
 }
 
 /** The stills for a grounded run, in the typed `contents` shape. */
@@ -38,7 +44,11 @@ async function klingThreeContents(request: EngineRequest): Promise<Record<string
     if (request.modelId === 'kling-3-0-turbo' && lastFrame !== undefined) {
         throw new GenerationError('Kling 3.0 Turbo does not accept an end frame.')
     }
-    const imageLimit = request.modelId === 'kling-4-0' ? 10 : 7
+
+    if (request.modelId === 'kling-4-0-flash' && lastFrame !== undefined) {
+        throw new GenerationError('Kling 4.0 Flash does not accept an end frame.')
+    }
+    const imageLimit = isKlingFour(request.modelId) ? 10 : 7
 
     if (
         request.references.length +
@@ -69,7 +79,7 @@ async function klingThreeContents(request: EngineRequest): Promise<Record<string
 /** Starts the run on the right endpoint for its grounding and returns its id. */
 async function createKlingThreeTask(request: EngineRequest): Promise<string> {
     const grounded = request.firstFrame !== undefined
-    const kling4 = request.modelId === 'kling-4-0'
+    const kling4 = isKlingFour(request.modelId)
     // Kling 4.0 takes reference images only on its Omni endpoint.
     const omni = request.modelId === 'kling-3-0-omni' || (kling4 && request.references.length > 0)
     const model = WIRE_MODEL_IDS[request.modelId] ?? 'kling-3.0'

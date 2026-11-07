@@ -73,12 +73,16 @@ export function gptImagePrice(modelId: string, quality: LegacyImageQuality) {
 
 const GPT_IMAGE_25_BASE = { low: 16, medium: 24, high: 48, xhigh: 64, max: 96 } as const
 
+/** 2.6 scales the 2.5 token count per quality, rounded to a whole token. */
+const GPT_IMAGE_26_SCALE = { low: 4.2, medium: 3.3, high: 1, xhigh: 1, max: 1 } as const
+
 /**
- * OpenAI's calculator for both 2.5 models, including round-half-to-even.
- * Estimates output only; prompt and reference-image tokens are billed separately.
+ * OpenAI's calculator for the 2.5 and 2.6 Flare and Sunburst models, including
+ * round-half-to-even. Estimates output only; prompt and reference-image tokens
+ * are billed separately.
  * https://developers.openai.com/api/docs/guides/image-generation#cost-and-latency
  */
-export function gptImage25Price(quality: Exclude<ImageQuality, 'auto'>) {
+export function gptImageFlarePrice(version: '2.5' | '2.6', quality: Exclude<ImageQuality, 'auto'>) {
     return (context: PriceContext): number => {
         const { width, height } = pixelSize(context.ratio, context.resolution, GPT_IMAGE_2_SIZE)
         const base = GPT_IMAGE_25_BASE[quality]
@@ -86,8 +90,9 @@ export function gptImage25Price(quality: Exclude<ImageQuality, 'auto'>) {
         const floor = Math.floor(scaled)
         const across = scaled - floor === 0.5 ? floor + (floor % 2) : Math.round(scaled)
         const tokens = Math.ceil((base * across * (2e6 + width * height)) / 4e6)
+        const billed = version === '2.6' ? Math.round(tokens * GPT_IMAGE_26_SCALE[quality]) : tokens
 
-        return (tokens * 30) / 1e6
+        return (billed * 30) / 1e6
     }
 }
 
