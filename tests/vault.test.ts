@@ -10,7 +10,7 @@ const { fs, app, safeStorage, ipcMain } = await vi.hoisted(() => {
     const fsMock = {
         mkdir: vi.fn<() => Promise<void>>(),
         readFile: vi.fn<() => Promise<string>>(),
-        writeFile: vi.fn<() => Promise<void>>(),
+        writeFile: vi.fn<(path: string, data: string, options?: object) => Promise<void>>(),
         rename: vi.fn<() => Promise<void>>(),
         chmod: vi.fn<() => Promise<void>>(),
     }
@@ -61,16 +61,16 @@ test('the saved entry and its credentials land on disk owner-only', async () => 
     expect(connection.providerId).toBe('openai')
 
     expect(fs.writeFile).toHaveBeenCalledTimes(1)
-    const [temporary, , options] = vi.mocked(fs.writeFile).mock.calls[0]
+    const [temporary, , options] = vi.mocked(fs.writeFile).mock.calls[0] ?? []
     expect(temporary).toBe('/fake/userData/vault.json.tmp')
     expect(options).toMatchObject({ mode: 0o600 })
 
     // Older vaults keep their old mode until the next save tightens them.
     expect(fs.chmod).toHaveBeenCalledWith('/fake/userData/vault.json', 0o600)
     // And the tightening happens after the temp file is in place.
-    expect(fs.chmod.mock.invocationCallOrder[0]).toBeGreaterThan(
-        vi.mocked(fs.rename).mock.invocationCallOrder[0],
-    )
+    const [renameOrder] = vi.mocked(fs.rename).mock.invocationCallOrder
+    const [chmodOrder] = vi.mocked(fs.chmod).mock.invocationCallOrder
+    expect(chmodOrder).toBeGreaterThan(renameOrder ?? 0)
 })
 
 test('saving null credentials is rejected and writes nothing', async () => {
