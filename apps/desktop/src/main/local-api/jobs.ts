@@ -122,10 +122,7 @@ export class ApiJobs {
         const cost = estimatedTotal(estimate)
         const release = this.options.ledger.reserve(this.options.limits(), cost)
         // Evict on demand, never by a background interval.
-        while (this.jobs.size >= 32) {
-            const oldest = this.jobs.keys().next().value
-            if (oldest !== undefined) this.jobs.delete(oldest)
-        }
+        this.evictOverflow()
         const job: Job = {
             id: randomUUID(),
             key,
@@ -138,6 +135,21 @@ export class ApiJobs {
         this.active.add(kind)
         void this.run(job, body, cost, release)
         return { status: 202, body: this.describe(job) }
+    }
+
+    /**
+     * Keeps the map at its 32-job cap by dropping the oldest settled jobs.
+     * Running jobs are never evicted: admission allows at most one active
+     * generation per kind (two kinds), so with 32 slots a settled job always
+     * exists to make room. If that invariant were ever violated, the loop
+     * gives up rather than spin with nothing left to delete.
+     */
+    private evictOverflow(): void {
+        while (this.jobs.size >= 32) {
+            const oldestSettled = [...this.jobs.values()].find((job) => job.status !== 'running')
+            if (oldestSettled === undefined) break
+            this.jobs.delete(oldestSettled.id)
+        }
     }
 
     private describe(job: Job) {
