@@ -122,7 +122,7 @@ async function handleList(): Promise<readonly VaultConnectionDto[]> {
 async function handleSave(entry: VaultSaveDto): Promise<VaultConnectionDto> {
     const providerId = cleanId(entry?.providerId)
 
-    if (providerId === '' || typeof entry.credentials !== 'object') {
+    if (providerId === '' || entry.credentials === null || typeof entry.credentials !== 'object') {
         throw new Error('Malformed vault entry')
     }
 
