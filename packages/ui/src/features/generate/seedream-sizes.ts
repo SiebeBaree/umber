@@ -70,13 +70,23 @@ const SEEDREAM_5_SIZES: Readonly<Record<string, Readonly<Partial<Record<AspectRa
 /** Catalog ids on the Seedream 5.0 grid rather than the 4.x one. */
 const SEEDREAM_5_MODELS = new Set(['seedream-5-pro', 'seedream-5-lite', 'seedream-5-flash'])
 
+/** Tiers from most to least pixels. */
+const TIER_ORDER = ['4K', '2K', '1K']
+
 export function seedreamSize(modelId: string, ratio: AspectRatio, resolution: string): string {
     // Lite's 4K tier falls back to the 4.x table, which 5.0 never re-mapped.
     const tables = SEEDREAM_5_MODELS.has(modelId)
         ? { ...SEEDREAM_4_SIZES, ...SEEDREAM_5_SIZES }
         : SEEDREAM_4_SIZES
 
-    const tier = tables[resolution] ?? tables['2K'] ?? {}
+    // The requested tier first, then tiers down from it: an unmapped
+    // tier/ratio pair degrades to the nearest grid that does map the ratio
+    // instead of silently answering a wide request with a square.
+    const tiers = [resolution, ...TIER_ORDER.filter((tier) => tier !== resolution)]
+    for (const tier of tiers) {
+        const size = tables[tier]?.[ratio]
+        if (size) return size
+    }
 
-    return tier[ratio] ?? '2048x2048'
+    return '2048x2048'
 }
