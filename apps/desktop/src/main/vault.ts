@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import { app, ipcMain, safeStorage } from 'electron'
@@ -32,6 +32,9 @@ interface VaultFile {
 
 const EMPTY: VaultFile = { version: 1, entries: {} }
 
+/** Owner-only, like every other credential holder on disk. */
+const VAULT_MODE = 0o600
+
 function vaultPath(): string {
     return join(app.getPath('userData'), 'vault.json')
 }
@@ -54,8 +57,14 @@ async function writeVault(file: VaultFile): Promise<void> {
 
     // Write-then-rename, so a crash mid-write can't torch every stored key.
     const temporary = `${path}.tmp`
-    await writeFile(temporary, JSON.stringify(file, null, 2), 'utf8')
+    await writeFile(temporary, JSON.stringify(file, null, 2), {
+        encoding: 'utf8',
+        mode: VAULT_MODE,
+    })
     await rename(temporary, path)
+
+    // Vaults written by older builds keep their old mode until rewritten.
+    await chmod(path, VAULT_MODE)
 }
 
 function encrypt(
