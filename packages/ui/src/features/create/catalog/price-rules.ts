@@ -167,3 +167,22 @@ export function fluxKleinPrice(variant: '4b' | '9b') {
         return variant === '4b' ? 0.014 + 0.001 * additional : 0.015 + 0.002 * additional
     }
 }
+
+type ImageTier = '1K' | '2K' | '4K'
+
+/**
+ * MiniMax H3 Image edits. MiniMax publishes what an edit costs with one and
+ * with three 1K references per output tier; each reference past the first
+ * adds half the gap between them.
+ */
+export function minimaxH3EditPrice(
+    oneReference: Readonly<Record<ImageTier, number>>,
+    threeReferences: Readonly<Record<ImageTier, number>>,
+) {
+    return (context: PriceContext): number => {
+        const tier = context.resolution in oneReference ? (context.resolution as ImageTier) : '1K'
+        const perExtra = (threeReferences[tier] - oneReference[tier]) / 2
+
+        return oneReference[tier] + perExtra * Math.max(0, context.references - 1)
+    }
+}

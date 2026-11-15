@@ -24,6 +24,7 @@ const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'seedream-5-lite': 'seedream-5-0-lite-260128',
     'seedream-4-5': 'seedream-4-5-251128',
     'seedream-4': 'seedream-4-0-250828',
+    'seedance-2-5-flash': 'dreamina-seedance-2-5-flash-261115',
     'seedance-2-5': 'dreamina-seedance-2-5-260628',
     'seedance-2-0': 'dreamina-seedance-2-0-260128',
     'seedance-1-pro': 'seedance-1-0-pro-250528',
@@ -101,6 +102,11 @@ export function generateBytedanceImages(request: EngineRequest): Promise<Blob[]>
     return fanOut(request, () => generateOneImage(request))
 }
 
+const REFERENCE_CAPS: Readonly<Record<string, number>> = {
+    'seedance-2-5': 30,
+    'seedance-2-5-flash': 10,
+}
+
 interface SeedanceTask {
     readonly id?: string
     readonly status?: string
@@ -114,10 +120,19 @@ interface SeedanceTask {
  * reference images (which only Seedance 2.0 declares).
  */
 async function seedanceContent(request: EngineRequest): Promise<Record<string, unknown>[]> {
+    const framed = request.firstFrame !== undefined || request.lastFrame !== undefined
+
+    // 2.5 treats frames and references as separate modes it will not mix.
+    if (request.modelId.startsWith('seedance-2-5') && framed && request.references.length > 0) {
+        throw new GenerationError(
+            'Seedance 2.5 takes either frames or reference images, not both. Remove one or the other.',
+        )
+    }
+
     const content: Record<string, unknown>[] = [{ type: 'text', text: request.prompt }]
 
-    // Seedance 2.5 raised the reference-image ceiling from 9 to 30.
-    const referenceCap = request.modelId === 'seedance-2-5' ? 30 : 9
+    // Seedance 2.5 raised the reference-image ceiling from 9 to 30; Flash takes 10.
+    const referenceCap = REFERENCE_CAPS[request.modelId] ?? 9
     const stills: readonly (readonly [File | undefined, string])[] = [
         [request.firstFrame, 'first_frame'],
         [request.lastFrame, 'last_frame'],
@@ -161,7 +176,7 @@ async function createSeedanceTask(request: EngineRequest): Promise<string> {
                 duration: request.durationSeconds,
                 watermark: false,
                 // 2.5 renders native audio; saying so keeps the bill honest.
-                ...(request.modelId === 'seedance-2-5' ? { generate_audio: true } : {}),
+                ...(request.modelId.startsWith('seedance-2-5') ? { generate_audio: true } : {}),
             },
         })
     } catch {

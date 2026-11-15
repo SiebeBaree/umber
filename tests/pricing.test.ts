@@ -234,3 +234,14 @@ test.each(['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'])(
         }
     },
 )
+
+test('MiniMax H3 Image edits match the per-reference figures MiniMax publishes', () => {
+    const h3 = image('minimax-h3-image')
+    expect(costOf(h3, { resolution: '2K' })).toBeCloseTo(0.02333, 5)
+    expect(costOf(h3, { resolution: '2K' }, 1)).toBeCloseTo(0.02658, 5)
+    expect(costOf(h3, { resolution: '2K' }, 3)).toBeCloseTo(0.04177, 5)
+    expect(costOf(image('minimax-h3-image-highspeed'), { resolution: '4K' }, 3)).toBeCloseTo(
+        0.15407,
+        5,
+    )
+})

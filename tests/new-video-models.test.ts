@@ -225,6 +225,12 @@ test.each([
         { status: 'succeeded', content: { video_url: url } },
     ],
     [
+        'seedance-2-5-flash',
+        'dreamina-seedance-2-5-flash-261115',
+        { id: 'task' },
+        { status: 'succeeded', content: { video_url: url } },
+    ],
+    [
         'minimax-h3-max',
         'MiniMax-H3-Max',
         { task_id: 'task' },
@@ -248,3 +254,32 @@ test.each([
         expect(httpFetch).toHaveBeenLastCalledWith(url, {})
     },
 )
+
+test('Seedance 2.5 Flash asks for audio and keeps ten reference images', async () => {
+    vi.mocked(httpFetch)
+        .mockResolvedValueOnce(Response.json({ id: 'task' }))
+        .mockResolvedValueOnce(Response.json({ status: 'succeeded', content: { video_url: url } }))
+    await runGeneration(
+        modelRequest('seedance-2-5-flash', {
+            references: Array.from({ length: 12 }, referenceImage),
+        }),
+    )
+    const payload = vi.mocked(httpFetch).mock.calls[0]?.[1]?.json as {
+        content: unknown[]
+        generate_audio?: boolean
+    }
+    expect(payload.generate_audio).toBe(true)
+    expect(payload.content).toHaveLength(11)
+})
+
+test('Seedance 2.5 Flash refuses frames mixed with reference images before sending', async () => {
+    await expect(
+        runGeneration(
+            modelRequest('seedance-2-5-flash', {
+                firstFrame: referenceImage(),
+                references: [referenceImage()],
+            }),
+        ),
+    ).rejects.toThrow(/either frames or reference images/u)
+    expect(httpFetch).not.toHaveBeenCalled()
+})

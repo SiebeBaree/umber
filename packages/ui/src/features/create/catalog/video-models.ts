@@ -172,6 +172,20 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         assets: { lastFrame: true, referenceImages: 0, types: ['image/jpeg', 'image/png'] },
         pricePerSecond: { '720p': 0.042, '1080p': 0.07 },
     },
+    // Flash is 2.5 at $7 per million tokens instead of $10.70, with ten
+    // reference images instead of thirty. These are BytePlus's 16:9 figures.
+    {
+        id: 'seedance-2-5-flash',
+        name: 'Seedance 2.5 Flash',
+        provider: 'bytedance',
+        kind: 'video',
+        releasedOn: '2026-11-15',
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
+        resolutions: ['480p', '720p'],
+        durations: { kind: 'range', min: 4, max: 30, step: 1 },
+        assets: { lastFrame: true, referenceImages: 10, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: { '480p': 0.07, '720p': 0.15 },
+    },
     // Seedance 2.5 trades the 1080p and 4K tiers of 2.0 for 30-second clips
     // and a far bigger reference budget; ByteDance bills it by output tokens,
     // and these are the 16:9 figures its own formula produces.
