@@ -6,7 +6,7 @@ import { generateGoogleImages } from './google'
 import { generateIdeogramImages } from './ideogram'
 import { generateKlingImages } from './kling'
 import { generateKlingVideo } from './kling-three'
-import { generateMinimaxVideo } from './minimax'
+import { generateMinimaxImages, generateMinimaxVideo } from './minimax'
 import { generateOpenAiImages } from './openai'
 import { generateRecraftImages } from './recraft'
 import type { EngineRequest } from './request'
@@ -37,6 +37,7 @@ const IMAGE_GENERATORS: Readonly<Record<string, Generator>> = {
     kuaishou: generateKlingImages,
     bytedance: generateBytedanceImages,
     alibaba: generateAlibabaImages,
+    minimax: generateMinimaxImages,
     xai: generateXaiImages,
     reve: generateReveImages,
 }

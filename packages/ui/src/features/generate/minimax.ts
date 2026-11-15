@@ -4,14 +4,19 @@ import type { EngineRequest } from './request'
 import { encodeDataUri, fetchBinary, poll, readJson } from './shared'
 
 /**
- * MiniMax's v2 video API, which is Hailuo 3: a multimodal `content` list is
- * submitted as a task, polled by id, and the finished clip arrives as a plain
- * URL. Errors ride a `base_resp` envelope beside the HTTP status.
+ * MiniMax's two APIs. Video is the v2 API, which is Hailuo 3: a multimodal
+ * `content` list is submitted as a task, polled by id, and the finished clip
+ * arrives as a plain URL. Errors ride a `base_resp` envelope beside the HTTP
+ * status. Images are H3 Image on the v1 API: synchronous, OpenAI-shaped
+ * generation and edit endpoints.
  */
 
 const API_ROOT = 'https://api.minimax.io/v2'
+const IMAGE_API_ROOT = 'https://api.minimax.io/v1'
 
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
+    'minimax-h3-image': 'MiniMax-H3-Image',
+    'minimax-h3-image-highspeed': 'MiniMax-H3-Image-Highspeed',
     'minimax-h3-max': 'MiniMax-H3-Max',
     'minimax-h3': 'MiniMax-H3',
 }
@@ -186,4 +191,89 @@ export async function generateMinimaxVideo(request: EngineRequest): Promise<Blob
     }
 
     return [await fetchBinary('MiniMax', url, 'video/mp4')]
+}
+
+interface MinimaxImagesResponse {
+    readonly data?: readonly { readonly url?: string; readonly error?: unknown }[]
+    readonly base_resp?: BaseResp
+}
+
+/** The image API reports whole-run failures by HTTP status, not `base_resp`. */
+function imageStatusError(status: number): GenerationError {
+    if (status === 401 || status === 403) {
+        return new GenerationError('MiniMax rejected the API key. Check it in Settings.')
+    }
+
+    if (status === 402) {
+        return new GenerationError(
+            'Your MiniMax account is out of credit. Top up in the MiniMax platform.',
+        )
+    }
+
+    if (status === 422) {
+        return moderationError('MiniMax')
+    }
+
+    if (status === 429) {
+        return new GenerationError(
+            'MiniMax is rate limiting this key. Give it a moment and try again.',
+        )
+    }
+
+    return unexpectedError('MiniMax', status)
+}
+
+/**
+ * One H3 Image call for the whole run: generation for a bare prompt, the edits
+ * endpoint when references ground it. Results come back as URLs, since the
+ * base64 form has an undocumented size cap that 4K output can hit. An image
+ * that fails moderation comes back as an `error` entry beside the others.
+ */
+export async function generateMinimaxImages(request: EngineRequest): Promise<Blob[]> {
+    const references = await Promise.all(
+        request.references
+            .slice(0, 16)
+            .map(async (file) => ({ image_url: await encodeDataUri(file) })),
+    )
+    const editing = references.length > 0
+
+    let response: Response
+
+    try {
+        response = await httpFetch(
+            `${IMAGE_API_ROOT}/images/${editing ? 'edits' : 'generations'}`,
+            {
+                headers: headersOf(request),
+                json: {
+                    model: WIRE_MODEL_IDS[request.modelId] ?? request.modelId,
+                    prompt: request.prompt,
+                    aspect_ratio: request.ratio,
+                    // The tier names match the catalog's: `1K`, `2K` and `4K`.
+                    area: request.resolution,
+                    n: request.count,
+                    response_format: 'url',
+                    ...(editing ? { images: references } : {}),
+                },
+            },
+        )
+    } catch {
+        throw offlineError('MiniMax')
+    }
+
+    const body = (await readJson(response)) as MinimaxImagesResponse | null
+    checkBaseResp(body?.base_resp)
+
+    if (!response.ok) {
+        throw imageStatusError(response.status)
+    }
+
+    const urls = (body?.data ?? [])
+        .map((entry) => entry.url)
+        .filter((url): url is string => typeof url === 'string' && url !== '')
+
+    if (urls.length === 0) {
+        throw new GenerationError('MiniMax returned no images for this prompt.')
+    }
+
+    return Promise.all(urls.map((url) => fetchBinary('MiniMax', url, 'image/jpeg')))
 }

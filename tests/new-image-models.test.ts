@@ -217,3 +217,48 @@ test('Grok edits retain all five supported source images', async () => {
         images: Array.from({ length: 5 }, () => ({ url: expect.any(String), type: 'image_url' })),
     })
 })
+
+test.each([
+    ['minimax-h3-image', 'MiniMax-H3-Image'],
+    ['minimax-h3-image-highspeed', 'MiniMax-H3-Image-Highspeed'],
+])('%s generates from a prompt and downloads every returned image', async (modelId, wireId) => {
+    vi.mocked(httpFetch).mockResolvedValueOnce(
+        Response.json({ data: [{ url }, { error: { message: 'withheld' } }, { url }] }),
+    )
+    const images = await runGeneration(
+        modelRequest(modelId, { count: 3, ratio: '16:9', resolution: '4K' }),
+    )
+    expect(images).toHaveLength(2)
+    expect(httpFetch).toHaveBeenNthCalledWith(1, 'https://api.minimax.io/v1/images/generations', {
+        headers: { Authorization: 'Bearer test-key' },
+        json: {
+            model: wireId,
+            prompt: 'A lighthouse',
+            aspect_ratio: '16:9',
+            area: '4K',
+            n: 3,
+            response_format: 'url',
+        },
+    })
+    expect(httpFetch).toHaveBeenLastCalledWith(url, {})
+})
+
+test('MiniMax H3 Image edits with up to sixteen references', async () => {
+    vi.mocked(httpFetch).mockResolvedValueOnce(Response.json({ data: [{ url }] }))
+    await runGeneration(
+        modelRequest('minimax-h3-image', {
+            references: Array.from({ length: 17 }, referenceImage),
+        }),
+    )
+    expect(vi.mocked(httpFetch).mock.calls[0]?.[0]).toBe('https://api.minimax.io/v1/images/edits')
+    expect(vi.mocked(httpFetch).mock.calls[0]?.[1]?.json).toMatchObject({
+        images: Array.from({ length: 16 }, () => ({
+            image_url: `data:image/png;base64,${btoa('reference')}`,
+        })),
+    })
+})
+
+test('MiniMax H3 Image reports a moderation block', async () => {
+    vi.mocked(httpFetch).mockResolvedValueOnce(Response.json({}, { status: 422 }))
+    await expect(runGeneration(modelRequest('minimax-h3-image'))).rejects.toThrow(/content rules/u)
+})

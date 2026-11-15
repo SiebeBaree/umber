@@ -275,7 +275,7 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
     {
         id: 'minimax',
         name: PROVIDERS.minimax.name,
-        unlocks: 'MiniMax H3 and H3 Max video',
+        unlocks: 'MiniMax H3 images and video',
         console: {
             label: 'MiniMax platform',
             url: 'https://platform.minimax.io/user-center/basic-information/interface-key',
