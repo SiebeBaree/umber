@@ -50,7 +50,8 @@ Verified against provider documentation on 2026-10-07. This audit updates models
 ## Integration limits
 
 - Wan 3 video and Wan 2.7 images require a workspace ID alongside the regional API key. Existing Qwen and Wan connections continue using their existing endpoints. Wan Pro 4K is text-to-image only; editing requests above 2K fail before submission.
-- MiniMax H3 Image edits add a small charge for each reference after the first, which the estimate leaves out. The 4K launch discount that ends November 17 is not applied.
+- MiniMax H3 Image edit estimates add a charge for each reference after the first, read off MiniMax's one- and three-reference figures. The 4K launch discount that ends November 17 is not applied.
+- Seedance 2.5 and 2.5 Flash take frames or reference images, not both. Mixed runs fail before submission.
 - Kling Image 3.0 accepts one direct image through the generation endpoint. Omni accepts ten through its separate endpoint. Kling 3.0 Omni video allows seven images total, including frames. Kling 4.0 and 4.0 Flash allow ten.
 - Ideogram 4.5 exposes the explicitly documented square 1K/2K presets. Editing can also follow the first image's ratio through the existing composer option, using the documented custom-size limits.
 - Seedream Flash, Seedance Fast, Ideogram 4.5 and MiniMax H3 Max show Cost varies until a suitable direct-provider price is verified. Estimates elsewhere use published list prices, without temporary discounts. Alibaba prices use the Singapore rate card.

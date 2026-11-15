@@ -262,3 +262,11 @@ test('MiniMax H3 Image reports a moderation block', async () => {
     vi.mocked(httpFetch).mockResolvedValueOnce(Response.json({}, { status: 422 }))
     await expect(runGeneration(modelRequest('minimax-h3-image'))).rejects.toThrow(/content rules/u)
 })
+
+test('MiniMax H3 Image refuses references over its 64 MB body limit before sending', async () => {
+    const large = new File([new Uint8Array(16 * 1024 * 1024)], 'large.png', { type: 'image/png' })
+    await expect(
+        runGeneration(modelRequest('minimax-h3-image', { references: [large, large, large] })),
+    ).rejects.toThrow(/64 MB/u)
+    expect(httpFetch).not.toHaveBeenCalled()
+})

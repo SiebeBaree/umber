@@ -271,3 +271,15 @@ test('Seedance 2.5 Flash asks for audio and keeps ten reference images', async (
     expect(payload.generate_audio).toBe(true)
     expect(payload.content).toHaveLength(11)
 })
+
+test('Seedance 2.5 Flash refuses frames mixed with reference images before sending', async () => {
+    await expect(
+        runGeneration(
+            modelRequest('seedance-2-5-flash', {
+                firstFrame: referenceImage(),
+                references: [referenceImage()],
+            }),
+        ),
+    ).rejects.toThrow(/either frames or reference images/u)
+    expect(httpFetch).not.toHaveBeenCalled()
+})

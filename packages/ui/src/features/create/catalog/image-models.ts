@@ -6,6 +6,7 @@ import {
     fluxTwoPrice,
     gptImagePrice,
     gptImageFlarePrice,
+    minimaxH3EditPrice,
     qwenImageThreeProPrice,
     seedreamFiveProPrice,
 } from './price-rules'
@@ -642,8 +643,7 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         pricePerImage: 0.04,
     },
     // MiniMax bills tokens; these are its own per-image figures at list price,
-    // for text alone and for an edit with one reference. Each further
-    // reference adds a little. Highspeed shares every parameter and limit.
+    // for text alone and for edits. Highspeed shares every parameter and limit.
     {
         id: 'minimax-h3-image',
         name: 'MiniMax H3 Image',
@@ -655,7 +655,10 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         maxOutputs: 4,
         references: { max: 16, types: COMMON_IMAGE_TYPES },
         pricePerImage: { '1K': 0.02179, '2K': 0.02333, '4K': 0.06879 },
-        pricePerImageFromImage: { '1K': 0.02654, '2K': 0.02658, '4K': 0.07312 },
+        pricePerImageFromImage: minimaxH3EditPrice(
+            { '1K': 0.02654, '2K': 0.02658, '4K': 0.07312 },
+            { '1K': 0.03563, '2K': 0.04177, '4K': 0.07914 },
+        ),
     },
     {
         id: 'minimax-h3-image-highspeed',
@@ -668,7 +671,10 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         maxOutputs: 4,
         references: { max: 16, types: COMMON_IMAGE_TYPES },
         pricePerImage: { '1K': 0.03529, '2K': 0.03622, '4K': 0.13001 },
-        pricePerImageFromImage: { '1K': 0.04525, '2K': 0.04576, '4K': 0.13673 },
+        pricePerImageFromImage: minimaxH3EditPrice(
+            { '1K': 0.04525, '2K': 0.04576, '4K': 0.13673 },
+            { '1K': 0.06037, '2K': 0.06069, '4K': 0.15407 },
+        ),
     },
     {
         id: 'grok-imagine-image-2',

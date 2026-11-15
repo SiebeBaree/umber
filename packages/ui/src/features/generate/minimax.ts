@@ -14,6 +14,9 @@ import { encodeDataUri, fetchBinary, poll, readJson } from './shared'
 const API_ROOT = 'https://api.minimax.io/v2'
 const IMAGE_API_ROOT = 'https://api.minimax.io/v1'
 
+/** Under MiniMax's 64 MiB request cap, with room left for the prompt and fields. */
+const MAX_IMAGE_BODY_BYTES = 63 * 1024 * 1024
+
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'minimax-h3-image': 'MiniMax-H3-Image',
     'minimax-h3-image-highspeed': 'MiniMax-H3-Image-Highspeed',
@@ -224,17 +227,30 @@ function imageStatusError(status: number): GenerationError {
 }
 
 /**
+ * The edit references as data URIs, refused up front when they would push the
+ * body past MiniMax's cap. Base64 grows every file by a third.
+ */
+function imageReferences(request: EngineRequest): Promise<{ image_url: string }[]> {
+    const files = request.references.slice(0, 16)
+    const encodedBytes = files.reduce((total, file) => total + (file.size * 4) / 3, 0)
+
+    if (encodedBytes > MAX_IMAGE_BODY_BYTES) {
+        throw new GenerationError(
+            'These references are too large for MiniMax, which takes 64 MB per request. Use fewer or smaller images.',
+        )
+    }
+
+    return Promise.all(files.map(async (file) => ({ image_url: await encodeDataUri(file) })))
+}
+
+/**
  * One H3 Image call for the whole run: generation for a bare prompt, the edits
  * endpoint when references ground it. Results come back as URLs, since the
  * base64 form has an undocumented size cap that 4K output can hit. An image
  * that fails moderation comes back as an `error` entry beside the others.
  */
 export async function generateMinimaxImages(request: EngineRequest): Promise<Blob[]> {
-    const references = await Promise.all(
-        request.references
-            .slice(0, 16)
-            .map(async (file) => ({ image_url: await encodeDataUri(file) })),
-    )
+    const references = await imageReferences(request)
     const editing = references.length > 0
 
     let response: Response

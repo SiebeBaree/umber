@@ -120,6 +120,15 @@ interface SeedanceTask {
  * reference images (which only Seedance 2.0 declares).
  */
 async function seedanceContent(request: EngineRequest): Promise<Record<string, unknown>[]> {
+    const framed = request.firstFrame !== undefined || request.lastFrame !== undefined
+
+    // 2.5 treats frames and references as separate modes it will not mix.
+    if (request.modelId.startsWith('seedance-2-5') && framed && request.references.length > 0) {
+        throw new GenerationError(
+            'Seedance 2.5 takes either frames or reference images, not both. Remove one or the other.',
+        )
+    }
+
     const content: Record<string, unknown>[] = [{ type: 'text', text: request.prompt }]
 
     // Seedance 2.5 raised the reference-image ceiling from 9 to 30; Flash takes 10.
