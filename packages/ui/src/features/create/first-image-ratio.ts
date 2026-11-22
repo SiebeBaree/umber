@@ -11,7 +11,8 @@ export function matchImageRatio(width: number, height: number, model: ImageModel
         return width * parts.height === height * parts.width
     })
     if (fixed !== undefined) return fixed
-    if (model.id === 'ideogram-v4-5' && ratio >= 1 / 6 && ratio <= 6) return `${width}:${height}`
+    const ideogramV2 = model.id === 'ideogram-v4-5' || model.id === 'ideogram-v4-6'
+    if (ideogramV2 && ratio >= 1 / 6 && ratio <= 6) return `${width}:${height}`
     const flexible = model.id.startsWith('gpt-image-2') || model.id.startsWith('flux-2-')
     if (flexible && ratio >= 1 / 3 && ratio <= 3) return `${width}:${height}`
     throw new Error(

@@ -13,7 +13,7 @@ import { fanOut, fetchBinary, readJson } from './shared'
  * with an aspect ratio, a count and optional style references. Ideogram 4.0
  * takes `text_prompt` with an exact pixel `resolution`, renders one image per
  * call and accepts no references at all, so a multi-image run there is
- * parallel calls.
+ * parallel calls. 4.5 and 4.6 share the v2 multipart endpoint shape.
  */
 
 const API_ROOT = 'https://api.ideogram.ai'
@@ -164,11 +164,13 @@ function generateV4(request: EngineRequest): Promise<Blob[]> {
     return fanOut(request, () => generateOneV4(request))
 }
 
-/** 4.5 accepts source images and explicit quality through its v2 multipart API. */
-async function generateV45(request: EngineRequest): Promise<readonly string[]> {
-    const form = new FormData()
-    form.set('prompt', request.prompt)
-    const edge = request.resolution === '2K' ? 2048 : 1024
+/**
+ * 4.5 and 4.6 take exact sizes on a 32 grid. Ideogram bills by the resolved
+ * pixel count, so each tier is capped at its own square budget: a wide 2K
+ * frame that snapped past 2048x2048 would be billed as 4K. Only 4.6 offers 4K.
+ */
+function v2SizeOf(request: EngineRequest): string {
+    const edge = request.resolution === '4K' ? 4096 : request.resolution === '2K' ? 2048 : 1024
     const { width, height } = pixelSize(request.ratio, request.resolution, {
         tiers: { [request.resolution]: edge ** 2 },
         grid: 32,
@@ -176,7 +178,14 @@ async function generateV45(request: EngineRequest): Promise<readonly string[]> {
         maxEdge: 8192,
         maxPixels: edge ** 2,
     })
-    form.set('size', `${width}x${height}`)
+    return `${width}x${height}`
+}
+
+/** 4.5 and 4.6 accept source images and explicit quality through the v2 multipart API. */
+async function generateV2(request: EngineRequest): Promise<readonly string[]> {
+    const form = new FormData()
+    form.set('prompt', request.prompt)
+    form.set('size', v2SizeOf(request))
     form.set('quality', request.quality)
     form.set('num_images', String(request.count))
     for (const reference of request.references) {
@@ -184,7 +193,8 @@ async function generateV45(request: EngineRequest): Promise<readonly string[]> {
     }
     let response: Response
     try {
-        response = await httpFetch(`${API_ROOT}/v2/image/generate/ideogram-4-5`, {
+        const version = request.modelId === 'ideogram-v4-6' ? '4-6' : '4-5'
+        response = await httpFetch(`${API_ROOT}/v2/image/generate/ideogram-${version}`, {
             headers: headersOf(request),
             form,
         })
@@ -199,8 +209,8 @@ export async function generateIdeogramImages(request: EngineRequest): Promise<Bl
         return generateV4(request)
     }
 
-    const urls =
-        request.modelId === 'ideogram-v4-5' ? await generateV45(request) : await generateV3(request)
+    const v2 = request.modelId === 'ideogram-v4-5' || request.modelId === 'ideogram-v4-6'
+    const urls = v2 ? await generateV2(request) : await generateV3(request)
 
     return Promise.all(urls.map((url) => fetchBinary('Ideogram', url, 'image/png')))
 }

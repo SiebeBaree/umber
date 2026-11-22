@@ -81,20 +81,20 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         assets: { lastFrame: true, referenceImages: 0, types: COMMON_IMAGE_TYPES },
         pricePerSecond: { '720p': 0.17, '1080p': 0.29 },
     },
-    // Priced without an input video, which Umber never sends. Kling takes ten
-    // images in total, so eight references leave room for both frames.
-    // References route the run through Omni.
+    // Priced without an input video, which Umber never sends, and in SDR.
+    // Kling takes ten images in total, so eight references leave room for
+    // both frames. References route the run through Omni.
     {
         id: 'kling-4-0',
         name: 'Kling 4.0',
         provider: 'kuaishou',
         kind: 'video',
         releasedOn: '2026-10-28',
-        aspectRatios: ['16:9', '9:16', '1:1', '21:9'],
-        resolutions: ['720p', '1080p'],
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
+        resolutions: ['720p', '1080p', '4K'],
         durations: { kind: 'range', min: 3, max: 30, step: 1 },
         assets: { lastFrame: true, referenceImages: 8, types: ['image/jpeg', 'image/png'] },
-        pricePerSecond: { '720p': 0.157, '1080p': 0.235 },
+        pricePerSecond: { '720p': 0.157, '1080p': 0.235, '4K': 0.549 },
     },
     // 720p only and no end frame. Ten images in total, so nine references
     // leave room for the first frame. References route the run through Omni.
@@ -104,7 +104,7 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         provider: 'kuaishou',
         kind: 'video',
         releasedOn: '2026-11-04',
-        aspectRatios: ['16:9', '9:16', '1:1', '21:9'],
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
         resolutions: ['720p'],
         durations: { kind: 'range', min: 3, max: 20, step: 1 },
         assets: { lastFrame: false, referenceImages: 9, types: ['image/jpeg', 'image/png'] },
@@ -186,9 +186,9 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         assets: { lastFrame: true, referenceImages: 10, types: COMMON_IMAGE_TYPES },
         pricePerSecond: { '480p': 0.07, '720p': 0.15 },
     },
-    // Seedance 2.5 trades the 1080p and 4K tiers of 2.0 for 30-second clips
-    // and a far bigger reference budget; ByteDance bills it by output tokens,
-    // and these are the 16:9 figures its own formula produces.
+    // Seedance 2.5 adds 30-second clips and a far bigger reference budget;
+    // ByteDance bills it by output tokens, and these are the 16:9 figures its
+    // own formula produces. 4K bills fewer dollars per token but far more tokens.
     {
         id: 'seedance-2-5',
         name: 'Seedance 2.5',
@@ -196,10 +196,10 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         kind: 'video',
         releasedOn: '2026-07-31',
         aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
-        resolutions: ['480p', '720p'],
+        resolutions: ['480p', '720p', '1080p', '4K'],
         durations: { kind: 'range', min: 4, max: 30, step: 1 },
         assets: { lastFrame: true, referenceImages: 30, types: COMMON_IMAGE_TYPES },
-        pricePerSecond: { '480p': 0.1, '720p': 0.23 },
+        pricePerSecond: { '480p': 0.1, '720p': 0.23, '1080p': 0.569, '4K': 0.914 },
     },
     {
         id: 'seedance-2-0-mini',

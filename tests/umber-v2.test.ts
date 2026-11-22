@@ -41,6 +41,8 @@ test('first image preserves supported shapes and rejects incompatible fixed size
     expect(matchImageRatio(1920, 1080, model('nano-banana'))).toBe('16:9')
     expect(matchImageRatio(1800, 1200, model('ideogram-v4-5'))).toBe('1800:1200')
     expect(() => matchImageRatio(7000, 1000, model('ideogram-v4-5'))).toThrow('cannot preserve')
+    expect(matchImageRatio(1801, 1200, model('ideogram-v4-6'))).toBe('1801:1200')
+    expect(matchImageRatio(1800, 1200, model('ideogram-v4-6'))).toBe('3:2')
     expect(() => matchImageRatio(1004, 1000, model('gpt-image-1'))).toThrow('cannot preserve')
     expect(matchImageRatio(1004, 1000, model('gpt-image-2'))).toBe('1004:1000')
     expect(matchImageRatio(1200, 1000, model('gpt-image-2'))).toBe('1200:1000')

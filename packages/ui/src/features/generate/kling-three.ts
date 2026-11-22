@@ -1,6 +1,12 @@
 import { httpFetch } from '../../lib/http'
 import { GenerationError, offlineError } from './errors'
-import { generateKlingLegacyVideo, KLING_DOMAIN, klingHeadersOf, unwrapKling } from './kling'
+import {
+    generateKlingLegacyImages,
+    generateKlingLegacyVideo,
+    KLING_DOMAIN,
+    klingHeadersOf,
+    unwrapKling,
+} from './kling'
 import type { EngineRequest } from './request'
 import { encodeBase64, fetchBinary, poll } from './shared'
 
@@ -8,7 +14,7 @@ import { encodeBase64, fetchBinary, poll } from './shared'
  * Kling 3.0 and 4.0 on the API 2.0 surface, split from the legacy module
  * because the wire format changed underneath it: typed `contents`, a
  * `settings` object, and one shared `/tasks` query endpoint instead of
- * per-endpoint polling.
+ * per-endpoint polling. Kling Image 4.0 lives here too.
  */
 
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
@@ -148,6 +154,15 @@ function awaitKlingThreeTask(request: EngineRequest, taskId: string): Promise<Kl
     })
 }
 
+/** API 2.0 refuses the legacy key pair, so fail before encoding anything. */
+function requireApiKey(request: EngineRequest): void {
+    if ((request.credentials['apiKey'] ?? '') === '') {
+        throw new GenerationError(
+            'Kling 3.0 and 4.0 need an API key, not the older key pair. Reconnect Kling in Settings with a key from the developer console.',
+        )
+    }
+}
+
 /** One Kling entry point for the engine: 3.0 and 4.0 run on API 2.0,
  * everything else on the legacy surface, so the split happens here. */
 export function generateKlingVideo(request: EngineRequest): Promise<Blob[]> {
@@ -156,12 +171,80 @@ export function generateKlingVideo(request: EngineRequest): Promise<Blob[]> {
         : generateKlingLegacyVideo(request)
 }
 
-async function generateKlingThreeVideo(request: EngineRequest): Promise<Blob[]> {
-    if ((request.credentials['apiKey'] ?? '') === '') {
+/** The image counterpart: Image 4.0 is API 2.0 only, older images stay on `/v1`. */
+export function generateKlingImages(request: EngineRequest): Promise<Blob[]> {
+    return request.modelId === 'kling-image-4'
+        ? generateKlingFourImages(request)
+        : generateKlingLegacyImages(request)
+}
+
+const KLING_IMAGE_4_REFERENCES = 10
+
+/** The prompt and references, named so a prompt can point at them with `@image1`. */
+async function klingFourImageContents(request: EngineRequest): Promise<Record<string, unknown>[]> {
+    if (request.references.length > KLING_IMAGE_4_REFERENCES) {
         throw new GenerationError(
-            'Kling 3.0 and 4.0 need an API key, not the older key pair. Reconnect Kling in Settings with a key from the developer console.',
+            `Kling Image 4.0 accepts up to ${KLING_IMAGE_4_REFERENCES} reference images.`,
         )
     }
+
+    return [
+        { type: 'prompt', text: request.prompt },
+        ...(await Promise.all(
+            request.references.map(async (file, index) => ({
+                type: 'refer_image',
+                id: `image${index + 1}`,
+                url: await encodeBase64(file),
+            })),
+        )),
+    ]
+}
+
+/** Kling Image 4.0: one task returns every image, so `n` is the run's count. */
+async function generateKlingFourImages(request: EngineRequest): Promise<Blob[]> {
+    requireApiKey(request)
+    const contents = await klingFourImageContents(request)
+
+    let created: Response
+
+    try {
+        created = await httpFetch(`${KLING_DOMAIN}/image-generation/kling-4.0`, {
+            headers: await klingHeadersOf(request),
+            json: {
+                contents,
+                settings: {
+                    result_type: 'single',
+                    n: request.count,
+                    resolution: request.resolution.toLowerCase(),
+                    aspect_ratio: request.ratio,
+                },
+            },
+        })
+    } catch {
+        throw offlineError('Kling')
+    }
+
+    const job = await unwrapKling<KlingV2Task>(created, 'start the run')
+
+    if (typeof job.id !== 'string' || job.id === '') {
+        throw new GenerationError('Kling accepted the run but returned no task to follow.')
+    }
+
+    const finished = await awaitKlingThreeTask(request, job.id)
+    const urls = (finished.outputs ?? [])
+        .filter((output) => output.type === 'image')
+        .map((output) => output.url)
+        .filter((url): url is string => typeof url === 'string' && url !== '')
+
+    if (urls.length === 0) {
+        throw new GenerationError('Kling finished the run but returned no images.')
+    }
+
+    return Promise.all(urls.map((url) => fetchBinary('Kling', url, 'image/png')))
+}
+
+async function generateKlingThreeVideo(request: EngineRequest): Promise<Blob[]> {
+    requireApiKey(request)
 
     const taskId = await createKlingThreeTask(request)
     const finished = await awaitKlingThreeTask(request, taskId)

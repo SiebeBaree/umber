@@ -68,7 +68,12 @@ const SEEDREAM_5_SIZES: Readonly<Record<string, Readonly<Partial<Record<AspectRa
 }
 
 /** Catalog ids on the Seedream 5.0 grid rather than the 4.x one. */
-const SEEDREAM_5_MODELS = new Set(['seedream-5-pro', 'seedream-5-lite', 'seedream-5-flash'])
+const SEEDREAM_5_MODELS = new Set([
+    'seedream-5-5',
+    'seedream-5-pro',
+    'seedream-5-lite',
+    'seedream-5-flash',
+])
 
 /** Tiers from most to least pixels. */
 const TIER_ORDER = ['4K', '2K', '1K']

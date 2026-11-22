@@ -145,7 +145,7 @@ export const KEY_PROVIDERS: readonly KeyProvider[] = [
     {
         id: 'ideogram',
         name: PROVIDERS.ideogram.name,
-        unlocks: 'Ideogram 4.5, 4.0 and V3',
+        unlocks: 'Ideogram 4.6, 4.5, 4.0 and V3',
         console: { label: 'Ideogram API settings', url: 'https://ideogram.ai/manage-api' },
         fields: [apiKeyField('Your Ideogram API key')],
     },

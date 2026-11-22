@@ -15,6 +15,7 @@ const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'recraft-v4-1-pro': 'recraftv4_1_pro',
     'recraft-v4-1': 'recraftv4_1',
     'recraft-v4-1-flash': 'recraftv4_1_flash',
+    'recraft-v4-1-flash-v2': 'recraftv4_1_flash_v2',
     'recraft-v3': 'recraftv3',
 }
 

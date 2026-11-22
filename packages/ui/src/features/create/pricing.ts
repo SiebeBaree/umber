@@ -53,6 +53,7 @@ export function estimateCost(model: Model, settings: ModeSettings, references = 
         ratio: settings.aspectRatio as PriceContext['ratio'],
         quality: settings.quality,
         references,
+        ...(isImageModel(model) ? { outputs: settings.outputCount } : {}),
     }
 
     const unit = unitPrice(model, context)
