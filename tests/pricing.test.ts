@@ -245,3 +245,43 @@ test('MiniMax H3 Image edits match the per-reference figures MiniMax publishes',
         5,
     )
 })
+
+test('Ideogram 4.6 matches its per-tier rates, with source images where they differ', () => {
+    const model = image('ideogram-v4-6')
+    expect(costOf(model, { resolution: '1K', quality: 'low' })).toBe(0.03)
+    expect(costOf(model, { resolution: '2K', quality: 'medium' })).toBe(0.06)
+    expect(costOf(model, { resolution: '2K', quality: 'high' })).toBe(0.1)
+    expect(costOf(model, { resolution: '4K', quality: 'high' })).toBe(0.2)
+    expect(costOf(model, { resolution: '2K', quality: 'high' }, 1)).toBe(0.22)
+    expect(costOf(model, { resolution: '4K', quality: 'medium' }, 2)).toBe(0.2)
+    expect(costOf(model, { resolution: '4K', quality: 'high' }, 1)).toBe(0.6)
+})
+
+test('Kling Image 4.0 bills references once per task, as its own example does', () => {
+    const model = image('kling-image-4')
+    expect(costOf(model, { resolution: '2K' })).toBe(0.063)
+    expect(costOf(model, { resolution: '8K' })).toBe(0.157)
+    // Kling's example: three references and four 2K images.
+    expect(costOf(model, { resolution: '2K', outputCount: 4 }, 3)).toBeCloseTo(0.261, 8)
+})
+
+test('Seedream 5.5 adds its per-reference charge to the pixel band', () => {
+    const model = image('seedream-5-5')
+    expect(costOf(model, { resolution: '1K' })).toBe(0.02)
+    expect(costOf(model, { resolution: '2K' }, 2)).toBeCloseTo(0.051, 8)
+})
+
+test('Seedance 2.5 and Kling 4.0 price their new top tiers per second', () => {
+    expect(costOf(video('seedance-2-5'), { resolution: '4K', aspectRatio: '16:9' })).toBeCloseTo(
+        4.57,
+        8,
+    )
+    expect(costOf(video('seedance-2-5'), { resolution: '1080p', aspectRatio: '16:9' })).toBeCloseTo(
+        2.845,
+        8,
+    )
+    expect(costOf(video('kling-4-0'), { resolution: '4K', aspectRatio: '16:9' })).toBeCloseTo(
+        2.745,
+        8,
+    )
+})

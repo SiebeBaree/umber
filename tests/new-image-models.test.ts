@@ -188,6 +188,7 @@ test.each([
     ['seedream-5-flash', 'dola-seedream-5-0-flash-260915'],
     ['recraft-v4-1-pro', 'recraftv4_1_pro'],
     ['recraft-v4-1-flash', 'recraftv4_1_flash'],
+    ['recraft-v4-1-flash-v2', 'recraftv4_1_flash_v2'],
 ])('%s sends its provider model ID and decodes the image', async (modelId, wireId) => {
     vi.mocked(httpFetch).mockResolvedValueOnce(Response.json({ data: [{ b64_json: b64 }] }))
     const images = await runGeneration(modelRequest(modelId))

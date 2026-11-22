@@ -6,8 +6,11 @@ import {
     fluxTwoPrice,
     gptImagePrice,
     gptImageFlarePrice,
+    ideogramFourSixPrice,
+    klingImageFourPrice,
     minimaxH3EditPrice,
     qwenImageThreeProPrice,
+    seedreamFiveFivePrice,
     seedreamFiveProPrice,
 } from './price-rules'
 import type { ImageModel, ImageQuality, ImageReferenceRule } from './types'
@@ -323,6 +326,19 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         references: { max: 1, types: COMMON_IMAGE_TYPES },
         pricePerImage: 0.04,
     },
+    // One image per request, priced off ModelArk's own pixel bands.
+    {
+        id: 'seedream-5-5',
+        name: 'Seedream 5.5',
+        provider: 'bytedance',
+        kind: 'image',
+        releasedOn: '2026-11-12',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        resolutions: ['1K', '2K'],
+        maxOutputs: 4,
+        references: { max: 10, types: COMMON_IMAGE_TYPES },
+        pricePerImage: seedreamFiveFivePrice,
+    },
     {
         id: 'seedream-5-flash',
         name: 'Seedream 5.0 Flash',
@@ -486,6 +502,19 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         references: NO_REFERENCES,
         pricePerImage: 0.03,
     },
+    // API 2.0 only. Up to ten references, each billed once per request.
+    {
+        id: 'kling-image-4',
+        name: 'Kling Image 4.0',
+        provider: 'kuaishou',
+        kind: 'image',
+        releasedOn: '2026-11-17',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        resolutions: ['2K', '4K', '8K'],
+        maxOutputs: 4,
+        references: { max: 10, types: ['image/jpeg', 'image/png'] },
+        pricePerImage: klingImageFourPrice,
+    },
     {
         id: 'kling-image-3',
         name: 'Kling Image 3.0',
@@ -548,6 +577,27 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
         pricePerImage: { '1K': 0.05, '2K': 0.08 },
     },
     // Ideogram prices by rendering speed, which is what its quality tiers are.
+    // 4.6 takes any exact size up to 4096x4096, so every listed ratio is real.
+    {
+        id: 'ideogram-v4-6',
+        name: 'Ideogram 4.6',
+        provider: 'ideogram',
+        kind: 'image',
+        releasedOn: '2026-11-19',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9'],
+        resolutions: ['1K', '2K', '4K'],
+        maxOutputs: 4,
+        references: { max: 5, types: COMMON_IMAGE_TYPES },
+        pricePerImage: ideogramFourSixPrice('low'),
+        quality: {
+            options: ['low', 'medium', 'high'],
+            pricePerImage: {
+                low: ideogramFourSixPrice('low'),
+                medium: ideogramFourSixPrice('medium'),
+                high: ideogramFourSixPrice('high'),
+            },
+        },
+    },
     {
         id: 'ideogram-v4-5',
         name: 'Ideogram 4.5',
@@ -593,6 +643,19 @@ export const IMAGE_MODELS: readonly ImageModel[] = [
             options: ['low', 'medium', 'high'],
             pricePerImage: { low: 0.03, medium: 0.06, high: 0.09 },
         },
+    },
+    // Flash V2 replaces Flash at the same price and capabilities.
+    {
+        id: 'recraft-v4-1-flash-v2',
+        name: 'Recraft V4.1 Flash V2',
+        provider: 'recraft',
+        kind: 'image',
+        releasedOn: '2026-11-22',
+        aspectRatios: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16'],
+        resolutions: ['1K'],
+        maxOutputs: 4,
+        references: NO_REFERENCES,
+        pricePerImage: 0.007,
     },
     {
         id: 'recraft-v4-1-flash',

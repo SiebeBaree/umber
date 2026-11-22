@@ -186,3 +186,64 @@ export function minimaxH3EditPrice(
         return oneReference[tier] + perExtra * Math.max(0, context.references - 1)
     }
 }
+
+/**
+ * Seedream 5.5: $0.020 per image up to 1536² × 1.05² pixels and $0.035 up to
+ * 2048² × 1.05², plus $0.008 for every reference image. Umber sends one image
+ * per request, so the references are billed once per image.
+ */
+export function seedreamFiveFivePrice(context: PriceContext): number {
+    const base = context.resolution === '2K' ? 0.035 : 0.02
+
+    return base + 0.008 * context.references
+}
+
+const KLING_IMAGE_4_OUTPUT: Readonly<Record<string, number>> = {
+    '2K': 0.063,
+    '4K': 0.094,
+    '8K': 0.157,
+}
+
+/**
+ * Kling Image 4.0 bills each output image by tier plus $0.003 per reference
+ * image or element. References are billed once per task, however many images
+ * it returns, so their charge is shared across the outputs.
+ */
+export function klingImageFourPrice(context: PriceContext): number {
+    const output = KLING_IMAGE_4_OUTPUT[context.resolution] ?? 0.063
+    const outputs = Math.max(1, context.outputs ?? 1)
+
+    return output + (0.003 * context.references) / outputs
+}
+
+type IdeogramQuality = 'low' | 'medium' | 'high'
+
+/** Ideogram 4.6 per image. 1K bills at the 2K rate. */
+const IDEOGRAM_4_6_PRICES: Readonly<
+    Record<
+        'text' | 'edit',
+        Readonly<Record<IdeogramQuality, Readonly<Record<'2K' | '4K', number>>>>
+    >
+> = {
+    text: {
+        low: { '2K': 0.03, '4K': 0.06 },
+        medium: { '2K': 0.06, '4K': 0.12 },
+        high: { '2K': 0.1, '4K': 0.2 },
+    },
+    // Source images only change the high tier and medium at 4K.
+    edit: {
+        low: { '2K': 0.03, '4K': 0.06 },
+        medium: { '2K': 0.06, '4K': 0.2 },
+        high: { '2K': 0.22, '4K': 0.6 },
+    },
+}
+
+/** Ideogram 4.6 by quality, output tier and whether source images are attached. */
+export function ideogramFourSixPrice(quality: IdeogramQuality) {
+    return (context: PriceContext): number => {
+        const tier = context.resolution === '4K' ? '4K' : '2K'
+        const table = context.references > 0 ? IDEOGRAM_4_6_PRICES.edit : IDEOGRAM_4_6_PRICES.text
+
+        return table[quality][tier]
+    }
+}

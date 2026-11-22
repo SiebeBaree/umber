@@ -17,6 +17,7 @@ const API_ROOT = 'https://ark.ap-southeast.bytepluses.com/api/v3'
  * `dreamina-` prefix is real and belongs to the Seedance 2.x line only.
  */
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
+    'seedream-5-5': 'dola-seedream-5-5-261028',
     'seedream-5-flash': 'dola-seedream-5-0-flash-260915',
     'seedance-2-0-fast': 'dreamina-seedance-2-0-fast-260128',
     'seedance-2-0-mini': 'dreamina-seedance-2-0-mini-260615',
@@ -71,7 +72,10 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
                 size: seedreamSize(request.modelId, request.ratio, request.resolution),
                 response_format: 'b64_json',
                 watermark: false,
-                sequential_image_generation: 'disabled',
+                // 5.5 has no batch mode at all, so it gets no batch switch.
+                ...(request.modelId === 'seedream-5-5'
+                    ? {}
+                    : { sequential_image_generation: 'disabled' }),
                 ...(references.length === 0
                     ? {}
                     : { image: references.length === 1 ? references[0] : references }),
@@ -94,8 +98,8 @@ async function generateOneImage(request: EngineRequest): Promise<Blob> {
         throw new GenerationError('ByteDance returned no image for this prompt.')
     }
 
-    // Seedream 4.x renders JPEG and takes no `output_format`.
-    return decodeBase64Blob(b64, 'image/jpeg')
+    // Seedream 4.x renders JPEG and takes no `output_format`; 5.5 defaults to PNG.
+    return decodeBase64Blob(b64, request.modelId === 'seedream-5-5' ? 'image/png' : 'image/jpeg')
 }
 
 export function generateBytedanceImages(request: EngineRequest): Promise<Blob[]> {

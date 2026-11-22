@@ -198,7 +198,8 @@ async function klingImageInputs(request: EngineRequest): Promise<Record<string, 
             }
 }
 
-export async function generateKlingImages(request: EngineRequest): Promise<Blob[]> {
+/** Legacy `/v1` image generation; the API 2.0 module dispatches to it. */
+export async function generateKlingLegacyImages(request: EngineRequest): Promise<Blob[]> {
     const endpoint =
         request.modelId === 'kling-image-3-omni' ? 'images/omni-image' : 'images/generations'
     const images = await klingImageInputs(request)

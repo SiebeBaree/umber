@@ -59,7 +59,8 @@ export function ratioToCss(ratio: AspectRatio): string {
     return `${width} / ${height}`
 }
 
-export type ImageResolution = '1K' | '2K' | '4K'
+// Kling Image 4.0 renders an 8K tier that no other image model offers yet.
+export type ImageResolution = '1K' | '2K' | '4K' | '8K'
 // MiniMax renders a 768-line tier and a 2K tier that no one else names, so
 // both sit in the union alongside the common broadcast tiers.
 export type VideoResolution = '480p' | '720p' | '768p' | '1080p' | '2K' | '4K'
@@ -83,6 +84,11 @@ export interface PriceContext {
     readonly quality: string
     /** Reference images attached, which some vendors bill for. */
     readonly references: number
+    /**
+     * Images the run returns, for vendors that bill references once per
+     * request rather than once per image. Absent means one.
+     */
+    readonly outputs?: number
 }
 
 /**
