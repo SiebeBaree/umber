@@ -178,7 +178,13 @@ function v2SizeOf(request: EngineRequest): string {
         maxEdge: 8192,
         maxPixels: edge ** 2,
     })
-    return `${width}x${height}`
+    // Snapping can tip an accepted 6:1 shape just past Ideogram's 6:1 limit.
+    // Six times a grid-aligned edge stays on the grid, and trimming the long
+    // edge only ever lowers the pixel count.
+    const longest = 6 * Math.min(width, height)
+    return width >= height
+        ? `${Math.min(width, longest)}x${height}`
+        : `${width}x${Math.min(height, longest)}`
 }
 
 /** 4.5 and 4.6 accept source images and explicit quality through the v2 multipart API. */

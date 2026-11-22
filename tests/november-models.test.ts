@@ -52,6 +52,18 @@ test.each([
     expect((height ?? 0) % 32).toBe(0)
 })
 
+test.each([
+    ['ideogram-v4-6', '2K', '3600:600', '4992x832'],
+    ['ideogram-v4-6', '2K', '600:3600', '832x4992'],
+    ['ideogram-v4-6', '4K', '3600:600', '8064x1344'],
+    ['ideogram-v4-5', '2K', '3600:600', '4992x832'],
+    ['ideogram-v4-6', '2K', '16:9', '2720x1536'],
+] as const)('%s keeps a %s %s first image within 6:1', async (modelId, resolution, ratio, size) => {
+    vi.mocked(httpFetch).mockResolvedValueOnce(Response.json({ data: [{ url }] }))
+    await runGeneration(modelRequest(modelId, { resolution, ratio }))
+    expect(vi.mocked(httpFetch).mock.calls[0]?.[1]?.form?.get('size')).toBe(size)
+})
+
 test('Kling Image 4.0 creates one API 2.0 task with named references', async () => {
     vi.mocked(httpFetch)
         .mockResolvedValueOnce(Response.json({ code: 0, data: { id: 'task' } }))
