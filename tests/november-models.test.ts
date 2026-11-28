@@ -5,7 +5,7 @@ import { runGeneration } from '../packages/ui/src/features/generate/engine'
 import { httpFetch } from '../packages/ui/src/lib/http'
 import { modelRequest, referenceImage } from './model-request'
 
-/** Ideogram 4.6, Kling Image 4.0, Seedream 5.5 and the new 4K video tiers. */
+/** Ideogram 4.6, Kling Image 4.0, Seedream 5.5, MiniMax H3 Lite and the new 4K video tiers. */
 
 vi.mock('../packages/ui/src/lib/http', () => ({ httpFetch: vi.fn() }))
 const url = 'https://results.example/image.png'
@@ -166,4 +166,14 @@ test.each([
     await runGeneration(modelRequest(modelId, { resolution }))
     const payload = vi.mocked(httpFetch).mock.calls[0]?.[1]?.json
     expect(payload).toMatchObject(kling ? { settings: { resolution: wire } } : { resolution: wire })
+})
+
+test('MiniMax H3 Lite keeps a concrete ratio with references, since it has no adaptive', async () => {
+    vi.mocked(httpFetch)
+        .mockResolvedValueOnce(Response.json({ task_id: 'task' }))
+        .mockResolvedValueOnce(Response.json({ task: { status: 'succeeded', content: { url } } }))
+    await runGeneration(
+        modelRequest('minimax-h3-lite', { ratio: '9:16', references: [referenceImage()] }),
+    )
+    expect(vi.mocked(httpFetch).mock.calls[0]?.[1]?.json).toMatchObject({ ratio: '9:16' })
 })

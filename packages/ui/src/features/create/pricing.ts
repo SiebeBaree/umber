@@ -63,10 +63,12 @@ export function estimateCost(model: Model, settings: ModeSettings, references = 
     }
 
     if (!isImageModel(model)) {
-        // Some vendors bill the supplied first frame on top of the clip.
-        const firstFrame = references > 0 ? (model.firstFramePrice ?? 0) : 0
+        // Some vendors bill supplied stills beyond a free allowance on top of the clip.
+        const stills = model.inputImagePrice
+        const stillsCost =
+            stills === undefined ? 0 : Math.max(0, references - stills.free) * stills.each
 
-        return unit * settings.durationSeconds + firstFrame
+        return unit * settings.durationSeconds + stillsCost
     }
 
     return unit * settings.outputCount
