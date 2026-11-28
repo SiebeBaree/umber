@@ -202,8 +202,11 @@ export interface VideoModel extends ModelBase {
     readonly pricePerSecond: Price | null
     /** Only where animating a still is billed differently from text alone. */
     readonly pricePerSecondFromImage?: Price
-    /** A one-off charge some vendors add for the supplied first frame. */
-    readonly firstFramePrice?: number
+    /**
+     * A per-run charge for each supplied still beyond a free allowance, as
+     * MiniMax bills frames and reference images on top of the clip.
+     */
+    readonly inputImagePrice?: { readonly free: number; readonly each: number }
 }
 
 export type Model = ImageModel | VideoModel

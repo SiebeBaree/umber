@@ -237,6 +237,18 @@ test.each([
         { task: { status: 'succeeded', content: { url } } },
     ],
     [
+        'minimax-h3-highspeed',
+        'MiniMax-H3-Highspeed',
+        { task_id: 'task' },
+        { task: { status: 'succeeded', content: { url } } },
+    ],
+    [
+        'minimax-h3-lite',
+        'MiniMax-H3-Lite',
+        { task_id: 'task' },
+        { task: { status: 'succeeded', content: { url } } },
+    ],
+    [
         'grok-imagine-video-1-5-lite',
         'grok-imagine-video-1.5-lite',
         { request_id: 'task' },

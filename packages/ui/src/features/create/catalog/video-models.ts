@@ -331,7 +331,35 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         pricePerSecond: 0.05,
     },
     // MiniMax's API refuses frames and reference images in the same request,
-    // which the integration reports; the catalog declares the superset.
+    // which the integration reports; the catalog declares the superset. Every
+    // H3 model bills stills past a free allowance per run: five on the
+    // flagship tiers, two on Max, which fal serves for MiniMax.
+    {
+        id: 'minimax-h3-highspeed',
+        name: 'MiniMax H3 Highspeed',
+        provider: 'minimax',
+        kind: 'video',
+        releasedOn: '2026-11-27',
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
+        resolutions: ['480p', '768p'],
+        durations: { kind: 'range', min: 4, max: 15, step: 1 },
+        assets: { lastFrame: true, referenceImages: 9, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: { '480p': 0.04, '768p': 0.06 },
+        inputImagePrice: { free: 5, each: 0.03 },
+    },
+    {
+        id: 'minimax-h3-lite',
+        name: 'MiniMax H3 Lite',
+        provider: 'minimax',
+        kind: 'video',
+        releasedOn: '2026-11-27',
+        aspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
+        resolutions: ['480p', '768p'],
+        durations: { kind: 'range', min: 4, max: 15, step: 1 },
+        assets: { lastFrame: true, referenceImages: 9, types: COMMON_IMAGE_TYPES },
+        pricePerSecond: { '480p': 0.025, '768p': 0.04 },
+        inputImagePrice: { free: 5, each: 0.02 },
+    },
     {
         id: 'minimax-h3-max',
         name: 'MiniMax H3 Max',
@@ -342,7 +370,8 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         resolutions: ['480p', '768p'],
         durations: { kind: 'range', min: 5, max: 15, step: 1 },
         assets: { lastFrame: true, referenceImages: 9, types: COMMON_IMAGE_TYPES },
-        pricePerSecond: null,
+        pricePerSecond: { '480p': 0.05, '768p': 0.08 },
+        inputImagePrice: { free: 2, each: 0.074 },
     },
     {
         id: 'minimax-h3',
@@ -354,7 +383,8 @@ export const VIDEO_MODELS: readonly VideoModel[] = [
         resolutions: ['768p', '2K'],
         durations: { kind: 'range', min: 4, max: 15, step: 1 },
         assets: { lastFrame: true, referenceImages: 9, types: COMMON_IMAGE_TYPES },
-        pricePerSecond: { '768p': 0.09, '2K': 0.13 },
+        pricePerSecond: { '768p': 0.08, '2K': 0.13 },
+        inputImagePrice: { free: 5, each: 0.04 },
     },
     {
         id: 'grok-imagine-video-1-5-lite',

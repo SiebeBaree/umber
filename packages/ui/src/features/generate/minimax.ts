@@ -20,6 +20,8 @@ const MAX_IMAGE_BODY_BYTES = 63 * 1024 * 1024
 const WIRE_MODEL_IDS: Readonly<Record<string, string>> = {
     'minimax-h3-image': 'MiniMax-H3-Image',
     'minimax-h3-image-highspeed': 'MiniMax-H3-Image-Highspeed',
+    'minimax-h3-highspeed': 'MiniMax-H3-Highspeed',
+    'minimax-h3-lite': 'MiniMax-H3-Lite',
     'minimax-h3-max': 'MiniMax-H3-Max',
     'minimax-h3': 'MiniMax-H3',
 }

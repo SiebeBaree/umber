@@ -285,3 +285,11 @@ test('Seedance 2.5 and Kling 4.0 price their new top tiers per second', () => {
         8,
     )
 })
+
+test('MiniMax H3 bills stills past the free allowance once per run', () => {
+    const lite = video('minimax-h3-lite')
+    expect(costOf(lite, { resolution: '480p', durationSeconds: 10 }, 5)).toBeCloseTo(0.25, 8)
+    expect(costOf(lite, { resolution: '480p', durationSeconds: 10 }, 9)).toBeCloseTo(0.33, 8)
+    // Max allows two free stills, at a higher rate past them.
+    expect(costOf(video('minimax-h3-max'), { resolution: '768p' }, 4)).toBeCloseTo(0.548, 8)
+})
